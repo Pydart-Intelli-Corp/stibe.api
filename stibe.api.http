@@ -1,0 +1,6 @@
+@stibe.api_HostAddress = http://localhost:5074
+
+GET {{stibe.api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
