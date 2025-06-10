@@ -14,7 +14,7 @@ namespace stibe.api.Data
         public DbSet<Service> Services { get; set; }
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<Staff> Staff { get; set; }
-    
+        public DbSet<StaffSpecialization> StaffSpecializations { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -25,6 +25,24 @@ namespace stibe.api.Data
             ConfigureServiceEntity(modelBuilder);
             ConfigureBookingEntity(modelBuilder);
             ConfigureStaffEntity(modelBuilder);
+            ConfigureStaffSpecializationEntity(modelBuilder);
+        }
+        private void ConfigureStaffSpecializationEntity(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<StaffSpecialization>(entity =>
+            {
+                entity.HasIndex(e => new { e.StaffId, e.ServiceId }).IsUnique();
+
+                entity.HasOne(e => e.Staff)
+                      .WithMany(e => e.Specializations)
+                      .HasForeignKey(e => e.StaffId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Service)
+                      .WithMany()
+                      .HasForeignKey(e => e.ServiceId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
         }
 
         private void ConfigureUserEntity(ModelBuilder modelBuilder)
@@ -90,6 +108,17 @@ namespace stibe.api.Data
                       .WithOne(e => e.AssignedStaff)
                       .HasForeignKey(e => e.AssignedStaffId)
                       .OnDelete(DeleteBehavior.SetNull);
+
+                // User relationship
+                entity.HasOne(e => e.User)
+                      .WithOne(e => e.StaffProfile)
+                      .HasForeignKey<Staff>(e => e.UserId)
+                      .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasMany(e => e.Specializations)
+                      .WithOne(e => e.Staff)
+                      .HasForeignKey(e => e.StaffId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
         }
 

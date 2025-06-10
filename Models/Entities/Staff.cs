@@ -79,5 +79,15 @@ namespace stibe.api.Models.Entities
         public virtual Salon Salon { get; set; } = null!;
 
         public virtual ICollection<Booking> AssignedBookings { get; set; } = new List<Booking>();
+
+        public virtual ICollection<StaffSpecialization> Specializations { get; set; } = new List<StaffSpecialization>();
+
+        // Add User relationship
+        public int? UserId { get; set; }
+
+        [ForeignKey("UserId")]
+        public virtual User? User { get; set; }
+
+
     }
 }
