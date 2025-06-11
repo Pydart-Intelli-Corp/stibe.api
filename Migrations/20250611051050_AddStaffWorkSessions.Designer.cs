@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using stibe.api.Data;
 
@@ -11,9 +12,11 @@ using stibe.api.Data;
 namespace stibe.api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250611051050_AddStaffWorkSessions")]
+    partial class AddStaffWorkSessions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -435,87 +438,6 @@ namespace stibe.api.Migrations
                     b.ToTable("StaffSpecializations");
                 });
 
-            modelBuilder.Entity("stibe.api.Models.Entities.StaffWorkSession", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ActualMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<int>("BreakMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("ClockInLatitude")
-                        .HasColumnType("decimal(10,8)");
-
-                    b.Property<decimal?>("ClockInLongitude")
-                        .HasColumnType("decimal(11,8)");
-
-                    b.Property<TimeSpan>("ClockInTime")
-                        .HasColumnType("time(6)");
-
-                    b.Property<decimal?>("ClockOutLatitude")
-                        .HasColumnType("decimal(10,8)");
-
-                    b.Property<decimal?>("ClockOutLongitude")
-                        .HasColumnType("decimal(11,8)");
-
-                    b.Property<TimeSpan?>("ClockOutTime")
-                        .HasColumnType("time(6)");
-
-                    b.Property<decimal>("CommissionEarned")
-                        .HasColumnType("decimal(65,30)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<decimal>("RevenueGenerated")
-                        .HasColumnType("decimal(65,30)");
-
-                    b.Property<int>("ScheduledMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ServicesCompleted")
-                        .HasColumnType("int");
-
-                    b.Property<int>("StaffId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime>("WorkDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("WorkDate");
-
-                    b.HasIndex("StaffId", "WorkDate")
-                        .IsUnique();
-
-                    b.ToTable("StaffWorkSessions");
-                });
-
             modelBuilder.Entity("stibe.api.Models.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -676,17 +598,6 @@ namespace stibe.api.Migrations
                         .IsRequired();
 
                     b.Navigation("Service");
-
-                    b.Navigation("Staff");
-                });
-
-            modelBuilder.Entity("stibe.api.Models.Entities.StaffWorkSession", b =>
-                {
-                    b.HasOne("stibe.api.Models.Entities.Staff", "Staff")
-                        .WithMany()
-                        .HasForeignKey("StaffId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
 
                     b.Navigation("Staff");
                 });

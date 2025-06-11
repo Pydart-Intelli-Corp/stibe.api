@@ -35,14 +35,14 @@ namespace stibe.api.Controllers
 
         [HttpPost("register")]
         [Authorize(Roles = "SalonOwner,Admin")]
-        public async Task<ActionResult<ApiResponse<StaffProfileResponseDto>>> RegisterStaff(StaffRegistrationRequestDto request)
+        public async Task<ActionResult<ApiResponse<StaffResponseDto>>> RegisterStaff(StaffRegistrationRequestDto request)
         {
             try
             {
                 var currentUserId = GetCurrentUserId();
                 if (currentUserId == null)
                 {
-                    return Unauthorized(ApiResponse<StaffProfileResponseDto>.ErrorResponse("Invalid token"));
+                    return Unauthorized(ApiResponse<StaffResponseDto>.ErrorResponse("Invalid token"));
                 }
 
                 // Verify salon ownership (if not admin)
@@ -64,20 +64,20 @@ namespace stibe.api.Controllers
 
                 if (existingUser != null)
                 {
-                    return BadRequest(ApiResponse<StaffProfileResponseDto>.ErrorResponse("Email already exists"));
+                    return BadRequest(ApiResponse<StaffResponseDto>.ErrorResponse("Email already exists"));
                 }
 
                 // Validate schedule
                 if (request.StartTime >= request.EndTime)
                 {
-                    return BadRequest(ApiResponse<StaffProfileResponseDto>.ErrorResponse("Start time must be before end time"));
+                    return BadRequest(ApiResponse<StaffResponseDto>.ErrorResponse("Start time must be before end time"));
                 }
 
                 if (request.LunchBreakStart >= request.LunchBreakEnd ||
                     request.LunchBreakStart < request.StartTime ||
                     request.LunchBreakEnd > request.EndTime)
                 {
-                    return BadRequest(ApiResponse<StaffProfileResponseDto>.ErrorResponse("Invalid lunch break times"));
+                    return BadRequest(ApiResponse<StaffResponseDto>.ErrorResponse("Invalid lunch break times"));
                 }
 
                 using var transaction = await _context.Database.BeginTransactionAsync();
@@ -133,51 +133,90 @@ namespace stibe.api.Controllers
 
                     await transaction.CommitAsync();
 
-                    // Get salon info for welcome email
+                    // Get salon info for both email and response (MOVED OUTSIDE try-catch)
                     var salonInfo = await _context.Salons.FindAsync(request.SalonId);
 
-                    // Send welcome email
-                    var welcomeMessage = $@"
-                        <h2>🎉 Welcome to {salonInfo?.Name ?? "the team"}!</h2>
-                        <p>You've been registered as a <strong>{request.Role}</strong>.</p>
-                        
-                        <div style='background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-                            <h3>📱 Your Login Details:</h3>
-                            <p><strong>Email:</strong> {request.Email}</p>
-                            <p><strong>Password:</strong> {request.Password}</p>
-                            <p><em>Please change your password after first login.</em></p>
-                        </div>
-                        
-                        <div style='background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-                            <h3>💼 Your Work Details:</h3>
-                            <p><strong>Working Hours:</strong> {request.StartTime:hh\\:mm} - {request.EndTime:hh\\:mm}</p>
-                            <p><strong>Lunch Break:</strong> {request.LunchBreakStart:hh\\:mm} - {request.LunchBreakEnd:hh\\:mm}</p>
-                            <p><strong>Commission Rate:</strong> {request.CommissionRate}%</p>
-                            <p><strong>Hourly Rate:</strong> ₹{request.HourlyRate:F2}</p>
-                        </div>
-                        
-                        <p>Welcome to the team! 💫</p>
-                    ";
+                    // Send welcome email (wrap in try-catch to prevent failure)
+                    try
+                    {
+                        var welcomeMessage = $@"
+                    <h2>🎉 Welcome to {salonInfo?.Name ?? "the team"}!</h2>
+                    <p>You've been registered as a <strong>{request.Role}</strong>.</p>
+                    
+                    <div style='background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+                        <h3>📱 Your Login Details:</h3>
+                        <p><strong>Email:</strong> {request.Email}</p>
+                        <p><strong>Password:</strong> {request.Password}</p>
+                        <p><em>Please change your password after first login.</em></p>
+                    </div>
+                    
+                    <div style='background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+                        <h3>💼 Your Work Details:</h3>
+                        <p><strong>Working Hours:</strong> {request.StartTime:hh\\:mm} - {request.EndTime:hh\\:mm}</p>
+                        <p><strong>Lunch Break:</strong> {request.LunchBreakStart:hh\\:mm} - {request.LunchBreakEnd:hh\\:mm}</p>
+                        <p><strong>Commission Rate:</strong> {request.CommissionRate}%</p>
+                        <p><strong>Hourly Rate:</strong> ₹{request.HourlyRate:F2}</p>
+                    </div>
+                    
+                    <p>Welcome to the team! 💫</p>
+                ";
 
-                    await _emailService.SendEmailAsync(request.Email, "Welcome to the Team! 🎉", welcomeMessage);
+                        await _emailService.SendEmailAsync(request.Email, "Welcome to the Team! 🎉", welcomeMessage);
+                    }
+                    catch (Exception emailEx)
+                    {
+                        _logger.LogWarning(emailEx, "Failed to send welcome email to {Email}", request.Email);
+                        // Don't fail the registration if email fails
+                    }
 
-                    // Get complete staff info for response
-                    var completeStaff = await GetStaffProfileAsync(staff.Id);
+                    // Create simple response without complex navigation properties
+                    var staffResponse = new StaffResponseDto
+                    {
+                        Id = staff.Id,
+                        FirstName = staff.FirstName,
+                        LastName = staff.LastName,
+                        Email = staff.Email,
+                        PhoneNumber = staff.PhoneNumber,
+                        Role = staff.Role,
+                        Bio = staff.Bio,
+                        PhotoUrl = staff.PhotoUrl,
+                        IsActive = staff.IsActive,
+                        StartTime = staff.StartTime,
+                        EndTime = staff.EndTime,
+                        LunchBreakStart = staff.LunchBreakStart,
+                        LunchBreakEnd = staff.LunchBreakEnd,
+                        ExperienceYears = staff.ExperienceYears,
+                        HourlyRate = staff.HourlyRate,
+                        CommissionRate = staff.CommissionRate,
+                        EmploymentType = staff.EmploymentType,
+                        AverageRating = staff.AverageRating,
+                        TotalReviews = staff.TotalReviews,
+                        TotalServices = staff.TotalServices,
+                        SalonId = staff.SalonId,
+                        SalonName = salonInfo?.Name ?? "Unknown Salon", // Now salonInfo is available here
+                        Certifications = staff.Certifications,
+                        Languages = staff.Languages,
+                        InstagramHandle = staff.InstagramHandle,
+                        JoinDate = staff.JoinDate,
+                        CreatedAt = staff.CreatedAt,
+                        UpdatedAt = staff.UpdatedAt
+                    };
 
                     _logger.LogInformation($"Staff member registered successfully: {request.Email} for salon {request.SalonId}");
-                    return Ok(ApiResponse<StaffProfileResponseDto>.SuccessResponse(completeStaff,
+                    return Ok(ApiResponse<StaffResponseDto>.SuccessResponse(staffResponse,
                         "Staff member registered successfully! Welcome email sent with login details."));
                 }
-                catch
+                catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
+                    _logger.LogError(ex, "Error in staff registration transaction");
                     throw;
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error registering staff member");
-                return StatusCode(500, ApiResponse<StaffProfileResponseDto>.ErrorResponse("An error occurred during staff registration"));
+                return StatusCode(500, ApiResponse<StaffResponseDto>.ErrorResponse("An error occurred during staff registration"));
             }
         }
 
@@ -689,26 +728,61 @@ namespace stibe.api.Controllers
 
         private async Task<TodayWorkSummaryDto> GetTodayWorkSummaryAsync(int staffId)
         {
-            // Mock data - will be implemented in Step 4C
+            var staffWorkService = HttpContext.RequestServices.GetService<IStaffWorkService>();
+            if (staffWorkService != null)
+            {
+                var workStatus = await staffWorkService.GetCurrentWorkStatusAsync(staffId);
+
+                return new TodayWorkSummaryDto
+                {
+                    WorkDate = workStatus.WorkDate,
+                    ClockInTime = workStatus.ClockInTime,
+                    ClockOutTime = workStatus.ClockOutTime,
+                    IsClockedIn = workStatus.IsClockedIn,
+                    ScheduledMinutes = workStatus.ScheduledMinutes,
+                    WorkedMinutes = workStatus.WorkedMinutes,
+                    ServicesCompleted = 0, // Will be calculated from actual data
+                    ServicesRemaining = await GetRemainingServicesCountAsync(staffId),
+                    TodayEarnings = 0, // Will be calculated from actual data
+                    TodayCommission = 0, // Will be calculated from actual data
+                    UtilizationPercentage = workStatus.UtilizationPercentage,
+                    NextBreakTime = workStatus.NextBreakTime,
+                    CurrentStatus = workStatus.CurrentStatus,
+                    StatusMessage = workStatus.StatusMessage
+                };
+            }
+
+            // Fallback to mock data
             return new TodayWorkSummaryDto
             {
                 WorkDate = DateTime.Today,
                 ClockInTime = null,
                 ClockOutTime = null,
                 IsClockedIn = false,
-                ScheduledMinutes = 480, // 8 hours
+                ScheduledMinutes = 480,
                 WorkedMinutes = 0,
                 ServicesCompleted = 0,
                 ServicesRemaining = 3,
                 TodayEarnings = 0,
                 TodayCommission = 0,
                 UtilizationPercentage = 0,
-                NextBreakTime = TimeSpan.FromHours(13), // 1 PM lunch
+                NextBreakTime = TimeSpan.FromHours(13),
                 CurrentStatus = "OffShift",
                 StatusMessage = "You haven't clocked in yet today"
             };
         }
 
+        private async Task<int> GetRemainingServicesCountAsync(int staffId)
+        {
+            var today = DateTime.Today;
+            var now = DateTime.Now.TimeOfDay;
+
+            return await _context.Bookings
+                .CountAsync(b => b.AssignedStaffId == staffId &&
+                                b.BookingDate.Date == today &&
+                                b.BookingTime > now &&
+                                b.Status != "Cancelled");
+        }
         private async Task<List<TodayBookingDto>> GetTodayBookingsAsync(int staffId)
         {
             var today = DateTime.Today;

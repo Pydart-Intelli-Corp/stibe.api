@@ -14,6 +14,7 @@ namespace stibe.api.Data
         public DbSet<Service> Services { get; set; }
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<Staff> Staff { get; set; }
+        public DbSet<StaffWorkSession> StaffWorkSessions { get; set; }
         public DbSet<StaffSpecialization> StaffSpecializations { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -26,6 +27,7 @@ namespace stibe.api.Data
             ConfigureBookingEntity(modelBuilder);
             ConfigureStaffEntity(modelBuilder);
             ConfigureStaffSpecializationEntity(modelBuilder);
+            ConfigureStaffWorkSessionEntity(modelBuilder);
         }
         private void ConfigureStaffSpecializationEntity(ModelBuilder modelBuilder)
         {
@@ -44,7 +46,20 @@ namespace stibe.api.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
         }
+        private void ConfigureStaffWorkSessionEntity(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<StaffWorkSession>(entity =>
+            {
+                entity.HasIndex(e => new { e.StaffId, e.WorkDate }).IsUnique();
+                entity.HasIndex(e => e.WorkDate);
+                entity.HasIndex(e => e.Status);
 
+                entity.HasOne(e => e.Staff)
+                      .WithMany()
+                      .HasForeignKey(e => e.StaffId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+        }
         private void ConfigureUserEntity(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<User>(entity =>
@@ -62,17 +77,19 @@ namespace stibe.api.Data
                       .HasForeignKey(e => e.CustomerId)
                       .OnDelete(DeleteBehavior.Restrict);
 
-                // Staff profile relationship
+                // Staff profile relationship (optional)
                 entity.HasOne(e => e.StaffProfile)
-                      .WithOne()
-                      .HasForeignKey<Staff>("UserId")
-                      .OnDelete(DeleteBehavior.Cascade);
+                      .WithOne(e => e.User)
+                      .HasForeignKey<Staff>(e => e.UserId)
+                      .OnDelete(DeleteBehavior.SetNull)
+                      .IsRequired(false);
 
-                // Working salon relationship
+                // Working salon relationship (optional)
                 entity.HasOne(e => e.WorkingSalon)
                       .WithMany()
                       .HasForeignKey(e => e.SalonId)
-                      .OnDelete(DeleteBehavior.Restrict);
+                      .OnDelete(DeleteBehavior.Restrict)
+                      .IsRequired(false);
             });
         }
 

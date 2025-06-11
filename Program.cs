@@ -57,6 +57,7 @@ builder.Services.AddScoped<IEmailService, MockEmailService>();
 builder.Services.AddScoped<ILocationService, MockLocationService>();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddScoped<IStaffWorkService, StaffWorkService>();
 // ⭐ Updated Swagger Configuration with JWT Support
 builder.Services.AddSwaggerGen(c =>
 {
