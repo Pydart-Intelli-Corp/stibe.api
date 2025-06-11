@@ -7,7 +7,7 @@ using stibe.api.Models.DTOs.PartnersDTOs.ServicesDTOs;
 using stibe.api.Models.Entities.PartnersEntity.ServicesEntity;
 using System.Security.Claims;
 
-namespace stibe.api.Controllers
+namespace stibe.api.Controllers.PartnerController.ServicesController
 {
     [ApiController]
     [Route("api/salon/{salonId}/[controller]")]

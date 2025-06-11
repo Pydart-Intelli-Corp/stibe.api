@@ -5,13 +5,13 @@ using stibe.api.Data;
 using stibe.api.Models.DTOs.Auth;
 using stibe.api.Models.DTOs.Features;
 using stibe.api.Models.DTOs.PartnersDTOs.StaffsDTOs;
-using stibe.api.Models.Entities;
+using stibe.api.Models.Entities.PartnersEntity;
 using stibe.api.Models.Entities.PartnersEntity.StaffEntity;
 using stibe.api.Services.Interfaces;
 using stibe.api.Services.Interfaces.Partner;
 using System.Security.Claims;
 
-namespace stibe.api.Controllers
+namespace stibe.api.Controllers.PartnerController.StaffController
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -848,7 +848,7 @@ namespace stibe.api.Controllers
             // Mock data - will be implemented in Step 4G
             return new List<StaffNotificationDto>
     {
-        new stibe.api.Models.DTOs.PartnersDTOs.StaffsDTOs.StaffNotificationDto
+        new StaffNotificationDto
         {
             Id = 1,
             Type = "Reminder",
@@ -860,7 +860,7 @@ namespace stibe.api.Controllers
             ActionUrl = "",
             ActionText = ""
         },
-        new stibe.api.Models.DTOs.PartnersDTOs.StaffsDTOs.StaffNotificationDto
+        new StaffNotificationDto
         {
             Id = 2,
             Type = "Booking",

@@ -9,7 +9,7 @@ using stibe.api.Models.Entities.PartnersEntity;
 using stibe.api.Services.Interfaces;
 using System.Security.Claims;
 
-namespace stibe.api.Controllers
+namespace stibe.api.Controllers.PartnerController.SalonController
 {
     [ApiController]
     [Route("api/[controller]")]

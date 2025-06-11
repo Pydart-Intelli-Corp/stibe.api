@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using stibe.api.Data;
 using stibe.api.Models.DTOs.Auth;
 using stibe.api.Models.DTOs.Features;
-using stibe.api.Models.Entities;
+using stibe.api.Models.Entities.PartnersEntity;
 using stibe.api.Services.Interfaces;
 using System.Security.Claims;
 
-namespace stibe.api.Controllers
+namespace stibe.api.Controllers.AuthController
 {
     [ApiController]
     [Route("api/[controller]")]

@@ -7,7 +7,7 @@ using stibe.api.Models.DTOs.PartnersDTOs.StaffsDTOs;
 using stibe.api.Services.Interfaces.Partner;
 using System.Security.Claims;
 
-namespace stibe.api.Controllers
+namespace stibe.api.Controllers.PartnerController.StaffController
 {
     [ApiController]
     [Route("api/staff/work")]
