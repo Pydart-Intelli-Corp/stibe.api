@@ -7,6 +7,7 @@ using stibe.api.Data;
 using stibe.api.Services.Interfaces;
 using stibe.api.Services.Implementations;
 using System.Text;
+using stibe.api.Services.Interfaces.Partner;
 
 var builder = WebApplication.CreateBuilder(args);
 

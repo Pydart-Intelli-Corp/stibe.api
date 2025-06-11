@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using stibe.api.Data;
 using stibe.api.Models.DTOs;
-using stibe.api.Services.Interfaces;
+using stibe.api.Services.Interfaces.Partner;
 using System.Security.Claims;
 
 namespace stibe.api.Controllers

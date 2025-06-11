@@ -5,6 +5,7 @@ using stibe.api.Data;
 using stibe.api.Models.DTOs;
 using stibe.api.Models.Entities;
 using stibe.api.Services.Interfaces;
+using stibe.api.Services.Interfaces.Partner;
 using System.Security.Claims;
 
 namespace stibe.api.Controllers

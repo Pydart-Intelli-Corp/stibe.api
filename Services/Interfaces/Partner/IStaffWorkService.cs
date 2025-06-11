@@ -1,6 +1,6 @@
 ﻿using stibe.api.Models.DTOs;
 
-namespace stibe.api.Services.Interfaces
+namespace stibe.api.Services.Interfaces.Partner
 {
     public interface IStaffWorkService
     {
