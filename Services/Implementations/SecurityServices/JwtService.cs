@@ -8,7 +8,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace stibe.api.Services.Implementations
+namespace stibe.api.Services.Implementations.SecurityServices
 {
     public class JwtService : IJwtService
     {

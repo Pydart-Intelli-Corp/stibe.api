@@ -2,7 +2,7 @@
 using stibe.api.Configuration;
 using stibe.api.Services.Interfaces;
 
-namespace stibe.api.Services.Implementations
+namespace stibe.api.Services.Implementations.MockServices
 {
     public class MockEmailService : IEmailService
     {

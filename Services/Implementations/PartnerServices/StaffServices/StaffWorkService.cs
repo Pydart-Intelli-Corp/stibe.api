@@ -5,7 +5,7 @@ using stibe.api.Models.Entities;
 using stibe.api.Services.Interfaces;
 using stibe.api.Services.Interfaces.Partner;
 
-namespace stibe.api.Services.Implementations
+namespace stibe.api.Services.Implementations.PartnerServices.StaffServices
 {
     public class StaffWorkService : IStaffWorkService
     {
