@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using stibe.api.Configuration;
-using stibe.api.Models.Entities;
+using stibe.api.Models.Entities.PartnersEntity;
 using stibe.api.Services.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;

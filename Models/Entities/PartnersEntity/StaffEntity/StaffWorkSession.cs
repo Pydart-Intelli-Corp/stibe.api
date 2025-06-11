@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace stibe.api.Models.Entities
+namespace stibe.api.Models.Entities.PartnersEntity.StaffEntity
 {
     public class StaffWorkSession : BaseEntity
     {

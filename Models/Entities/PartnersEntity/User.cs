@@ -1,7 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using stibe.api.Models.Entities.PartnersEntity.StaffEntity;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace stibe.api.Models.Entities
+namespace stibe.api.Models.Entities.PartnersEntity
 {
     public class User : BaseEntity
     {

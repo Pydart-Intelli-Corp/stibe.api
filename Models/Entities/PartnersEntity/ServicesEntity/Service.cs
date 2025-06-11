@@ -1,7 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using stibe.api.Models.Entities.PartnersEntity;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace stibe.api.Models.Entities
+namespace stibe.api.Models.Entities.PartnersEntity.ServicesEntity
 {
     public class Service : BaseEntity
     {

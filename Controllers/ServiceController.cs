@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using stibe.api.Data;
 using stibe.api.Models.DTOs.Features;
 using stibe.api.Models.DTOs.PartnersDTOs.ServicesDTOs;
-using stibe.api.Models.Entities;
+using stibe.api.Models.Entities.PartnersEntity.ServicesEntity;
 using System.Security.Claims;
 
 namespace stibe.api.Controllers

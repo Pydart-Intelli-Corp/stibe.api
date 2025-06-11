@@ -1,4 +1,4 @@
-﻿using stibe.api.Models.Entities;
+﻿using stibe.api.Models.Entities.PartnersEntity;
 using System.Security.Claims;
 
 namespace stibe.api.Services.Interfaces

@@ -5,7 +5,7 @@ using stibe.api.Data;
 using stibe.api.Models.DTOs.Features;
 using stibe.api.Models.DTOs.PartnersDTOs;
 using stibe.api.Models.DTOs.PartnersDTOs.ServicesDTOs;
-using stibe.api.Models.Entities;
+using stibe.api.Models.Entities.PartnersEntity;
 using stibe.api.Services.Interfaces;
 using System.Security.Claims;
 

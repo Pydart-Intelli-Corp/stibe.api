@@ -1,5 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using stibe.api.Models.Entities;
+using stibe.api.Models.Entities.PartnersEntity;
+using stibe.api.Models.Entities.PartnersEntity.ServicesEntity;
+using stibe.api.Models.Entities.PartnersEntity.StaffEntity;
 
 namespace stibe.api.Data
 {

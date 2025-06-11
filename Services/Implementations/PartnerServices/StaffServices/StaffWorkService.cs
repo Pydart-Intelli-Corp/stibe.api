@@ -2,6 +2,7 @@
 using stibe.api.Data;
 using stibe.api.Models.DTOs.PartnersDTOs.StaffsDTOs;
 using stibe.api.Models.Entities;
+using stibe.api.Models.Entities.PartnersEntity.StaffEntity;
 using stibe.api.Services.Interfaces;
 using stibe.api.Services.Interfaces.Partner;
 
