@@ -1,4 +1,4 @@
-﻿namespace stibe.api.Models.DTOs
+﻿namespace stibe.api.Models.DTOs.Features
 {
     public class ApiResponse<T>
     {

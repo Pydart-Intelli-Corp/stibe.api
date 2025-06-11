@@ -2,7 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using stibe.api.Data;
-using stibe.api.Models.DTOs;
+using stibe.api.Models.DTOs.Features;
+using stibe.api.Models.DTOs.PartnersDTOs.StaffsDTOs;
 using stibe.api.Services.Interfaces.Partner;
 using System.Security.Claims;
 

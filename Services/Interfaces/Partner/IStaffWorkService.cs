@@ -1,4 +1,4 @@
-﻿using stibe.api.Models.DTOs;
+﻿using stibe.api.Models.DTOs.PartnersDTOs.StaffsDTOs;
 
 namespace stibe.api.Services.Interfaces.Partner
 {

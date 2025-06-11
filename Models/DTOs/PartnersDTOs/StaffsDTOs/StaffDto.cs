@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace stibe.api.Models.DTOs
+namespace stibe.api.Models.DTOs.PartnersDTOs.StaffsDTOs
 {
     public class StaffRegistrationRequestDto
     {

@@ -2,7 +2,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using stibe.api.Data;
-using stibe.api.Models.DTOs;
+using stibe.api.Models.DTOs.Auth;
+using stibe.api.Models.DTOs.Features;
+using stibe.api.Models.DTOs.PartnersDTOs.StaffsDTOs;
 using stibe.api.Models.Entities;
 using stibe.api.Services.Interfaces;
 using stibe.api.Services.Interfaces.Partner;
@@ -840,12 +842,12 @@ namespace stibe.api.Controllers
             };
         }
 
-        private async Task<List<stibe.api.Models.DTOs.StaffNotificationDto>> GetStaffNotificationsAsync(int staffId)
+        private async Task<List<StaffNotificationDto>> GetStaffNotificationsAsync(int staffId)
         {
             // Mock data - will be implemented in Step 4G
-            return new List<stibe.api.Models.DTOs.StaffNotificationDto>
+            return new List<StaffNotificationDto>
     {
-        new stibe.api.Models.DTOs.StaffNotificationDto
+        new stibe.api.Models.DTOs.PartnersDTOs.StaffsDTOs.StaffNotificationDto
         {
             Id = 1,
             Type = "Reminder",
@@ -857,7 +859,7 @@ namespace stibe.api.Controllers
             ActionUrl = "",
             ActionText = ""
         },
-        new stibe.api.Models.DTOs.StaffNotificationDto
+        new stibe.api.Models.DTOs.PartnersDTOs.StaffsDTOs.StaffNotificationDto
         {
             Id = 2,
             Type = "Booking",

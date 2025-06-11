@@ -1,6 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using stibe.api.Models.DTOs.PartnersDTOs.ServicesDTOs;
+using System.ComponentModel.DataAnnotations;
 
-namespace stibe.api.Models.DTOs
+namespace stibe.api.Models.DTOs.PartnersDTOs
 {
     public class CreateSalonRequestDto
     {
