@@ -27,22 +27,52 @@ namespace stibe.api.Models.Entities.PartnersEntity
         public string PasswordHash { get; set; } = string.Empty;
 
         public bool IsEmailVerified { get; set; } = false;
+
         // Add these properties to the existing User entity
         public int? SalonId { get; set; } // For staff members
         public bool IsStaffActive { get; set; } = false;
         public DateTime? StaffJoinDate { get; set; }
+
+        // Admin-specific properties
+        public bool IsSystemAdmin { get; set; } = false;
+        public bool CanMonitorSalons { get; set; } = false;
+        public bool CanMonitorStaff { get; set; } = false;
+        public bool CanMonitorBookings { get; set; } = false;
+        public bool CanMonitorUsers { get; set; } = false;
+        public bool CanModifySystemSettings { get; set; } = false;
+        public DateTime? AdminRoleAssignedDate { get; set; }
+        public int? AdminRoleAssignedBy { get; set; }
 
         // Navigation property for staff profile
         public virtual Staff? StaffProfile { get; set; }
 
         [ForeignKey("SalonId")]
         public virtual Salon? WorkingSalon { get; set; }
+
         [Required]
         [StringLength(20)]
-        public string Role { get; set; } = "Customer"; // Customer, SalonOwner, Admin
+        public string Role { get; set; } = "Customer"; // Customer, SalonOwner, Admin, SuperAdmin
 
         // Navigation properties
         public virtual ICollection<Salon> OwnedSalons { get; set; } = new List<Salon>();
         public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
+
+        // Method to check if user has specific admin permission
+        public bool HasAdminPermission(string permissionType)
+        {
+            if (Role != "Admin" && Role != "SuperAdmin")
+                return false;
+
+            return permissionType switch
+            {
+                "Salons" => CanMonitorSalons,
+                "Staff" => CanMonitorStaff,
+                "Bookings" => CanMonitorBookings,
+                "Users" => CanMonitorUsers,
+                "SystemSettings" => CanModifySystemSettings,
+                "All" => IsSystemAdmin,
+                _ => false
+            };
+        }
     }
 }

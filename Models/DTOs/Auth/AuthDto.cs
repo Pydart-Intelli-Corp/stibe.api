@@ -2,6 +2,18 @@
 
 namespace stibe.api.Models.DTOs.Auth
 {
+    public class AdminRegistrationDto : RegisterRequestDto
+    {
+        public bool IsSystemAdmin { get; set; } = false;
+        public bool CanMonitorSalons { get; set; } = true;
+        public bool CanMonitorStaff { get; set; } = true;
+        public bool CanMonitorBookings { get; set; } = true;
+        public bool CanMonitorUsers { get; set; } = true;
+        public bool CanModifySystemSettings { get; set; } = false;
+
+        // This will ensure the Role is always set to "Admin"
+        public new string Role { get; set; } = "Admin";
+    }
     public class LoginRequestDto
     {
         [Required]
@@ -50,7 +62,16 @@ namespace stibe.api.Models.DTOs.Auth
         public DateTime ExpiresAt { get; set; }
         public UserDto User { get; set; } = null!;
     }
-
+    public class AdminUserDto : UserDto
+    {
+        public bool IsSystemAdmin { get; set; }
+        public bool CanMonitorSalons { get; set; }
+        public bool CanMonitorStaff { get; set; }
+        public bool CanMonitorBookings { get; set; }
+        public bool CanMonitorUsers { get; set; }
+        public bool CanModifySystemSettings { get; set; }
+        public DateTime? AdminRoleAssignedDate { get; set; }
+    }
     public class UserDto
     {
         public int Id { get; set; }

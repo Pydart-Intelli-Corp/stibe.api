@@ -33,7 +33,174 @@ namespace stibe.api.Controllers.AuthController
             _emailService = emailService;
             _logger = logger;
         }
+        [HttpPost("register-admin")]
+        [Authorize(Roles = "SuperAdmin")] // Only SuperAdmin can create other admins
+        public async Task<ActionResult<ApiResponse<AdminUserDto>>> RegisterAdmin(AdminRegistrationDto request)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<AdminUserDto>.ErrorResponse("Invalid token"));
+                }
 
+                // Check if user already exists
+                var existingUserByEmail = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Email == request.Email);
+
+                var existingUserByPhone = await _context.Users
+                    .FirstOrDefaultAsync(u => u.PhoneNumber == request.PhoneNumber);
+
+                if (existingUserByEmail != null)
+                {
+                    return BadRequest(ApiResponse<AdminUserDto>.ErrorResponse("Email already exists"));
+                }
+
+                if (existingUserByPhone != null)
+                {
+                    return BadRequest(ApiResponse<AdminUserDto>.ErrorResponse("Phone number already exists"));
+                }
+
+                // Create new admin user
+                var adminUser = new User
+                {
+                    FirstName = request.FirstName,
+                    LastName = request.LastName,
+                    Email = request.Email,
+                    PhoneNumber = request.PhoneNumber,
+                    PasswordHash = _passwordService.HashPassword(request.Password),
+                    Role = "Admin",
+                    IsEmailVerified = false,
+
+                    // Admin-specific properties
+                    IsSystemAdmin = request.IsSystemAdmin,
+                    CanMonitorSalons = request.CanMonitorSalons,
+                    CanMonitorStaff = request.CanMonitorStaff,
+                    CanMonitorBookings = request.CanMonitorBookings,
+                    CanMonitorUsers = request.CanMonitorUsers,
+                    CanModifySystemSettings = request.CanModifySystemSettings,
+                    AdminRoleAssignedDate = DateTime.UtcNow,
+                    AdminRoleAssignedBy = currentUserId
+                };
+
+                _context.Users.Add(adminUser);
+                await _context.SaveChangesAsync();
+
+                // Send verification email
+                var verificationLink = $"{Request.Scheme}://{Request.Host}/api/auth/verify-email?email={adminUser.Email}&token=mock-token";
+                await _emailService.SendVerificationEmailAsync(adminUser.Email, verificationLink);
+
+                var adminDto = new AdminUserDto
+                {
+                    Id = adminUser.Id,
+                    FirstName = adminUser.FirstName,
+                    LastName = adminUser.LastName,
+                    Email = adminUser.Email,
+                    PhoneNumber = adminUser.PhoneNumber,
+                    Role = adminUser.Role,
+                    IsEmailVerified = adminUser.IsEmailVerified,
+                    CreatedAt = adminUser.CreatedAt,
+
+                    // Admin-specific properties
+                    IsSystemAdmin = adminUser.IsSystemAdmin,
+                    CanMonitorSalons = adminUser.CanMonitorSalons,
+                    CanMonitorStaff = adminUser.CanMonitorStaff,
+                    CanMonitorBookings = adminUser.CanMonitorBookings,
+                    CanMonitorUsers = adminUser.CanMonitorUsers,
+                    CanModifySystemSettings = adminUser.CanModifySystemSettings,
+                    AdminRoleAssignedDate = adminUser.AdminRoleAssignedDate
+                };
+
+                _logger.LogInformation($"Admin user registered successfully: {adminUser.Email} by {currentUserId}");
+                return Ok(ApiResponse<AdminUserDto>.SuccessResponse(adminDto, "Admin user registered successfully. Please check the email for verification."));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during admin user registration");
+                return StatusCode(500, ApiResponse<AdminUserDto>.ErrorResponse("An error occurred during admin registration"));
+            }
+        }
+
+        // Add this endpoint to initialize the first SuperAdmin (only works when no admin exists)
+        [HttpPost("initialize-super-admin")]
+        [AllowAnonymous] // This should only be allowed once during system setup
+        public async Task<ActionResult<ApiResponse<AdminUserDto>>> InitializeSuperAdmin(AdminRegistrationDto request)
+        {
+            try
+            {
+                // Check if any admin already exists
+                var existingAdmin = await _context.Users
+                    .AnyAsync(u => u.Role == "Admin" || u.Role == "SuperAdmin");
+
+                if (existingAdmin)
+                {
+                    return BadRequest(ApiResponse<AdminUserDto>.ErrorResponse("Super Admin already exists. Cannot initialize again."));
+                }
+
+                // Check if user already exists
+                var existingUserByEmail = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Email == request.Email);
+
+                if (existingUserByEmail != null)
+                {
+                    return BadRequest(ApiResponse<AdminUserDto>.ErrorResponse("Email already exists"));
+                }
+
+                // Create new super admin user
+                var superAdmin = new User
+                {
+                    FirstName = request.FirstName,
+                    LastName = request.LastName,
+                    Email = request.Email,
+                    PhoneNumber = request.PhoneNumber,
+                    PasswordHash = _passwordService.HashPassword(request.Password),
+                    Role = "SuperAdmin",
+                    IsEmailVerified = true, // Auto-verified for initial setup
+
+                    // Admin-specific properties
+                    IsSystemAdmin = true,
+                    CanMonitorSalons = true,
+                    CanMonitorStaff = true,
+                    CanMonitorBookings = true,
+                    CanMonitorUsers = true,
+                    CanModifySystemSettings = true,
+                    AdminRoleAssignedDate = DateTime.UtcNow
+                };
+
+                _context.Users.Add(superAdmin);
+                await _context.SaveChangesAsync();
+
+                var adminDto = new AdminUserDto
+                {
+                    Id = superAdmin.Id,
+                    FirstName = superAdmin.FirstName,
+                    LastName = superAdmin.LastName,
+                    Email = superAdmin.Email,
+                    PhoneNumber = superAdmin.PhoneNumber,
+                    Role = superAdmin.Role,
+                    IsEmailVerified = superAdmin.IsEmailVerified,
+                    CreatedAt = superAdmin.CreatedAt,
+
+                    // Admin-specific properties
+                    IsSystemAdmin = superAdmin.IsSystemAdmin,
+                    CanMonitorSalons = superAdmin.CanMonitorSalons,
+                    CanMonitorStaff = superAdmin.CanMonitorStaff,
+                    CanMonitorBookings = superAdmin.CanMonitorBookings,
+                    CanMonitorUsers = superAdmin.CanMonitorUsers,
+                    CanModifySystemSettings = superAdmin.CanModifySystemSettings,
+                    AdminRoleAssignedDate = superAdmin.AdminRoleAssignedDate
+                };
+
+                _logger.LogInformation($"Super Admin initialized successfully: {superAdmin.Email}");
+                return Ok(ApiResponse<AdminUserDto>.SuccessResponse(adminDto, "Super Admin initialized successfully."));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error initializing Super Admin");
+                return StatusCode(500, ApiResponse<AdminUserDto>.ErrorResponse("An error occurred during Super Admin initialization"));
+            }
+        }
         [HttpPost("register")]
         public async Task<ActionResult<ApiResponse<UserDto>>> Register(RegisterRequestDto request)
         {
