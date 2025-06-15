@@ -25,9 +25,15 @@ namespace stibe.api.Models.Entities.PartnersEntity
 
         [Required]
         public string PasswordHash { get; set; } = string.Empty;
+        public string? ExternalAuthProvider { get; set; }
+        public string? ExternalAuthId { get; set; }
+        public string? ProfilePictureUrl { get; set; }
 
         public bool IsEmailVerified { get; set; } = false;
-
+        public DateTime? EmailVerifiedAt { get; set; }
+        public string? RegistrationIP { get; set; }
+        public DateTime? LastLoginDate { get; set; }
+        public string? LastLoginIP { get; set; }
         // Add these properties to the existing User entity
         public int? SalonId { get; set; } // For staff members
         public bool IsStaffActive { get; set; } = false;

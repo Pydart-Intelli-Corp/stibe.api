@@ -1,4 +1,5 @@
 ﻿using stibe.api.Services.Interfaces;
+
 using System.Security.Cryptography;
 using System.Text;
 
@@ -24,14 +25,40 @@ namespace stibe.api.Services.Implementations.SecurityServices
             }
         }
 
-        public string GenerateResetToken()
+        public string GenerateSecureToken()
         {
+            // Generate a cryptographically secure random token
+            byte[] tokenData = new byte[32]; // 256 bits
             using (var rng = RandomNumberGenerator.Create())
             {
-                var bytes = new byte[32];
-                rng.GetBytes(bytes);
-                return Convert.ToBase64String(bytes);
+                rng.GetBytes(tokenData);
             }
+
+            // Convert to URL-safe Base64 string
+            string token = Convert.ToBase64String(tokenData)
+                .Replace('+', '-')
+                .Replace('/', '_')
+                .TrimEnd('=');
+
+            return token;
+        }
+
+        public string GenerateResetToken()
+        {
+            // Generate a cryptographically secure random token for password resets
+            byte[] tokenData = new byte[32]; // 256 bits
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(tokenData);
+            }
+
+            // Convert to URL-safe Base64 string
+            string token = Convert.ToBase64String(tokenData)
+                .Replace('+', '-')
+                .Replace('/', '_')
+                .TrimEnd('=');
+
+            return token;
         }
     }
 }

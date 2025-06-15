@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace stibe.api.Migrations
 {
     /// <inheritdoc />
-    public partial class init : Migration
+    public partial class INIT : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -83,7 +83,12 @@ namespace stibe.api.Migrations
                     OpeningTime = table.Column<TimeSpan>(type: "time(6)", nullable: false),
                     ClosingTime = table.Column<TimeSpan>(type: "time(6)", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    ProfilePictureUrl = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ImageUrls = table.Column<string>(type: "varchar(4000)", maxLength: 4000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     OwnerId = table.Column<int>(type: "int", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
@@ -95,7 +100,34 @@ namespace stibe.api.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "Services",
+                name: "ServiceCategories",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    SalonId = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ServiceCategories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ServiceCategories_Salons_SalonId",
+                        column: x => x.SalonId,
+                        principalTable: "Salons",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "ServiceOffers",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -104,9 +136,17 @@ namespace stibe.api.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Price = table.Column<decimal>(type: "decimal(10,2)", nullable: false),
-                    DurationInMinutes = table.Column<int>(type: "int", nullable: false),
+                    DiscountPercentage = table.Column<decimal>(type: "decimal(10,2)", nullable: false),
+                    DiscountAmount = table.Column<decimal>(type: "decimal(10,2)", nullable: false),
+                    IsPercentage = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    StartDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    EndDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    PromoCode = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    RequiresPromoCode = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    MaxUsage = table.Column<int>(type: "int", nullable: false),
+                    CurrentUsage = table.Column<int>(type: "int", nullable: false),
                     SalonId = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
@@ -114,9 +154,9 @@ namespace stibe.api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Services", x => x.Id);
+                    table.PrimaryKey("PK_ServiceOffers", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Services_Salons_SalonId",
+                        name: "FK_ServiceOffers_Salons_SalonId",
                         column: x => x.SalonId,
                         principalTable: "Salons",
                         principalColumn: "Id",
@@ -140,10 +180,30 @@ namespace stibe.api.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     PasswordHash = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    ExternalAuthProvider = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ExternalAuthId = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ProfilePictureUrl = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     IsEmailVerified = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    EmailVerifiedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    RegistrationIP = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    LastLoginDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    LastLoginIP = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     SalonId = table.Column<int>(type: "int", nullable: true),
                     IsStaffActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     StaffJoinDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    IsSystemAdmin = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CanMonitorSalons = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CanMonitorStaff = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CanMonitorBookings = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CanMonitorUsers = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CanModifySystemSettings = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    AdminRoleAssignedDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    AdminRoleAssignedBy = table.Column<int>(type: "int", nullable: true),
                     Role = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
@@ -157,8 +217,50 @@ namespace stibe.api.Migrations
                         name: "FK_Users_Salons_SalonId",
                         column: x => x.SalonId,
                         principalTable: "Salons",
+                        principalColumn: "Id");
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Services",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    Name = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Price = table.Column<decimal>(type: "decimal(10,2)", nullable: false),
+                    DurationInMinutes = table.Column<int>(type: "int", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    ImageUrl = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CategoryId = table.Column<int>(type: "int", nullable: true),
+                    MaxConcurrentBookings = table.Column<int>(type: "int", nullable: false),
+                    RequiresStaffAssignment = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    BufferTimeBeforeMinutes = table.Column<int>(type: "int", nullable: false),
+                    BufferTimeAfterMinutes = table.Column<int>(type: "int", nullable: false),
+                    SalonId = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Services", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Services_Salons_SalonId",
+                        column: x => x.SalonId,
+                        principalTable: "Salons",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Services_ServiceCategories_CategoryId",
+                        column: x => x.CategoryId,
+                        principalTable: "ServiceCategories",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -217,13 +319,73 @@ namespace stibe.api.Migrations
                         column: x => x.SalonId,
                         principalTable: "Salons",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_Staff_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "ServiceAvailabilities",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ServiceId = table.Column<int>(type: "int", nullable: false),
+                    DayOfWeek = table.Column<int>(type: "int", nullable: false),
+                    StartTime = table.Column<TimeSpan>(type: "time(6)", nullable: false),
+                    EndTime = table.Column<TimeSpan>(type: "time(6)", nullable: false),
+                    IsAvailable = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    MaxBookingsPerSlot = table.Column<int>(type: "int", nullable: false),
+                    SlotDurationMinutes = table.Column<int>(type: "int", nullable: false),
+                    BufferTimeMinutes = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ServiceAvailabilities", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ServiceAvailabilities_Services_ServiceId",
+                        column: x => x.ServiceId,
+                        principalTable: "Services",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "ServiceOfferItems",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ServiceId = table.Column<int>(type: "int", nullable: false),
+                    OfferID = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ServiceOfferItems", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ServiceOfferItems_ServiceOffers_OfferID",
+                        column: x => x.OfferID,
+                        principalTable: "ServiceOffers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ServiceOfferItems_Services_ServiceId",
+                        column: x => x.ServiceId,
+                        principalTable: "Services",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -253,7 +415,7 @@ namespace stibe.api.Migrations
                         column: x => x.ServiceId,
                         principalTable: "Services",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_StaffSpecializations_Staff_StaffId",
                         column: x => x.StaffId,
@@ -304,19 +466,24 @@ namespace stibe.api.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Bookings_AssignedStaffId",
+                name: "IX_Bookings_AssignedStaffId_Status",
                 table: "Bookings",
-                column: "AssignedStaffId");
+                columns: new[] { "AssignedStaffId", "Status" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Bookings_CustomerId",
+                name: "IX_Bookings_BookingDate",
                 table: "Bookings",
-                column: "CustomerId");
+                column: "BookingDate");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Bookings_SalonId_BookingDate_BookingTime",
+                name: "IX_Bookings_CustomerId_Status",
                 table: "Bookings",
-                columns: new[] { "SalonId", "BookingDate", "BookingTime" });
+                columns: new[] { "CustomerId", "Status" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Bookings_SalonId_BookingDate",
+                table: "Bookings",
+                columns: new[] { "SalonId", "BookingDate" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Bookings_ServiceId",
@@ -324,9 +491,15 @@ namespace stibe.api.Migrations
                 column: "ServiceId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Bookings_Status",
-                table: "Bookings",
-                column: "Status");
+                name: "IX_Salons_IsActive",
+                table: "Salons",
+                column: "IsActive");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Salons_Latitude_Longitude",
+                table: "Salons",
+                columns: new[] { "Latitude", "Longitude" },
+                filter: "Latitude IS NOT NULL AND Longitude IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Salons_OwnerId",
@@ -334,25 +507,55 @@ namespace stibe.api.Migrations
                 column: "OwnerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Services_SalonId",
-                table: "Services",
+                name: "IX_Salons_UserId",
+                table: "Salons",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ServiceAvailabilities_ServiceId_DayOfWeek",
+                table: "ServiceAvailabilities",
+                columns: new[] { "ServiceId", "DayOfWeek" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ServiceCategories_SalonId",
+                table: "ServiceCategories",
                 column: "SalonId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Staff_Email",
-                table: "Staff",
-                column: "Email",
+                name: "IX_ServiceOfferItems_OfferID",
+                table: "ServiceOfferItems",
+                column: "OfferID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ServiceOfferItems_ServiceId_OfferID",
+                table: "ServiceOfferItems",
+                columns: new[] { "ServiceId", "OfferID" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Staff_PhoneNumber",
-                table: "Staff",
-                column: "PhoneNumber");
+                name: "IX_ServiceOffers_SalonId_IsActive",
+                table: "ServiceOffers",
+                columns: new[] { "SalonId", "IsActive" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Staff_SalonId_IsActive",
-                table: "Staff",
+                name: "IX_ServiceOffers_StartDate_EndDate",
+                table: "ServiceOffers",
+                columns: new[] { "StartDate", "EndDate" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Services_CategoryId",
+                table: "Services",
+                column: "CategoryId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Services_SalonId_IsActive",
+                table: "Services",
                 columns: new[] { "SalonId", "IsActive" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Staff_SalonId",
+                table: "Staff",
+                column: "SalonId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Staff_UserId",
@@ -378,25 +581,9 @@ namespace stibe.api.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_StaffWorkSessions_Status",
-                table: "StaffWorkSessions",
-                column: "Status");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_StaffWorkSessions_WorkDate",
-                table: "StaffWorkSessions",
-                column: "WorkDate");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Users_Email",
                 table: "Users",
                 column: "Email",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Users_PhoneNumber",
-                table: "Users",
-                column: "PhoneNumber",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -410,7 +597,7 @@ namespace stibe.api.Migrations
                 column: "SalonId",
                 principalTable: "Salons",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
+                onDelete: ReferentialAction.Cascade);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Bookings_Services_ServiceId",
@@ -418,15 +605,14 @@ namespace stibe.api.Migrations
                 column: "ServiceId",
                 principalTable: "Services",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
+                onDelete: ReferentialAction.Cascade);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Bookings_Staff_AssignedStaffId",
                 table: "Bookings",
                 column: "AssignedStaffId",
                 principalTable: "Staff",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.SetNull);
+                principalColumn: "Id");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Bookings_Users_CustomerId",
@@ -434,7 +620,7 @@ namespace stibe.api.Migrations
                 column: "CustomerId",
                 principalTable: "Users",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
+                onDelete: ReferentialAction.Cascade);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Salons_Users_OwnerId",
@@ -443,6 +629,13 @@ namespace stibe.api.Migrations
                 principalTable: "Users",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_Salons_Users_UserId",
+                table: "Salons",
+                column: "UserId",
+                principalTable: "Users",
+                principalColumn: "Id");
         }
 
         /// <inheritdoc />
@@ -456,16 +649,28 @@ namespace stibe.api.Migrations
                 name: "Bookings");
 
             migrationBuilder.DropTable(
+                name: "ServiceAvailabilities");
+
+            migrationBuilder.DropTable(
+                name: "ServiceOfferItems");
+
+            migrationBuilder.DropTable(
                 name: "StaffSpecializations");
 
             migrationBuilder.DropTable(
                 name: "StaffWorkSessions");
 
             migrationBuilder.DropTable(
+                name: "ServiceOffers");
+
+            migrationBuilder.DropTable(
                 name: "Services");
 
             migrationBuilder.DropTable(
                 name: "Staff");
+
+            migrationBuilder.DropTable(
+                name: "ServiceCategories");
 
             migrationBuilder.DropTable(
                 name: "Salons");

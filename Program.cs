@@ -10,6 +10,9 @@ using stibe.api.Services.Interfaces.Partner;
 using stibe.api.Services.Implementations.MockServices;
 using stibe.api.Services.Implementations.SecurityServices;
 using stibe.api.Services.Implementations.PartnerServices.StaffServices;
+using stibe.api.Services.Implementations.General;
+using stibe.api.Services.Implementations.FileService;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,6 +64,31 @@ builder.Services.AddScoped<ILocationService, MockLocationService>();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddScoped<IStaffWorkService, StaffWorkService>();
+builder.Services.Configure<EmailConfiguration>(builder.Configuration.GetSection("SmtpSettings"));
+builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("FeatureFlags"));
+builder.Services.AddScoped<IFileService, LocalFileService>();
+// Configure Google Auth Settings
+builder.Services.Configure<GoogleAuthSettings>(
+    builder.Configuration.GetSection("GoogleAuthSettings"));
+
+if (builder.Configuration.GetValue<bool>("FeatureFlags:UseRealEmailService"))
+{
+    builder.Services.AddScoped<IEmailService, RealEmailService>();
+}
+else
+{
+    builder.Services.AddScoped<IEmailService, MockEmailService>();
+}
+
+// Configure logging before building the app
+if (builder.Environment.IsDevelopment())
+{
+    builder.Logging.ClearProviders();
+    builder.Logging.AddConsole();
+    builder.Logging.AddDebug();
+    builder.Logging.SetMinimumLevel(LogLevel.Debug);
+}
+
 // ⭐ Updated Swagger Configuration with JWT Support
 builder.Services.AddSwaggerGen(c =>
 {
@@ -112,6 +140,7 @@ builder.Services.AddCors(options =>
         });
 });
 
+// Build the application once all services are configured
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -130,10 +159,25 @@ if (app.Environment.IsDevelopment())
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         context.Database.EnsureCreated();
     }
+
+    app.UseDeveloperExceptionPage();
 }
 
 app.UseHttpsRedirection();
-
+var wwwrootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+var uploadsPath = Path.Combine(wwwrootPath, "uploads");
+Directory.CreateDirectory(wwwrootPath);
+Directory.CreateDirectory(uploadsPath);
+app.UseStaticFiles(); // Default static files
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads"
+});
+app.MapGet("/", context => {
+    context.Response.Redirect("/index.html");
+    return Task.CompletedTask;
+});
 app.UseCors("AllowAll");
 
 app.UseAuthentication();

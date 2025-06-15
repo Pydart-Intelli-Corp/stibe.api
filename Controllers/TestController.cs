@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using stibe.api.Data;
 using stibe.api.Models.DTOs.Features;
+using stibe.api.Services.Interfaces;
 using System.Security.Claims;
 
 namespace stibe.api.Controllers
@@ -67,6 +68,12 @@ namespace stibe.api.Controllers
         {
             var userName = User.Identity?.Name ?? "Unknown";
             return Ok(ApiResponse.SuccessResponse($"Hello Customer {userName}! This is a customer endpoint"));
+        }
+        [HttpGet("test-email")]
+        public async Task<IActionResult> TestEmail([FromServices] IEmailService emailService)
+        {
+            var result = await emailService.SendEmailAsync("info.pydart@gmail.com", "Test", "This is a test email.");
+            return Ok(result ? "Email sent successfully" : "Email failed");
         }
 
         [HttpGet("debug-claims")]

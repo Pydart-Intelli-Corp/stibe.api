@@ -11,7 +11,7 @@ using stibe.api.Services.Interfaces;
 using stibe.api.Services.Interfaces.Partner;
 using System.Security.Claims;
 
-namespace stibe.api.Controllers.PartnerController.SalonController.StaffController
+namespace stibe.api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -702,7 +702,7 @@ namespace stibe.api.Controllers.PartnerController.SalonController.StaffControlle
             };
         }
 
-        // Mock data methods (will be replaced with real data in later steps)
+        // Helper methods for dashboard
         private async Task<StaffProfileSummaryDto> GetStaffProfileSummaryAsync(int staffId)
         {
             var staff = await _context.Staff
@@ -782,11 +782,13 @@ namespace stibe.api.Controllers.PartnerController.SalonController.StaffControlle
             var now = DateTime.Now.TimeOfDay;
 
             return await _context.Bookings
-                .CountAsync(b => b.AssignedStaffId == staffId &&
-                                b.BookingDate.Date == today &&
-                                b.BookingTime > now &&
-                                b.Status != "Cancelled");
+                .CountAsync(b =>
+                    b.AssignedStaffId == staffId &&
+                    b.BookingDate.Date == today &&
+                    b.BookingTime > now &&
+                    b.Status != "Cancelled");
         }
+
         private async Task<List<TodayBookingDto>> GetTodayBookingsAsync(int staffId)
         {
             var today = DateTime.Today;
@@ -847,32 +849,32 @@ namespace stibe.api.Controllers.PartnerController.SalonController.StaffControlle
         {
             // Mock data - will be implemented in Step 4G
             return new List<StaffNotificationDto>
-    {
-        new StaffNotificationDto
-        {
-            Id = 1,
-            Type = "Reminder",
-            Title = "Lunch Break Soon",
-            Message = "Your lunch break starts in 30 minutes",
-            CreatedAt = DateTime.Now.AddMinutes(-10),
-            IsRead = false,
-            Priority = "Low",
-            ActionUrl = "",
-            ActionText = ""
-        },
-        new StaffNotificationDto
-        {
-            Id = 2,
-            Type = "Booking",
-            Title = "New Booking Added",
-            Message = "Sarah Johnson booked Hair Coloring for 3:00 PM",
-            CreatedAt = DateTime.Now.AddHours(-2),
-            IsRead = false,
-            Priority = "Medium",
-            ActionUrl = "/bookings/123",
-            ActionText = "View Booking"
-        }
-    };
+            {
+                new StaffNotificationDto
+                {
+                    Id = 1,
+                    Type = "Reminder",
+                    Title = "Lunch Break Soon",
+                    Message = "Your lunch break starts in 30 minutes",
+                    CreatedAt = DateTime.Now.AddMinutes(-10),
+                    IsRead = false,
+                    Priority = "Low",
+                    ActionUrl = "",
+                    ActionText = ""
+                },
+                new StaffNotificationDto
+                {
+                    Id = 2,
+                    Type = "Booking",
+                    Title = "New Booking Added",
+                    Message = "Sarah Johnson booked Hair Coloring for 3:00 PM",
+                    CreatedAt = DateTime.Now.AddHours(-2),
+                    IsRead = false,
+                    Priority = "Medium",
+                    ActionUrl = "/bookings/123",
+                    ActionText = "View Booking"
+                }
+            };
         }
 
         private async Task<StaffTargetDto> GetMonthlyTargetAsync(int staffId)

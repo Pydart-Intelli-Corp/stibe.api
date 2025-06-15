@@ -43,6 +43,13 @@ namespace stibe.api.Models.Entities.PartnersEntity
         public TimeSpan ClosingTime { get; set; } = TimeSpan.FromHours(18); // 6:00 PM
 
         public bool IsActive { get; set; } = true;
+        // Models/Entities/PartnersEntity/Salon.cs - Add these properties
+        [StringLength(500)]
+        public string? ProfilePictureUrl { get; set; }
+
+        [StringLength(4000)]
+        public string? ImageUrls { get; set; }
+
 
         // Foreign key
         public int OwnerId { get; set; }

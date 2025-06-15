@@ -36,7 +36,15 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
 
         [Required]
         public TimeSpan ClosingTime { get; set; } = TimeSpan.FromHours(18);
+
+        // Current location properties
+        public decimal? CurrentLatitude { get; set; }
+        public decimal? CurrentLongitude { get; set; }
+        public bool UseCurrentLocation { get; set; }
+        public IFormFile? ProfilePicture { get; set; }
+        public List<IFormFile>? SalonImages { get; set; }
     }
+
 
     public class UpdateSalonRequestDto
     {
@@ -66,7 +74,23 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public TimeSpan? ClosingTime { get; set; }
 
         public bool? IsActive { get; set; }
+
+        // Location properties
+        public decimal? Latitude { get; set; }
+        public decimal? Longitude { get; set; }
+        public bool? UseCustomLocation { get; set; }
+        [StringLength(500)]
+        public string ProfilePictureUrl { get; set; } = string.Empty;
+        public List<string> ImageUrls { get; set; } = new List<string>();
+        public IFormFile? ProfilePictureFile { get; set; }
+        public List<IFormFile>? SalonImages { get; set; }
+
+        public IFormFile? ProfilePicture { get; set; }
+
+        public List<string>? ImagesToDelete { get; set; }
+
     }
+
 
     public class SalonResponseDto
     {
@@ -89,6 +113,9 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public DateTime UpdatedAt { get; set; }
         public double? DistanceInKm { get; set; } // For location-based searches
         public List<ServiceResponseDto> Services { get; set; } = new List<ServiceResponseDto>();
+
+        public string ProfilePictureUrl { get; set; } = string.Empty;
+        public List<string> ImageUrls { get; set; } = new List<string>();
     }
 
     public class SalonSearchRequestDto
