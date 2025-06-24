@@ -26,16 +26,14 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
 
         [Required]
         [StringLength(10)]
-        public string ZipCode { get; set; } = string.Empty;
-
-        [StringLength(20)]
+        public string ZipCode { get; set; } = string.Empty;        [StringLength(20)]
         public string PhoneNumber { get; set; } = string.Empty;
 
         [Required]
-        public TimeSpan OpeningTime { get; set; } = TimeSpan.FromHours(9);
+        public string OpeningTime { get; set; } = "09:00:00";
 
         [Required]
-        public TimeSpan ClosingTime { get; set; } = TimeSpan.FromHours(18);
+        public string ClosingTime { get; set; } = "18:00:00";
 
         // Current location properties
         public decimal? CurrentLatitude { get; set; }
@@ -67,11 +65,9 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public string? ZipCode { get; set; }
 
         [StringLength(20)]
-        public string? PhoneNumber { get; set; }
+        public string? PhoneNumber { get; set; }        public string? OpeningTime { get; set; }
 
-        public TimeSpan? OpeningTime { get; set; }
-
-        public TimeSpan? ClosingTime { get; set; }
+        public string? ClosingTime { get; set; }
 
         public bool? IsActive { get; set; }
 

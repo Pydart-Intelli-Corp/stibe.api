@@ -592,18 +592,16 @@ namespace stibe.api.Controllers
                 {
                     // Use a generic error message for security
                     return BadRequest(ApiResponse<LoginResponseDto>.ErrorResponse("Invalid email or password"));
-                }
-
-                // Check if email is verified
+                }                // Check if email is verified
                 if (!user.IsEmailVerified)
                 {
-                    // Send a new verification email
+                    // Generate and send a new verification email
                     var verificationToken = _passwordService.GenerateSecureToken();
                     var verificationLink = $"{Request.Scheme}://{Request.Host}/api/auth/direct-verify-email?email={Uri.EscapeDataString(user.Email)}&token={verificationToken}";
                     await _emailService.SendVerificationEmailAsync(user.Email, verificationLink);
 
                     return BadRequest(ApiResponse<LoginResponseDto>.ErrorResponse(
-                        "Your email address is not verified. A new verification link has been sent to your email. Please check your inbox and follow the verification link before logging in."));
+                        "Your email address is not verified. A new verification link has been sent to your email. Please check your inbox and click the verification link before logging in."));
                 }
 
                 var token = _jwtService.GenerateToken(user);
@@ -957,358 +955,70 @@ namespace stibe.api.Controllers
             }
         }
 
-        [HttpPost("resend-verification")]
-        public async Task<ActionResult<ApiResponse>> ResendVerificationEmail(ResendVerificationRequestDto request)
+        [HttpGet("check-verification")]
+        public async Task<ActionResult<ApiResponse<object>>> CheckEmailVerification(string email)
         {
             try
             {
+                if (string.IsNullOrEmpty(email))
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse("Email is required"));
+                }
+
+                var user = await _context.Users
+                    .Where(u => u.Email.ToLower() == email.ToLower() && !u.IsDeleted)
+                    .FirstOrDefaultAsync();
+
+                if (user == null)
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse("User not found"));
+                }
+
+                var data = new { isEmailVerified = user.IsEmailVerified };
+                return Ok(ApiResponse<object>.SuccessResponse(data));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking email verification status");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred"));
+            }
+        }        [HttpPost("resend-verification")]
+        public async Task<ActionResult<ApiResponse<object>>> ResendVerificationEmail(ResendVerificationRequestDto request)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(request.Email))
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse("Email is required"));
+                }
+
                 var user = await _context.Users
                     .Where(u => u.Email.ToLower() == request.Email.ToLower() && !u.IsDeleted)
                     .FirstOrDefaultAsync();
 
                 if (user == null)
                 {
-                    // For security reasons, don't disclose if the email exists
-                    return Ok(ApiResponse.SuccessResponse("If the email exists and is not verified, a verification link has been sent."));
+                    return BadRequest(ApiResponse<object>.ErrorResponse("User not found"));
                 }
 
                 if (user.IsEmailVerified)
                 {
-                    return Ok(ApiResponse.SuccessResponse("This email is already verified. You can log in now."));
+                    return BadRequest(ApiResponse<object>.ErrorResponse("Email is already verified"));
                 }
 
-                // Generate a secure verification token
+                // Generate a new verification token
                 var verificationToken = _passwordService.GenerateSecureToken();
-
-                // Direct verification link
                 var verificationLink = $"{Request.Scheme}://{Request.Host}/api/auth/direct-verify-email?email={Uri.EscapeDataString(user.Email)}&token={verificationToken}";
+                
                 await _emailService.SendVerificationEmailAsync(user.Email, verificationLink);
 
-                _logger.LogInformation($"Verification email resent for user: {user.Email}");
-                return Ok(ApiResponse.SuccessResponse("Verification email sent. Please check your inbox and follow the instructions to verify your email."));
+                _logger.LogInformation($"Verification email resent to: {user.Email}");
+                return Ok(ApiResponse<object>.SuccessResponse(new { }, "Verification email sent successfully"));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error resending verification email");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while sending the verification email. Please try again later."));
-            }
-        }
-
-        [HttpGet("direct-verify-email")]
-        public async Task<ActionResult> DirectVerifyEmail(string email, string token)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(token))
-                {
-                    return BadRequest("Invalid verification link");
-                }
-
-                var user = await _context.Users
-                    .Where(u => u.Email.ToLower() == email.ToLower() && !u.IsDeleted)
-                    .FirstOrDefaultAsync();
-
-                if (user == null)
-                {
-                    return BadRequest("Invalid verification link");
-                }
-
-                if (user.IsEmailVerified)
-                {
-                    // Return success HTML with redirect script after 3 seconds
-                    return Content($@"
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Email Verification Status</title>
-                    <style>
-                        body {{ font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }}
-                        .success {{ color: #4CAF50; }}
-                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; }}
-                    </style>
-                </head>
-                <body>
-                    <div class='container'>
-                        <h1 class='success'>Email Already Verified</h1>
-                        <p>Your email is already verified. You can now log in to your account.</p>
-                        <p>Redirecting to login page in 3 seconds...</p>
-                    </div>
-                    <script>
-                        setTimeout(function() {{
-                            window.location.href = '/login';
-                        }}, 3000);
-                    </script>
-                </body>
-                </html>
-            ", "text/html");
-                }
-
-                // In a real app, validate the token against stored tokens
-                // For the implementation, we'll just accept the token for now
-
-                user.IsEmailVerified = true;
-
-                // Update EmailVerifiedAt if property exists
-                try
-                {
-                    var emailVerifiedAtProp = typeof(User).GetProperty("EmailVerifiedAt");
-                    if (emailVerifiedAtProp != null)
-                    {
-                        emailVerifiedAtProp.SetValue(user, DateTime.UtcNow);
-                    }
-                }
-                catch
-                {
-                    // Ignore if property doesn't exist
-                }
-
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"Email verified successfully for user: {user.Email}");
-
-                // Return success HTML with redirect script after 3 seconds
-                return Content($@"
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Email Verification Success</title>
-                <style>
-                    body {{ font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }}
-                    .success {{ color: #4CAF50; }}
-                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; }}
-                </style>
-            </head>
-            <body>
-                <div class='container'>
-                    <h1 class='success'>Email Verified Successfully!</h1>
-                    <p>Your email has been verified. You can now log in to your account.</p>
-                    <p>Redirecting to login page in 3 seconds...</p>
-                </div>
-                <script>
-                    setTimeout(function() {{
-                        window.location.href = '/login';
-                    }}, 3000);
-                </script>
-            </body>
-            </html>
-        ", "text/html");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error verifying email");
-                return StatusCode(500, "An error occurred while verifying your email. Please try again later.");
-            }
-        }
-
-        [HttpGet("me")]
-        [Authorize]
-        public async Task<ActionResult<ApiResponse<UserDto>>> GetCurrentUser()
-        {
-            try
-            {
-                var userId = GetCurrentUserId();
-                if (userId == null)
-                {
-                    return Unauthorized(ApiResponse<UserDto>.ErrorResponse("Invalid token"));
-                }
-
-                var user = await _context.Users
-                    .Where(u => u.Id == userId && !u.IsDeleted)
-                    .FirstOrDefaultAsync();
-
-                if (user == null)
-                {
-                    return NotFound(ApiResponse<UserDto>.ErrorResponse("User not found"));
-                }
-
-                var userDto = new UserDto
-                {
-                    Id = user.Id,
-                    FirstName = user.FirstName,
-                    LastName = user.LastName,
-                    Email = user.Email,
-                    PhoneNumber = user.PhoneNumber,
-                    Role = user.Role,
-                    IsEmailVerified = user.IsEmailVerified,
-                    CreatedAt = user.CreatedAt
-                };
-
-                return Ok(ApiResponse<UserDto>.SuccessResponse(userDto));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting current user");
-                return StatusCode(500, ApiResponse<UserDto>.ErrorResponse("An error occurred"));
-            }
-        }
-
-        [HttpPost("change-password")]
-        [Authorize]
-        public async Task<ActionResult<ApiResponse>> ChangePassword(ChangePasswordRequestDto request)
-        {
-            try
-            {
-                var userId = GetCurrentUserId();
-                if (userId == null)
-                {
-                    return Unauthorized(ApiResponse.ErrorResponse("Invalid token"));
-                }
-
-                var user = await _context.Users
-                    .Where(u => u.Id == userId && !u.IsDeleted)
-                    .FirstOrDefaultAsync();
-
-                if (user == null)
-                {
-                    return NotFound(ApiResponse.ErrorResponse("User not found"));
-                }
-
-                if (!_passwordService.VerifyPassword(request.CurrentPassword, user.PasswordHash))
-                {
-                    return BadRequest(ApiResponse.ErrorResponse("Current password is incorrect"));
-                }
-
-                // Validate new password
-                var passwordValidation = ValidatePassword(request.NewPassword);
-                if (passwordValidation.Count > 0)
-                {
-                    return BadRequest(ApiResponse.ErrorResponse("Password validation failed", passwordValidation));
-                }
-
-                user.PasswordHash = _passwordService.HashPassword(request.NewPassword);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"Password changed successfully for user: {user.Email}");
-                return Ok(ApiResponse.SuccessResponse("Password changed successfully"));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error changing password");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while changing password"));
-            }
-        }
-
-        [HttpPost("forgot-password")]
-        public async Task<ActionResult<ApiResponse>> ForgotPassword(ForgotPasswordRequestDto request)
-        {
-            try
-            {
-                var user = await _context.Users
-                    .Where(u => u.Email.ToLower() == request.Email.ToLower() && !u.IsDeleted)
-                    .FirstOrDefaultAsync();
-
-                if (user == null)
-                {
-                    return Ok(ApiResponse.SuccessResponse("If the email exists, a password reset link has been sent"));
-                }
-
-                var resetToken = _passwordService.GenerateResetToken();
-
-                // Direct reset link that shows a password reset form
-                var resetLink = $"{Request.Scheme}://{Request.Host}/api/auth/direct-reset-password?email={Uri.EscapeDataString(user.Email)}&token={resetToken}";
-
-                await _emailService.SendPasswordResetEmailAsync(user.Email, resetLink);
-
-                _logger.LogInformation($"Password reset requested for user: {user.Email}");
-                return Ok(ApiResponse.SuccessResponse("If the email exists, a password reset link has been sent"));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error processing forgot password request");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred"));
-            }
-        }
-
-        [HttpPost("reset-password")]
-        public async Task<ActionResult<ApiResponse>> ResetPassword(ResetPasswordRequestDto request)
-        {
-            try
-            {
-                var user = await _context.Users
-                    .Where(u => u.Email.ToLower() == request.Email.ToLower() && !u.IsDeleted)
-                    .FirstOrDefaultAsync();
-
-                if (user == null)
-                {
-                    // For security reasons, don't disclose if the email exists
-                    return BadRequest(ApiResponse.ErrorResponse("Invalid or expired reset token"));
-                }
-
-                // In a real application, validate the token here
-                // For the mock implementation, we'll just accept the token
-
-                // Validate new password
-                var passwordValidation = ValidatePassword(request.NewPassword);
-                if (passwordValidation.Count > 0)
-                {
-                    return BadRequest(ApiResponse.ErrorResponse("Password validation failed", passwordValidation));
-                }
-
-                user.PasswordHash = _passwordService.HashPassword(request.NewPassword);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"Password reset successfully for user: {user.Email}");
-                return Ok(ApiResponse.SuccessResponse("Password reset successfully. You can now log in with your new password."));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error resetting password");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while resetting password"));
-            }
-        }
-
-        [HttpGet("verify-email")]
-        public async Task<ActionResult<ApiResponse>> VerifyEmail(string email, string token)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(token))
-                {
-                    return BadRequest(ApiResponse.ErrorResponse("Invalid verification link"));
-                }
-
-                var user = await _context.Users
-                    .Where(u => u.Email.ToLower() == email.ToLower() && !u.IsDeleted)
-                    .FirstOrDefaultAsync();
-
-                if (user == null)
-                {
-                    return BadRequest(ApiResponse.ErrorResponse("Invalid verification link"));
-                }
-
-                if (user.IsEmailVerified)
-                {
-                    return Ok(ApiResponse.SuccessResponse("Email already verified. You can now login to your account."));
-                }
-
-                // In a real app, validate the token against stored tokens
-                // For the mock implementation, we'll accept any token for now
-
-                user.IsEmailVerified = true;
-
-                // Update EmailVerifiedAt if property exists
-                try
-                {
-                    var emailVerifiedAtProp = typeof(User).GetProperty("EmailVerifiedAt");
-                    if (emailVerifiedAtProp != null)
-                    {
-                        emailVerifiedAtProp.SetValue(user, DateTime.UtcNow);
-                    }
-                }
-                catch
-                {
-                    // Ignore if property doesn't exist
-                }
-
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"Email verified successfully for user: {user.Email}");
-                return Ok(ApiResponse.SuccessResponse("Email verified successfully! You can now login to your account."));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error verifying email");
-                return StatusCode(500, ApiResponse.ErrorResponse("An error occurred while verifying your email. Please try again later."));
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while sending verification email"));
             }
         }
 
@@ -1363,6 +1073,101 @@ namespace stibe.api.Controllers
             {
                 _logger.LogError(ex, "Error refreshing token");
                 return StatusCode(500, ApiResponse<LoginResponseDto>.ErrorResponse("An error occurred"));
+            }
+        }
+
+        [HttpGet("direct-verify-email")]
+        public async Task<ActionResult> DirectVerifyEmail(string email, string token)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(token))
+                {
+                    return BadRequest("Invalid verification link");
+                }
+
+                var user = await _context.Users
+                    .Where(u => u.Email.ToLower() == email.ToLower() && !u.IsDeleted)
+                    .FirstOrDefaultAsync();
+
+                if (user == null)
+                {
+                    return BadRequest("Invalid verification link");
+                }
+
+                if (user.IsEmailVerified)
+                {
+                    // Return success HTML - already verified
+                    return Content($@"
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Email Verification Status</title>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }}
+                        .success {{ color: #4CAF50; }}
+                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; }}
+                    </style>
+                </head>
+                <body>
+                    <div class='container'>
+                        <h1 class='success'>Email Already Verified</h1>
+                        <p>Your email is already verified. You can now log in to your account.</p>
+                        <p>You can close this window and return to the app to continue.</p>
+                    </div>
+                </body>
+                </html>
+            ", "text/html");
+                }
+
+                // In a real app, validate the token against stored tokens
+                // For now, we'll accept any token for simplicity
+                user.IsEmailVerified = true;
+
+                // Update EmailVerifiedAt if property exists
+                try
+                {
+                    var emailVerifiedAtProp = typeof(User).GetProperty("EmailVerifiedAt");
+                    if (emailVerifiedAtProp != null)
+                    {
+                        emailVerifiedAtProp.SetValue(user, DateTime.UtcNow);
+                    }
+                }
+                catch
+                {
+                    // Ignore if property doesn't exist
+                }
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Email verified successfully for user: {user.Email}");
+
+                // Return success HTML
+                return Content($@"
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Email Verification Success</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }}
+                    .success {{ color: #4CAF50; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; }}
+                </style>
+            </head>
+            <body>
+                <div class='container'>
+                    <h1 class='success'>Email Verified Successfully!</h1>
+                    <p>Your email has been verified. You can now log in to your account.</p>
+                    <p>You can close this window and return to the app to continue.</p>
+                </div>
+            </body>
+            </html>
+        ", "text/html");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error verifying email");
+                return StatusCode(500, "An error occurred while verifying your email. Please try again later.");
             }
         }
 
@@ -1441,7 +1246,49 @@ namespace stibe.api.Controllers
                 return string.Empty;
 
             // Remove potentially dangerous characters
-            return Regex.Replace(input.Trim(), @"[<>&'""]", "");
+            return Regex.Replace(input.Trim(), @"[<>&'""]", "");        }
+
+        [HttpPost("forgot-password")]
+        [AllowAnonymous]
+        public async Task<ActionResult<ApiResponse<object>>> ForgotPassword(ForgotPasswordDto request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.Email))
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse("Email is required"));
+                }
+
+                // Check if user exists
+                var user = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Email.ToLower() == request.Email.ToLower() && !u.IsDeleted);
+
+                // For security reasons, always return success even if user doesn't exist
+                // This prevents email enumeration attacks
+                if (user != null)
+                {
+                    // Generate a secure reset token
+                    var resetToken = _passwordService.GenerateSecureToken();
+                    var resetLink = $"{Request.Scheme}://{Request.Host}/api/auth/direct-reset-password?email={Uri.EscapeDataString(user.Email)}&token={resetToken}";
+                    
+                    try
+                    {
+                        await _emailService.SendPasswordResetEmailAsync(user.Email, resetLink);
+                        _logger.LogInformation($"Password reset email sent to {user.Email}");
+                    }
+                    catch (Exception emailEx)
+                    {
+                        _logger.LogError(emailEx, $"Failed to send password reset email to {user.Email}");
+                        // Don't return error to user for security reasons
+                    }
+                }                return Ok(ApiResponse<object>.SuccessResponse(new object(), 
+                    "If an account with that email exists, a password reset link has been sent to your email address."));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during forgot password request");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred. Please try again later."));
+            }
         }
 
         #endregion
@@ -1451,5 +1298,15 @@ namespace stibe.api.Controllers
     {
         public string Token { get; set; } = string.Empty;
         public string RefreshToken { get; set; } = string.Empty;
+    }
+
+    public class ResendVerificationDto
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class ForgotPasswordDto
+    {
+        public string Email { get; set; } = string.Empty;
     }
 }
