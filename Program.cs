@@ -8,6 +8,7 @@ using stibe.api.Services.Interfaces;
 using System.Text;
 using stibe.api.Services.Interfaces.Partner;
 using stibe.api.Services.Implementations.MockServices;
+using stibe.api.Services.Implementations.LocationServices;
 using stibe.api.Services.Implementations.SecurityServices;
 using stibe.api.Services.Implementations.PartnerServices.StaffServices;
 using stibe.api.Services.Implementations.General;
@@ -59,8 +60,19 @@ builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("Featu
 // Register custom services
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
-builder.Services.AddScoped<IEmailService, MockEmailService>();
-builder.Services.AddScoped<ILocationService, MockLocationService>();
+
+// Configure Feature Flags first
+builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("FeatureFlags"));
+
+// Register location service based on feature flag
+if (builder.Configuration.GetValue<bool>("FeatureFlags:UseRealLocationService"))
+{
+    builder.Services.AddHttpClient<ILocationService, GoogleLocationService>();
+}
+else
+{
+    builder.Services.AddScoped<ILocationService, MockLocationService>();
+}
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddScoped<IStaffWorkService, StaffWorkService>();

@@ -26,6 +26,23 @@ namespace stibe.api.Controllers
         {
             try
             {
+                // Log the incoming request data for debugging
+                _logger.LogInformation($"🏢 CreateSalon called with request: Name={request?.Name}, City={request?.City}, State={request?.State}, Address={request?.Address}, ZipCode={request?.ZipCode}");
+                
+                // Check if the request is null (model binding failed)
+                if (request == null)
+                {
+                    _logger.LogError("❌ CreateSalon request is null - model binding failed");
+                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid request data"));
+                }
+                
+                // Log validation state
+                if (!ModelState.IsValid)
+                {
+                    _logger.LogError("❌ Model validation failed");
+                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Validation failed"));
+                }
+                
                 var currentUserId = GetCurrentUserId();
                 if (currentUserId == null)
                 {
