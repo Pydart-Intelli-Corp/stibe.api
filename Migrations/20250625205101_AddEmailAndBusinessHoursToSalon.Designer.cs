@@ -12,8 +12,8 @@ using stibe.api.Data;
 namespace stibe.api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250625084830_MakeLastNameOptional")]
-    partial class MakeLastNameOptional
+    [Migration("20250625205101_AddEmailAndBusinessHoursToSalon")]
+    partial class AddEmailAndBusinessHoursToSalon
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -147,6 +147,10 @@ namespace stibe.api.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
 
+                    b.Property<string>("BusinessHours")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
                     b.Property<string>("City")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -162,6 +166,11 @@ namespace stibe.api.Migrations
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
 
                     b.Property<string>("ImageUrls")
                         .HasMaxLength(4000)

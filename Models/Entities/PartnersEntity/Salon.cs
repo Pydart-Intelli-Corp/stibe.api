@@ -38,9 +38,16 @@ namespace stibe.api.Models.Entities.PartnersEntity
         [StringLength(20)]
         public string PhoneNumber { get; set; } = string.Empty;
 
+        [StringLength(200)]
+        public string Email { get; set; } = string.Empty;
+
         public TimeSpan OpeningTime { get; set; } = TimeSpan.FromHours(9); // 9:00 AM
 
         public TimeSpan ClosingTime { get; set; } = TimeSpan.FromHours(18); // 6:00 PM
+
+        // Business hours as JSON string
+        [StringLength(2000)]
+        public string? BusinessHours { get; set; }
 
         public bool IsActive { get; set; } = true;
         // Models/Entities/PartnersEntity/Salon.cs - Add these properties

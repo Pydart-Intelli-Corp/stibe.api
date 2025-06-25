@@ -6,6 +6,7 @@ using stibe.api.Models.DTOs.Features;
 using stibe.api.Models.DTOs.PartnersDTOs;
 using stibe.api.Models.Entities.PartnersEntity;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace stibe.api.Controllers
 {
@@ -120,6 +121,116 @@ namespace stibe.api.Controllers
             }
         }
 
+        [HttpPost("create-json")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<SalonResponseDto>>> CreateSalonJson([FromBody] CreateSalonJsonRequestDto request)
+        {
+            try
+            {
+                // Log the incoming request data for debugging
+                _logger.LogInformation($"🏢 CreateSalonJson called with request: Name={request?.Name}, City={request?.City}, State={request?.State}");
+                
+                // Check if the request is null (model binding failed)
+                if (request == null)
+                {
+                    _logger.LogError("❌ CreateSalonJson request is null - model binding failed");
+                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid request data"));
+                }
+                
+                // Log validation state
+                if (!ModelState.IsValid)
+                {
+                    _logger.LogError("❌ Model validation failed: {Errors}", string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
+                    var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Validation failed", errors));
+                }
+                
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid token"));
+                }
+
+                // Validate time format
+                if (!TimeSpan.TryParse(request.OpeningTime, out var openingTime))
+                {
+                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid opening time format. Expected format: HH:mm:ss"));
+                }
+
+                if (!TimeSpan.TryParse(request.ClosingTime, out var closingTime))
+                {
+                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid closing time format. Expected format: HH:mm:ss"));
+                }
+
+                // Serialize business hours to JSON string if provided
+                string? businessHoursJson = null;
+                if (request.BusinessHours != null && request.BusinessHours.Count > 0)
+                {
+                    try
+                    {
+                        businessHoursJson = JsonSerializer.Serialize(request.BusinessHours);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to serialize business hours");
+                    }
+                }
+
+                var salon = new Salon
+                {
+                    Name = request.Name,
+                    Description = request.Description,
+                    Address = request.Address,
+                    City = request.City,
+                    State = request.State,
+                    ZipCode = request.ZipCode,
+                    PhoneNumber = request.PhoneNumber,
+                    Email = request.Email,
+                    OpeningTime = openingTime,
+                    ClosingTime = closingTime,
+                    BusinessHours = businessHoursJson,
+                    Latitude = request.CurrentLatitude,
+                    Longitude = request.CurrentLongitude,
+                    OwnerId = currentUserId.Value,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                _context.Salons.Add(salon);
+                await _context.SaveChangesAsync();
+
+                var response = new SalonResponseDto
+                {
+                    Id = salon.Id,
+                    Name = salon.Name,
+                    Description = salon.Description,
+                    Address = salon.Address,
+                    City = salon.City,
+                    State = salon.State,
+                    ZipCode = salon.ZipCode,
+                    PhoneNumber = salon.PhoneNumber,
+                    Email = salon.Email,
+                    OpeningTime = salon.OpeningTime,
+                    ClosingTime = salon.ClosingTime,
+                    BusinessHours = salon.BusinessHours,
+                    Latitude = salon.Latitude,
+                    Longitude = salon.Longitude,
+                    IsActive = salon.IsActive,
+                    OwnerId = salon.OwnerId,
+                    CreatedAt = salon.CreatedAt,
+                    UpdatedAt = salon.UpdatedAt
+                };
+
+                return Ok(ApiResponse<SalonResponseDto>.SuccessResponse(response, "Salon created successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating salon via JSON");
+                return StatusCode(500, ApiResponse<SalonResponseDto>.ErrorResponse("An error occurred while creating the salon"));
+            }
+        }
+
         [HttpGet]
         [Authorize(Roles = "SalonOwner")]
         public async Task<ActionResult<ApiResponse<List<SalonResponseDto>>>> GetMySalons()
@@ -144,8 +255,10 @@ namespace stibe.api.Controllers
                         State = s.State,
                         ZipCode = s.ZipCode,
                         PhoneNumber = s.PhoneNumber,
+                        Email = s.Email,
                         OpeningTime = s.OpeningTime,
                         ClosingTime = s.ClosingTime,
+                        BusinessHours = s.BusinessHours,
                         Latitude = s.Latitude,
                         Longitude = s.Longitude,
                         IsActive = s.IsActive,
@@ -202,8 +315,10 @@ namespace stibe.api.Controllers
                     State = salon.State,
                     ZipCode = salon.ZipCode,
                     PhoneNumber = salon.PhoneNumber,
+                    Email = salon.Email,
                     OpeningTime = salon.OpeningTime,
                     ClosingTime = salon.ClosingTime,
+                    BusinessHours = salon.BusinessHours,
                     Latitude = salon.Latitude,
                     Longitude = salon.Longitude,
                     IsActive = salon.IsActive,

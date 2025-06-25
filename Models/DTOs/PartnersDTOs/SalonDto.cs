@@ -26,14 +26,23 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
 
         [Required]
         [StringLength(10)]
-        public string ZipCode { get; set; } = string.Empty;        [StringLength(20)]
+        public string ZipCode { get; set; } = string.Empty;
+
+        [StringLength(20)]
         public string PhoneNumber { get; set; } = string.Empty;
+
+        [StringLength(200)]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
 
         [Required]
         public string OpeningTime { get; set; } = "09:00:00";
 
         [Required]
         public string ClosingTime { get; set; } = "18:00:00";
+
+        // Business hours (JSON string)
+        public string? BusinessHours { get; set; }
 
         // Current location properties
         public decimal? CurrentLatitude { get; set; }
@@ -100,8 +109,10 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public decimal? Latitude { get; set; }
         public decimal? Longitude { get; set; }
         public string PhoneNumber { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
         public TimeSpan OpeningTime { get; set; }
         public TimeSpan ClosingTime { get; set; }
+        public string? BusinessHours { get; set; }
         public bool IsActive { get; set; }
         public int OwnerId { get; set; }
         public string OwnerName { get; set; } = string.Empty;
@@ -169,15 +180,32 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         [StringLength(20)]
         public string PhoneNumber { get; set; } = string.Empty;
 
+        [StringLength(200)]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
         [Required]
         public string OpeningTime { get; set; } = "09:00:00";
 
         [Required]
         public string ClosingTime { get; set; } = "18:00:00";
 
+        // Business hours as dictionary/object
+        public Dictionary<string, BusinessHourDto>? BusinessHours { get; set; }
+
         // Current location properties
         public decimal? CurrentLatitude { get; set; }
         public decimal? CurrentLongitude { get; set; }
         public bool UseCurrentLocation { get; set; }
+
+        // Image URLs or base64 strings for mobile
+        public List<string>? ImageUrls { get; set; }
+    }
+
+    public class BusinessHourDto
+    {
+        public bool IsOpen { get; set; }
+        public string Open { get; set; } = "09:00";
+        public string Close { get; set; } = "18:00";
     }
 }

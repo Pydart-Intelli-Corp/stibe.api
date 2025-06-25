@@ -12,8 +12,8 @@ using stibe.api.Data;
 namespace stibe.api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250625083129_init")]
-    partial class init
+    [Migration("20250625143255_InitialMigration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

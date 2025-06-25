@@ -654,7 +654,8 @@ namespace stibe.api.Controllers
                         PhoneNumber = user.PhoneNumber,
                         Role = user.Role,
                         IsEmailVerified = user.IsEmailVerified,
-                        CreatedAt = user.CreatedAt
+                        CreatedAt = user.CreatedAt,
+                        ProfilePictureUrl = user.ProfilePictureUrl
                     }
                 };
 
@@ -1180,28 +1181,195 @@ namespace stibe.api.Controllers
             }
         }
 
-        private int? GetCurrentUserId()
+        [HttpPut("profile")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<UserDto>>> UpdateProfile(ProfileUpdateDto model)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+            try
             {
-                return userId;
+                var userId = GetCurrentUserId();
+                if (userId == null)
+                {
+                    return Unauthorized(ApiResponse<UserDto>.ErrorResponse("Invalid token"));
+                }
+
+                var user = await _context.Users.FindAsync(userId);
+                if (user == null)
+                {
+                    return NotFound(ApiResponse<UserDto>.ErrorResponse("User not found"));
+                }
+
+                // Check if another user already has this phone number
+                var existingUserWithPhone = await _context.Users
+                    .FirstOrDefaultAsync(u => u.PhoneNumber == model.PhoneNumber && u.Id != userId);
+                    
+                if (existingUserWithPhone != null)
+                {
+                    return BadRequest(ApiResponse<UserDto>.ErrorResponse("Phone number is already in use"));
+                }
+
+                // Update user profile
+                user.FirstName = model.FirstName;
+                user.LastName = model.LastName;
+                user.PhoneNumber = model.PhoneNumber;
+                if (!string.IsNullOrEmpty(model.ProfilePictureUrl))
+                {
+                    user.ProfilePictureUrl = model.ProfilePictureUrl;
+                }
+                
+                await _context.SaveChangesAsync();
+
+                // Return updated user
+                return Ok(ApiResponse<UserDto>.SuccessResponse(new UserDto
+                {
+                    Id = user.Id,
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    PhoneNumber = user.PhoneNumber,
+                    Role = user.Role,
+                    IsEmailVerified = user.IsEmailVerified,
+                    CreatedAt = user.CreatedAt,
+                    ProfilePictureUrl = user.ProfilePictureUrl
+                }));
             }
-            return null;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating user profile");
+                return StatusCode(500, ApiResponse<UserDto>.ErrorResponse("An error occurred while updating profile"));
+            }
         }
 
-        #region Helper Methods
+        [HttpPost("profile/image")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<ProfileImageDto>>> UploadProfileImage(IFormFile profileImage)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                if (userId == null)
+                {
+                    return Unauthorized(ApiResponse<ProfileImageDto>.ErrorResponse("Invalid token"));
+                }
 
+                var user = await _context.Users.FindAsync(userId);
+                if (user == null)
+                {
+                    return NotFound(ApiResponse<ProfileImageDto>.ErrorResponse("User not found"));
+                }
+
+                if (profileImage == null || profileImage.Length == 0)
+                {
+                    return BadRequest(ApiResponse<ProfileImageDto>.ErrorResponse("No image file provided"));
+                }
+
+                // Check file type
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
+                var fileExtension = Path.GetExtension(profileImage.FileName).ToLowerInvariant();
+                if (!allowedExtensions.Contains(fileExtension))
+                {
+                    return BadRequest(ApiResponse<ProfileImageDto>.ErrorResponse("Invalid file type. Only JPG, JPEG, and PNG files are allowed."));
+                }
+
+                // Create uploads directory if it doesn't exist
+                var uploadsDir = Path.Combine(_environment.WebRootPath, "uploads", "profile-images");
+                if (!Directory.Exists(uploadsDir))
+                {
+                    Directory.CreateDirectory(uploadsDir);
+                }
+
+                // Generate a unique file name
+                var fileName = $"{userId}_{Guid.NewGuid()}{fileExtension}";
+                var filePath = Path.Combine(uploadsDir, fileName);
+
+                // Save the file
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    await profileImage.CopyToAsync(fileStream);
+                }
+
+                // Generate URL for the file
+                var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                var imageUrl = $"{baseUrl}/uploads/profile-images/{fileName}";
+
+                // Update user profile image in database
+                user.ProfilePictureUrl = imageUrl;
+                await _context.SaveChangesAsync();
+
+                return Ok(ApiResponse<ProfileImageDto>.SuccessResponse(new ProfileImageDto
+                {
+                    ImageUrl = imageUrl
+                }));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading profile image");
+                return StatusCode(500, ApiResponse<ProfileImageDto>.ErrorResponse("An error occurred while uploading profile image"));
+            }
+        }
+
+        [HttpGet("profile")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<UserDto>>> GetProfile()
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                if (userId == null)
+                {
+                    return Unauthorized(ApiResponse<UserDto>.ErrorResponse("Invalid token"));
+                }
+
+                var user = await _context.Users.FindAsync(userId.Value);
+                if (user == null)
+                {
+                    return NotFound(ApiResponse<UserDto>.ErrorResponse("User not found"));
+                }
+
+                return Ok(ApiResponse<UserDto>.SuccessResponse(new UserDto
+                {
+                    Id = user.Id,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Email = user.Email,
+                    PhoneNumber = user.PhoneNumber,
+                    Role = user.Role,
+                    IsEmailVerified = user.IsEmailVerified,
+                    CreatedAt = user.CreatedAt,
+                    ProfilePictureUrl = user.ProfilePictureUrl
+                }));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user profile");
+                return StatusCode(500, ApiResponse<UserDto>.ErrorResponse("An error occurred while retrieving profile"));
+            }
+        }
+
+        // Private method to sanitize input to prevent XSS attacks
+        private string SanitizeInput(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return string.Empty;
+
+            // Basic sanitization
+            input = input.Trim();
+            input = input.Replace("<", "&lt;").Replace(">", "&gt;");
+            return input;
+        }
+
+        // Helper methods
         private bool IsValidEmail(string email)
         {
             if (string.IsNullOrWhiteSpace(email))
                 return false;
 
+            // Simple regex for email validation
             try
             {
-                // Use regex pattern for email validation
-                var pattern = @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$";
-                return Regex.IsMatch(email, pattern);
+                // Use built-in .NET email validation
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
             }
             catch
             {
@@ -1249,13 +1417,7 @@ namespace stibe.api.Controllers
             return errors;
         }
 
-        private string SanitizeInput(string input)
-        {
-            if (string.IsNullOrWhiteSpace(input))
-                return string.Empty;
-
-            // Remove potentially dangerous characters
-            return Regex.Replace(input.Trim(), @"[<>&'""]", "");        }
+        // This duplicate method was removed to fix the ambiguous call error
 
         [HttpPost("forgot-password")]
         [AllowAnonymous]
@@ -1323,7 +1485,23 @@ namespace stibe.api.Controllers
             }
         }
 
-        #endregion
+        private int? GetCurrentUserId()
+        {
+            // Check if user is authenticated
+            if (!User.Identity?.IsAuthenticated ?? true)
+            {
+                return null;
+            }
+
+            // Get user id from claims
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
+            {
+                return null;
+            }
+
+            return userId;
+        }
     }
 
     public class RefreshTokenRequestDto
@@ -1340,5 +1518,10 @@ namespace stibe.api.Controllers
     public class ForgotPasswordDto
     {
         public string Email { get; set; } = string.Empty;
+    }
+
+    public class ProfileImageDto
+    {
+        public string ImageUrl { get; set; } = string.Empty;
     }
 }

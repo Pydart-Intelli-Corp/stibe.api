@@ -107,6 +107,7 @@ namespace stibe.api.Models.DTOs.Auth
         public string Role { get; set; } = string.Empty;
         public bool IsEmailVerified { get; set; }
         public DateTime CreatedAt { get; set; }
+        public string? ProfilePictureUrl { get; set; }
     }
 
     public class ChangePasswordRequestDto

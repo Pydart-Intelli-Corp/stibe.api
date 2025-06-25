@@ -144,6 +144,10 @@ namespace stibe.api.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
 
+                    b.Property<string>("BusinessHours")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
                     b.Property<string>("City")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -159,6 +163,11 @@ namespace stibe.api.Migrations
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
 
                     b.Property<string>("ImageUrls")
                         .HasMaxLength(4000)
