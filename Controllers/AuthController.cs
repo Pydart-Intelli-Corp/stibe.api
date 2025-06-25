@@ -459,9 +459,10 @@ namespace stibe.api.Controllers
                     validationErrors.Add("First name must be at least 2 characters");
                 }
 
-                if (string.IsNullOrWhiteSpace(request.LastName) || request.LastName.Length < 2)
+                // Make LastName optional but if provided, must be at least 2 characters
+                if (!string.IsNullOrWhiteSpace(request.LastName) && request.LastName.Length < 2)
                 {
-                    validationErrors.Add("Last name must be at least 2 characters");
+                    validationErrors.Add("Last name must be at least 2 characters when provided");
                 }
 
                 // Enhanced email validation beyond the basic attribute
@@ -513,7 +514,7 @@ namespace stibe.api.Controllers
 
                 // Sanitize inputs
                 var firstName = SanitizeInput(request.FirstName);
-                var lastName = SanitizeInput(request.LastName);
+                var lastName = string.IsNullOrWhiteSpace(request.LastName) ? "" : SanitizeInput(request.LastName);
                 var email = request.Email.ToLower().Trim();
 
                 // Create new user
@@ -584,13 +585,21 @@ namespace stibe.api.Controllers
         {
             try
             {
+                _logger.LogInformation($"Login attempt for email: {request.Email}");
+                
                 var user = await _context.Users
                     .Where(u => u.Email.ToLower() == request.Email.ToLower() && !u.IsDeleted)
                     .FirstOrDefaultAsync();
 
-                if (user == null || !_passwordService.VerifyPassword(request.Password, user.PasswordHash))
+                if (user == null)
                 {
-                    // Use a generic error message for security
+                    _logger.LogWarning($"User not found for email: {request.Email}");
+                    return BadRequest(ApiResponse<LoginResponseDto>.ErrorResponse("Invalid email or password"));
+                }
+
+                if (!_passwordService.VerifyPassword(request.Password, user.PasswordHash))
+                {
+                    _logger.LogWarning($"Invalid password for user: {request.Email}");
                     return BadRequest(ApiResponse<LoginResponseDto>.ErrorResponse("Invalid email or password"));
                 }                // Check if email is verified
                 if (!user.IsEmailVerified)
@@ -1288,6 +1297,29 @@ namespace stibe.api.Controllers
             {
                 _logger.LogError(ex, "Error during forgot password request");
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred. Please try again later."));
+            }
+        }
+
+        [HttpGet("debug/check-user/{email}")]
+        public async Task<ActionResult> CheckUser(string email)
+        {
+            try
+            {
+                var user = await _context.Users
+                    .Where(u => u.Email.ToLower() == email.ToLower())
+                    .Select(u => new { u.Email, u.Role, u.IsDeleted, u.IsEmailVerified })
+                    .FirstOrDefaultAsync();
+
+                if (user == null)
+                {
+                    return Ok(new { exists = false, message = "User not found" });
+                }
+
+                return Ok(new { exists = true, user = user });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
             }
         }
 

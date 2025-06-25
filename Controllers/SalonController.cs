@@ -22,7 +22,7 @@ namespace stibe.api.Controllers
             _logger = logger;
         }        [HttpPost]
         [Authorize(Roles = "SalonOwner")]
-        public async Task<ActionResult<ApiResponse<SalonResponseDto>>> CreateSalon(CreateSalonRequestDto request)
+        public async Task<ActionResult<ApiResponse<SalonResponseDto>>> CreateSalon([FromBody] CreateSalonRequestDto request)
         {
             try
             {
@@ -39,8 +39,9 @@ namespace stibe.api.Controllers
                 // Log validation state
                 if (!ModelState.IsValid)
                 {
-                    _logger.LogError("❌ Model validation failed");
-                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Validation failed"));
+                    _logger.LogError("❌ Model validation failed: {Errors}", string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
+                    var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Validation failed", errors));
                 }
                 
                 var currentUserId = GetCurrentUserId();
@@ -220,6 +221,7 @@ namespace stibe.api.Controllers
             }
         }
 
+     
         private int? GetCurrentUserId()
         {
             var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);

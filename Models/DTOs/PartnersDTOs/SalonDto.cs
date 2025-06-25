@@ -139,4 +139,45 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public bool HasNextPage { get; set; }
         public bool HasPreviousPage { get; set; }
     }
+
+    // JSON-only version for mobile app (without file uploads)
+    public class CreateSalonJsonRequestDto
+    {
+        [Required]
+        [StringLength(200)]
+        public string Name { get; set; } = string.Empty;
+
+        [StringLength(1000)]
+        public string Description { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(500)]
+        public string Address { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(100)]
+        public string City { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(50)]
+        public string State { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(10)]
+        public string ZipCode { get; set; } = string.Empty;
+
+        [StringLength(20)]
+        public string PhoneNumber { get; set; } = string.Empty;
+
+        [Required]
+        public string OpeningTime { get; set; } = "09:00:00";
+
+        [Required]
+        public string ClosingTime { get; set; } = "18:00:00";
+
+        // Current location properties
+        public decimal? CurrentLatitude { get; set; }
+        public decimal? CurrentLongitude { get; set; }
+        public bool UseCurrentLocation { get; set; }
+    }
 }
