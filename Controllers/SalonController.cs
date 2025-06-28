@@ -16,11 +16,13 @@ namespace stibe.api.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<SalonController> _logger;
+        private readonly IWebHostEnvironment _environment;
 
-        public SalonController(ApplicationDbContext context, ILogger<SalonController> logger)
+        public SalonController(ApplicationDbContext context, ILogger<SalonController> logger, IWebHostEnvironment environment)
         {
             _context = context;
             _logger = logger;
+            _environment = environment;
         }        [HttpPost]
         [Authorize(Roles = "SalonOwner")]
         public async Task<ActionResult<ApiResponse<SalonResponseDto>>> CreateSalon([FromBody] CreateSalonRequestDto request)
@@ -109,7 +111,11 @@ namespace stibe.api.Controllers
                     IsActive = salon.IsActive,
                     OwnerId = salon.OwnerId,
                     CreatedAt = salon.CreatedAt,
-                    UpdatedAt = salon.UpdatedAt
+                    UpdatedAt = salon.UpdatedAt,
+                    ProfilePictureUrl = salon.ProfilePictureUrl ?? string.Empty,
+                    ImageUrls = !string.IsNullOrEmpty(salon.ImageUrls) 
+                        ? salon.ImageUrls.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+                        : new List<string>()
                 };
 
                 return Ok(ApiResponse<SalonResponseDto>.SuccessResponse(response, "Salon created successfully"));
@@ -194,7 +200,12 @@ namespace stibe.api.Controllers
                     OwnerId = currentUserId.Value,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    UpdatedAt = DateTime.UtcNow,
+                    // Handle image URLs
+                    ImageUrls = request.ImageUrls != null && request.ImageUrls.Any() 
+                        ? JsonSerializer.Serialize(request.ImageUrls.Where(url => !string.IsNullOrEmpty(url)).ToList())
+                        : null,
+                    ProfilePictureUrl = request.ImageUrls?.FirstOrDefault()
                 };
 
                 _context.Salons.Add(salon);
@@ -219,7 +230,11 @@ namespace stibe.api.Controllers
                     IsActive = salon.IsActive,
                     OwnerId = salon.OwnerId,
                     CreatedAt = salon.CreatedAt,
-                    UpdatedAt = salon.UpdatedAt
+                    UpdatedAt = salon.UpdatedAt,
+                    ProfilePictureUrl = salon.ProfilePictureUrl ?? string.Empty,
+                    ImageUrls = !string.IsNullOrEmpty(salon.ImageUrls) 
+                        ? salon.ImageUrls.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+                        : new List<string>()
                 };
 
                 return Ok(ApiResponse<SalonResponseDto>.SuccessResponse(response, "Salon created successfully"));
@@ -264,7 +279,11 @@ namespace stibe.api.Controllers
                         IsActive = s.IsActive,
                         OwnerId = s.OwnerId,
                         CreatedAt = s.CreatedAt,
-                        UpdatedAt = s.UpdatedAt
+                        UpdatedAt = s.UpdatedAt,
+                        ProfilePictureUrl = s.ProfilePictureUrl ?? string.Empty,
+                        ImageUrls = !string.IsNullOrEmpty(s.ImageUrls) 
+                            ? s.ImageUrls.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+                            : new List<string>()
                     })
                     .ToListAsync();
 
@@ -324,7 +343,11 @@ namespace stibe.api.Controllers
                     IsActive = salon.IsActive,
                     OwnerId = salon.OwnerId,
                     CreatedAt = salon.CreatedAt,
-                    UpdatedAt = salon.UpdatedAt
+                    UpdatedAt = salon.UpdatedAt,
+                    ProfilePictureUrl = salon.ProfilePictureUrl ?? string.Empty,
+                    ImageUrls = !string.IsNullOrEmpty(salon.ImageUrls) 
+                        ? salon.ImageUrls.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+                        : new List<string>()
                 };
 
                 return Ok(ApiResponse<SalonResponseDto>.SuccessResponse(response, "Salon retrieved successfully"));
@@ -333,6 +356,70 @@ namespace stibe.api.Controllers
             {
                 _logger.LogError(ex, "Error retrieving salon");
                 return StatusCode(500, ApiResponse<SalonResponseDto>.ErrorResponse("An error occurred while retrieving the salon"));
+            }
+        }
+
+        [HttpPost("upload-image")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<object>>> UploadSalonImage(IFormFile image)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<object>.ErrorResponse("Invalid token"));
+                }
+
+                if (image == null || image.Length == 0)
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse("No image file provided"));
+                }
+
+                // Validate file type
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+                var fileExtension = Path.GetExtension(image.FileName).ToLowerInvariant();
+                if (!allowedExtensions.Contains(fileExtension))
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse("Invalid file type. Only JPG, PNG, and GIF files are allowed."));
+                }
+
+                // Validate file size (max 5MB)
+                if (image.Length > 5 * 1024 * 1024)
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse("File size must be less than 5MB"));
+                }
+
+                // Create uploads directory if it doesn't exist
+                var uploadsDir = Path.Combine(_environment.WebRootPath, "uploads", "salon-images");
+                if (!Directory.Exists(uploadsDir))
+                {
+                    Directory.CreateDirectory(uploadsDir);
+                }
+
+                // Generate unique filename
+                var fileName = $"{Guid.NewGuid()}{fileExtension}";
+                var filePath = Path.Combine(uploadsDir, fileName);
+
+                // Save the file
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await image.CopyToAsync(stream);
+                }
+
+                // Generate the URL
+                var request = HttpContext.Request;
+                var baseUrl = $"{request.Scheme}://{request.Host}";
+                var imageUrl = $"{baseUrl}/uploads/salon-images/{fileName}";
+
+                _logger.LogInformation($"✅ Salon image uploaded: {imageUrl}");
+
+                return Ok(ApiResponse<object>.SuccessResponse(new { imageUrl }, "Image uploaded successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading salon image");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while uploading salon image"));
             }
         }
 
@@ -350,6 +437,125 @@ namespace stibe.api.Controllers
         private string? GetCurrentUserRole()
         {
             return User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+        }
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<SalonResponseDto>>> UpdateSalon(int id, [FromBody] UpdateSalonRequestDto request)
+        {
+            try
+            {
+                _logger.LogInformation($"🏢 UpdateSalon called for salon ID: {id}");
+                
+                if (request == null)
+                {
+                    _logger.LogError("❌ UpdateSalon request is null - model binding failed");
+                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid request data"));
+                }
+                
+                if (!ModelState.IsValid)
+                {
+                    _logger.LogError("❌ Model validation failed: {Errors}", string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
+                    var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Validation failed", errors));
+                }
+                
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("User not authenticated"));
+                }
+
+                // Find the existing salon
+                var existingSalon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == id && s.OwnerId == currentUserId);
+                if (existingSalon == null)
+                {
+                    return NotFound(ApiResponse<SalonResponseDto>.ErrorResponse("Salon not found or you don't have permission to update it"));
+                }
+
+                // Update salon properties
+                if (!string.IsNullOrEmpty(request.Name))
+                    existingSalon.Name = request.Name;
+                if (!string.IsNullOrEmpty(request.Description))
+                    existingSalon.Description = request.Description;
+                if (!string.IsNullOrEmpty(request.Address))
+                    existingSalon.Address = request.Address;
+                if (!string.IsNullOrEmpty(request.City))
+                    existingSalon.City = request.City;
+                if (!string.IsNullOrEmpty(request.State))
+                    existingSalon.State = request.State;
+                if (!string.IsNullOrEmpty(request.ZipCode))
+                    existingSalon.ZipCode = request.ZipCode;
+                if (!string.IsNullOrEmpty(request.PhoneNumber))
+                    existingSalon.PhoneNumber = request.PhoneNumber;
+                if (!string.IsNullOrEmpty(request.Email))
+                    existingSalon.Email = request.Email;
+                if (!string.IsNullOrEmpty(request.OpeningTime))
+                    existingSalon.OpeningTime = TimeSpan.Parse(request.OpeningTime);
+                if (!string.IsNullOrEmpty(request.ClosingTime))
+                    existingSalon.ClosingTime = TimeSpan.Parse(request.ClosingTime);
+                if (request.IsActive.HasValue)
+                    existingSalon.IsActive = request.IsActive.Value;
+                    
+                existingSalon.UpdatedAt = DateTime.UtcNow;
+                
+                // Update location if provided
+                if (request.Latitude.HasValue && request.Longitude.HasValue)
+                {
+                    existingSalon.Latitude = request.Latitude.Value;
+                    existingSalon.Longitude = request.Longitude.Value;
+                }
+                
+                // Update business hours if provided
+                if (request.BusinessHours != null)
+                {
+                    existingSalon.BusinessHours = JsonSerializer.Serialize(request.BusinessHours);
+                }
+                
+                // Update image URLs if provided
+                if (request.ImageUrls != null)
+                {
+                    // Set profile picture URL to first image if available
+                    existingSalon.ProfilePictureUrl = request.ImageUrls.FirstOrDefault();
+                    existingSalon.ImageUrls = JsonSerializer.Serialize(request.ImageUrls);
+                }
+
+                await _context.SaveChangesAsync();
+
+                var responseDto = new SalonResponseDto
+                {
+                    Id = existingSalon.Id,
+                    Name = existingSalon.Name ?? "",
+                    Description = existingSalon.Description ?? "",
+                    Address = existingSalon.Address ?? "",
+                    City = existingSalon.City ?? "",
+                    State = existingSalon.State ?? "",
+                    ZipCode = existingSalon.ZipCode ?? "",
+                    PhoneNumber = existingSalon.PhoneNumber ?? "",
+                    Email = existingSalon.Email ?? "",
+                    OpeningTime = existingSalon.OpeningTime,
+                    ClosingTime = existingSalon.ClosingTime,
+                    BusinessHours = existingSalon.BusinessHours,
+                    Latitude = existingSalon.Latitude,
+                    Longitude = existingSalon.Longitude,
+                    IsActive = existingSalon.IsActive,
+                    OwnerId = existingSalon.OwnerId,
+                    CreatedAt = existingSalon.CreatedAt,
+                    UpdatedAt = existingSalon.UpdatedAt,
+                    ProfilePictureUrl = existingSalon.ProfilePictureUrl ?? "",
+                    ImageUrls = string.IsNullOrEmpty(existingSalon.ImageUrls) ? 
+                        new List<string>() : 
+                        JsonSerializer.Deserialize<List<string>>(existingSalon.ImageUrls) ?? new List<string>()
+                };
+
+                _logger.LogInformation($"✅ Salon updated successfully with ID: {existingSalon.Id}");
+                return Ok(ApiResponse<SalonResponseDto>.SuccessResponse(responseDto, "Salon updated successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating salon");
+                return StatusCode(500, ApiResponse<SalonResponseDto>.ErrorResponse("An error occurred while updating the salon"));
+            }
         }
     }
 }

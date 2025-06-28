@@ -74,9 +74,18 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public string? ZipCode { get; set; }
 
         [StringLength(20)]
-        public string? PhoneNumber { get; set; }        public string? OpeningTime { get; set; }
+        public string? PhoneNumber { get; set; }
+
+        [StringLength(200)]
+        [EmailAddress]
+        public string? Email { get; set; }
+
+        public string? OpeningTime { get; set; }
 
         public string? ClosingTime { get; set; }
+        
+        // Business hours (JSON string)
+        public Dictionary<string, object>? BusinessHours { get; set; }
 
         public bool? IsActive { get; set; }
 
