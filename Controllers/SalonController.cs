@@ -5,6 +5,7 @@ using stibe.api.Data;
 using stibe.api.Models.DTOs.Features;
 using stibe.api.Models.DTOs.PartnersDTOs;
 using stibe.api.Models.Entities.PartnersEntity;
+using stibe.api.Services.Interfaces;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -17,12 +18,14 @@ namespace stibe.api.Controllers
         private readonly ApplicationDbContext _context;
         private readonly ILogger<SalonController> _logger;
         private readonly IWebHostEnvironment _environment;
+        private readonly IFileService _fileService;
 
-        public SalonController(ApplicationDbContext context, ILogger<SalonController> logger, IWebHostEnvironment environment)
+        public SalonController(ApplicationDbContext context, ILogger<SalonController> logger, IWebHostEnvironment environment, IFileService fileService)
         {
             _context = context;
             _logger = logger;
             _environment = environment;
+            _fileService = fileService;
         }        [HttpPost]
         [Authorize(Roles = "SalonOwner")]
         public async Task<ActionResult<ApiResponse<SalonResponseDto>>> CreateSalon([FromBody] CreateSalonRequestDto request)
@@ -205,7 +208,9 @@ namespace stibe.api.Controllers
                     ImageUrls = request.ImageUrls != null && request.ImageUrls.Any() 
                         ? JsonSerializer.Serialize(request.ImageUrls.Where(url => !string.IsNullOrEmpty(url)).ToList())
                         : null,
-                    ProfilePictureUrl = request.ImageUrls?.FirstOrDefault()
+                    ProfilePictureUrl = !string.IsNullOrEmpty(request.ProfilePictureUrl) 
+                        ? request.ProfilePictureUrl
+                        : request.ImageUrls?.FirstOrDefault()
                 };
 
                 _context.Salons.Add(salon);
@@ -423,6 +428,84 @@ namespace stibe.api.Controllers
             }
         }
 
+        [HttpDelete("{salonId}/images")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteSalonImages(int salonId, [FromBody] List<string> imageUrls)
+        {
+            try
+            {
+                _logger.LogInformation($"🗑️ DeleteSalonImages called for salon ID: {salonId} with {imageUrls?.Count ?? 0} images");
+                
+                if (imageUrls == null || !imageUrls.Any())
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse("No image URLs provided"));
+                }
+
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<object>.ErrorResponse("User not authenticated"));
+                }
+
+                // Find the salon
+                var salon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == salonId && s.OwnerId == currentUserId);
+                if (salon == null)
+                {
+                    return NotFound(ApiResponse<object>.ErrorResponse("Salon not found or you don't have permission to modify it"));
+                }
+
+                // Get current image URLs from salon
+                var currentImageUrls = string.IsNullOrEmpty(salon.ImageUrls) 
+                    ? new List<string>() 
+                    : JsonSerializer.Deserialize<List<string>>(salon.ImageUrls) ?? new List<string>();
+
+                // Remove the specified images from the salon's image list
+                var updatedImageUrls = currentImageUrls.Where(url => !imageUrls.Contains(url)).ToList();
+                
+                // Update the salon record
+                salon.ImageUrls = JsonSerializer.Serialize(updatedImageUrls);
+                salon.ProfilePictureUrl = updatedImageUrls.FirstOrDefault(); // Update profile picture to first remaining image
+                salon.UpdatedAt = DateTime.UtcNow;
+                
+                await _context.SaveChangesAsync();
+
+                // Delete the actual image files from storage
+                var deletedImages = new List<string>();
+                var failedDeletions = new List<string>();
+
+                foreach (var imageUrl in imageUrls)
+                {
+                    try
+                    {
+                        await _fileService.DeleteFileAsync(imageUrl, "salon-images");
+                        deletedImages.Add(imageUrl);
+                        _logger.LogInformation($"✅ Successfully deleted image: {imageUrl}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"❌ Failed to delete image from storage: {imageUrl}");
+                        failedDeletions.Add(imageUrl);
+                    }
+                }
+
+                var response = new
+                {
+                    deletedImages = deletedImages,
+                    failedDeletions = failedDeletions,
+                    remainingImages = updatedImageUrls,
+                    message = $"Successfully processed {deletedImages.Count} images, {failedDeletions.Count} failed"
+                };
+
+                _logger.LogInformation($"✅ Image deletion completed. Deleted: {deletedImages.Count}, Failed: {failedDeletions.Count}");
+                return Ok(ApiResponse<object>.SuccessResponse(response, "Image deletion completed"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting salon images");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while deleting images"));
+            }
+        }
+
      
         private int? GetCurrentUserId()
         {
@@ -512,11 +595,20 @@ namespace stibe.api.Controllers
                     existingSalon.BusinessHours = JsonSerializer.Serialize(request.BusinessHours);
                 }
                 
+                // Update profile picture URL if provided
+                if (!string.IsNullOrEmpty(request.ProfilePictureUrl))
+                {
+                    existingSalon.ProfilePictureUrl = request.ProfilePictureUrl;
+                }
+                else if (request.ProfilePictureUrl == "")
+                {
+                    // If ProfilePictureUrl is explicitly set to empty string, remove it
+                    existingSalon.ProfilePictureUrl = null;
+                }
+                
                 // Update image URLs if provided
                 if (request.ImageUrls != null)
                 {
-                    // Set profile picture URL to first image if available
-                    existingSalon.ProfilePictureUrl = request.ImageUrls.FirstOrDefault();
                     existingSalon.ImageUrls = JsonSerializer.Serialize(request.ImageUrls);
                 }
 
@@ -555,6 +647,41 @@ namespace stibe.api.Controllers
             {
                 _logger.LogError(ex, "Error updating salon");
                 return StatusCode(500, ApiResponse<SalonResponseDto>.ErrorResponse("An error occurred while updating the salon"));
+            }
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteSalon(int id)
+        {
+            try
+            {
+                _logger.LogInformation($"🗑️ DeleteSalon called for salon ID: {id}");
+                
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<object>.ErrorResponse("User not authenticated"));
+                }
+
+                // Find the existing salon
+                var existingSalon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == id && s.OwnerId == currentUserId);
+                if (existingSalon == null)
+                {
+                    return NotFound(ApiResponse<object>.ErrorResponse("Salon not found or you don't have permission to delete it"));
+                }
+
+                // Remove the salon from the database
+                _context.Salons.Remove(existingSalon);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"✅ Salon deleted successfully with ID: {id}");
+                return Ok(ApiResponse<object>.SuccessResponse(new { }, "Salon deleted successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting salon");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while deleting the salon"));
             }
         }
     }

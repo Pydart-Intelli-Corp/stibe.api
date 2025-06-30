@@ -209,6 +209,10 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
 
         // Image URLs or base64 strings for mobile
         public List<string>? ImageUrls { get; set; }
+        
+        // Profile picture URL for mobile
+        [StringLength(500)]
+        public string? ProfilePictureUrl { get; set; }
     }
 
     public class BusinessHourDto
