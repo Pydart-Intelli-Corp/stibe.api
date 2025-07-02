@@ -24,8 +24,6 @@ namespace stibe.api.Models.Entities.PartnersEntity
 
         [Required]
         public string PasswordHash { get; set; } = string.Empty;
-        public string? ExternalAuthProvider { get; set; }
-        public string? ExternalAuthId { get; set; }
         public string? ProfilePictureUrl { get; set; }
 
         public bool IsEmailVerified { get; set; } = false;

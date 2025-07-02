@@ -79,9 +79,6 @@ builder.Services.AddScoped<IStaffWorkService, StaffWorkService>();
 builder.Services.Configure<EmailConfiguration>(builder.Configuration.GetSection("SmtpSettings"));
 builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("FeatureFlags"));
 builder.Services.AddScoped<IFileService, LocalFileService>();
-// Configure Google Auth Settings
-builder.Services.Configure<GoogleAuthSettings>(
-    builder.Configuration.GetSection("GoogleAuthSettings"));
 
 if (builder.Configuration.GetValue<bool>("FeatureFlags:UseRealEmailService"))
 {

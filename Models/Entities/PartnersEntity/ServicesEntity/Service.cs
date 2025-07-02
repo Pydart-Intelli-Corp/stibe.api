@@ -20,8 +20,17 @@ namespace stibe.api.Models.Entities.PartnersEntity.ServicesEntity
 
         public bool IsActive { get; set; } = true;
 
-        // New fields
+        // Enhanced fields for improved service management
         public string ImageUrl { get; set; } = string.Empty;
+        
+        [Column(TypeName = "decimal(10,2)")]
+        public decimal? OfferPrice { get; set; }
+        
+        [StringLength(2000)]
+        public string? ProductsUsed { get; set; }
+        
+        [StringLength(4000)]
+        public string? ServiceImages { get; set; } // JSON array of image URLs
 
         public int? CategoryId { get; set; }
 

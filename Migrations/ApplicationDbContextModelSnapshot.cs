@@ -281,14 +281,25 @@ namespace stibe.api.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
 
+                    b.Property<decimal?>("OfferPrice")
+                        .HasColumnType("decimal(10,2)");
+
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("ProductsUsed")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
 
                     b.Property<bool>("RequiresStaffAssignment")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<int>("SalonId")
                         .HasColumnType("int");
+
+                    b.Property<string>("ServiceImages")
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -365,6 +376,14 @@ namespace stibe.api.Migrations
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
+
+                    b.Property<string>("IconUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
@@ -783,12 +802,6 @@ namespace stibe.api.Migrations
 
                     b.Property<DateTime?>("EmailVerifiedAt")
                         .HasColumnType("datetime(6)");
-
-                    b.Property<string>("ExternalAuthId")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("ExternalAuthProvider")
-                        .HasColumnType("longtext");
 
                     b.Property<string>("FirstName")
                         .IsRequired()

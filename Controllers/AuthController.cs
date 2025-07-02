@@ -1,5 +1,4 @@
-﻿using Google.Apis.Auth;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -26,7 +25,6 @@ namespace stibe.api.Controllers
         private readonly IEmailService _emailService;
         private readonly ILogger<AuthController> _logger;
         private readonly IWebHostEnvironment _environment;
-        private readonly IOptions<GoogleAuthSettings> _googleAuthSettings;
 
         public AuthController(
             ApplicationDbContext context,
@@ -34,7 +32,6 @@ namespace stibe.api.Controllers
             IJwtService jwtService,
             IEmailService emailService,
             ILogger<AuthController> logger,
-            IOptions<GoogleAuthSettings> googleAuthSettings,
             IWebHostEnvironment environment)
         {
             _context = context;
@@ -42,7 +39,6 @@ namespace stibe.api.Controllers
             _jwtService = jwtService;
             _emailService = emailService;
             _logger = logger;
-            _googleAuthSettings = googleAuthSettings;
             _environment = environment;
         }
 
@@ -215,233 +211,7 @@ namespace stibe.api.Controllers
             }
         }
 
-        [HttpPost("google-sign-in")]
-        public async Task<ActionResult<ApiResponse<ExternalAuthResponseDto>>> GoogleSignIn(GoogleAuthRequestDto request)
-        {
-            try
-            {
-                // Validate the Google ID token
-                GoogleJsonWebSignature.Payload payload;
-                try
-                {
-                    payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, new GoogleJsonWebSignature.ValidationSettings
-                    {
-                        Audience = new[] { _googleAuthSettings.Value.ClientId }
-                    });
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Invalid Google token");
-                    return BadRequest(ApiResponse<ExternalAuthResponseDto>.ErrorResponse("Invalid Google token"));
-                }
-
-                // Check if the user already exists
-                var user = await _context.Users
-                    .FirstOrDefaultAsync(u => u.Email.ToLower() == payload.Email.ToLower() && !u.IsDeleted);
-
-                bool isNewUser = false;
-
-                // If user doesn't exist, create a new account
-                if (user == null)
-                {
-                    isNewUser = true;
-
-                    // Generate a secure random password (user won't need this)
-                    var securePassword = _passwordService.GenerateSecureToken();
-                    var passwordHash = _passwordService.HashPassword(securePassword);
-
-                    // Extract first and last name from Google profile
-                    var nameParts = payload.Name.Split(' ');
-                    var firstName = nameParts.Length > 0 ? nameParts[0] : "";
-                    var lastName = nameParts.Length > 1 ? string.Join(" ", nameParts.Skip(1)) : "";
-
-                    user = new User
-                    {
-                        FirstName = firstName,
-                        LastName = lastName,
-                        Email = payload.Email,
-                        PhoneNumber = "", // Google doesn't provide phone number
-                        PasswordHash = passwordHash,
-                        Role = "Customer", // Default role for new users
-                        IsEmailVerified = payload.EmailVerified, // Google has already verified the email
-                        ExternalAuthProvider = "Google",
-                        ExternalAuthId = payload.Subject, // Google's unique user ID
-                        ProfilePictureUrl = payload.Picture // Add profile picture from Google 
-                    };
-
-                    _context.Users.Add(user);
-                    await _context.SaveChangesAsync();
-
-                    _logger.LogInformation($"New user registered via Google: {user.Email}");
-                }
-                else
-                {
-                    // Update existing user with Google information if they're logging in with Google for the first time
-                    if (string.IsNullOrEmpty(user.ExternalAuthProvider))
-                    {
-                        user.ExternalAuthProvider = "Google";
-                        user.ExternalAuthId = payload.Subject;
-
-                        // If the user hasn't verified their email through our system but Google has verified it
-                        if (!user.IsEmailVerified && payload.EmailVerified)
-                        {
-                            user.IsEmailVerified = true;
-                        }
-
-                        // Update profile picture if not set
-                        if (string.IsNullOrEmpty(user.ProfilePictureUrl) && !string.IsNullOrEmpty(payload.Picture))
-                        {
-                            user.ProfilePictureUrl = payload.Picture;
-                        }
-
-                        await _context.SaveChangesAsync();
-                    }
-                }
-
-                // Generate JWT token
-                var token = _jwtService.GenerateToken(user);
-                var refreshToken = _jwtService.GenerateRefreshToken();
-                var expiresAt = DateTime.UtcNow.AddMinutes(60);
-
-                // Update last login info if properties exist
-                try
-                {
-                    var lastLoginDateProp = typeof(User).GetProperty("LastLoginDate");
-                    if (lastLoginDateProp != null)
-                    {
-                        lastLoginDateProp.SetValue(user, DateTime.UtcNow);
-                    }
-
-                    var lastLoginIPProp = typeof(User).GetProperty("LastLoginIP");
-                    if (lastLoginIPProp != null)
-                    {
-                        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-                        lastLoginIPProp.SetValue(user, ipAddress);
-                    }
-
-                    await _context.SaveChangesAsync();
-                }
-                catch
-                {
-                    // Ignore if properties don't exist
-                }
-
-                var response = new ExternalAuthResponseDto
-                {
-                    IsNewUser = isNewUser,
-                    Token = token,
-                    RefreshToken = refreshToken,
-                    ExpiresAt = expiresAt,
-                    User = new UserDto
-                    {
-                        Id = user.Id,
-                        FirstName = user.FirstName,
-                        LastName = user.LastName,
-                        Email = user.Email,
-                        PhoneNumber = user.PhoneNumber,
-                        Role = user.Role,
-                        IsEmailVerified = user.IsEmailVerified,
-                        CreatedAt = user.CreatedAt
-                    }
-                };
-
-                string welcomeMessage = isNewUser
-                    ? $"Welcome to Stibe, {user.FirstName}! Your account has been created successfully."
-                    : $"Welcome back, {user.FirstName}!";
-
-                _logger.LogInformation($"User logged in via Google: {user.Email}");
-                return Ok(ApiResponse<ExternalAuthResponseDto>.SuccessResponse(response, welcomeMessage));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during Google sign-in");
-                return StatusCode(500, ApiResponse<ExternalAuthResponseDto>.ErrorResponse("An error occurred during Google sign-in. Please try again later."));
-            }
-        }
-
-        [HttpGet("debug-google-auth")]
-        [AllowAnonymous]
-        public ActionResult DebugGoogleAuth()
-        {
-            if (!_environment.IsDevelopment())
-            {
-                return NotFound("Debug endpoint only available in development");
-            }
-
-            try
-            {
-                var debugInfo = new
-                {
-                    GoogleAuth = new
-                    {
-                        _googleAuthSettings.Value.ClientId,
-                        ClientIdPresent = !string.IsNullOrEmpty(_googleAuthSettings.Value.ClientId),
-                        ClientSecretLength = _googleAuthSettings.Value.ClientSecret?.Length ?? 0
-                    },
-                    Environment = _environment.EnvironmentName,
-                    RequestDetails = new
-                    {
-                        Request.Scheme,
-                        Host = Request.Host.ToString(),
-                        PathBase = Request.PathBase.ToString(),
-                        Path = Request.Path.ToString()
-                    }
-                };
-
-                return Ok(debugInfo);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Debug error: {ex.Message}\n{ex.StackTrace}");
-            }
-        }
-
-        [HttpPost("debug-token")]
-        [AllowAnonymous]
-        public async Task<ActionResult> DebugToken([FromBody] GoogleAuthRequestDto request)
-        {
-            if (!_environment.IsDevelopment())
-            {
-                return NotFound("Debug endpoint only available in development");
-            }
-
-            try
-            {
-                var debugResponse = new Dictionary<string, object>();
-                debugResponse["tokenReceived"] = !string.IsNullOrEmpty(request.IdToken);
-                debugResponse["tokenFirstChars"] = request.IdToken?.Substring(0, Math.Min(10, request.IdToken?.Length ?? 0)) + "...";
-                debugResponse["tokenLength"] = request.IdToken?.Length ?? 0;
-
-                try
-                {
-                    var validationSettings = new GoogleJsonWebSignature.ValidationSettings
-                    {
-                        Audience = new[] { _googleAuthSettings.Value.ClientId }
-                    };
-                    debugResponse["validationSettings"] = JsonSerializer.Serialize(validationSettings);
-
-                    var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, validationSettings);
-                    debugResponse["validationSuccess"] = true;
-                    debugResponse["email"] = payload.Email;
-                    debugResponse["name"] = payload.Name;
-                    debugResponse["picture"] = payload.Picture;
-                    debugResponse["emailVerified"] = payload.EmailVerified;
-                }
-                catch (Exception tokenEx)
-                {
-                    debugResponse["validationSuccess"] = false;
-                    debugResponse["validationError"] = tokenEx.Message;
-                    debugResponse["validationErrorType"] = tokenEx.GetType().Name;
-                    debugResponse["validationErrorStack"] = tokenEx.StackTrace;
-                }
-
-                return Ok(debugResponse);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Debug error: {ex.Message}\n{ex.StackTrace}");
-            }
-        }
+        // Google OAuth functionality has been removed
 
         [HttpPost("register")]
         [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]

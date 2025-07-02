@@ -7,6 +7,7 @@ using stibe.api.Models.DTOs.PartnersDTOs.ServicesDTOs;
 using stibe.api.Models.Entities.PartnersEntity;
 using stibe.api.Models.Entities.PartnersEntity.ServicesEntity;
 using stibe.api.Models.Entities.PartnersEntity.StaffEntity;
+using stibe.api.Services.Interfaces;
 using System.Security.Claims;
 
 namespace stibe.api.Controllers
@@ -17,11 +18,13 @@ namespace stibe.api.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<ServiceController> _logger;
+        private readonly IFileService _fileService;
 
-        public ServiceController(ApplicationDbContext context, ILogger<ServiceController> logger)
+        public ServiceController(ApplicationDbContext context, ILogger<ServiceController> logger, IFileService fileService)
         {
             _context = context;
             _logger = logger;
+            _fileService = fileService;
         }
 
         [HttpPost]
@@ -70,9 +73,17 @@ namespace stibe.api.Controllers
                     DurationInMinutes = request.DurationInMinutes,
                     SalonId = salonId,
                     IsActive = true,
-                    // New fields
+                    
+                    // Enhanced fields
                     ImageUrl = request.ImageUrl ?? string.Empty,
                     CategoryId = request.CategoryId,
+                    OfferPrice = request.OfferPrice,
+                    ProductsUsed = request.ProductsUsed,
+                    ServiceImages = request.ServiceImages != null && request.ServiceImages.Any() 
+                        ? System.Text.Json.JsonSerializer.Serialize(request.ServiceImages) 
+                        : null,
+                    
+                    // Technical fields
                     MaxConcurrentBookings = request.MaxConcurrentBookings,
                     RequiresStaffAssignment = request.RequiresStaffAssignment,
                     BufferTimeBeforeMinutes = request.BufferTimeBeforeMinutes,
@@ -274,9 +285,22 @@ namespace stibe.api.Controllers
                 if (request.IsActive.HasValue)
                     service.IsActive = request.IsActive.Value;
 
-                // Update new fields
+                // Update enhanced fields
                 if (request.ImageUrl != null)
                     service.ImageUrl = request.ImageUrl;
+
+                if (request.OfferPrice.HasValue)
+                    service.OfferPrice = request.OfferPrice;
+
+                if (request.ProductsUsed != null)
+                    service.ProductsUsed = request.ProductsUsed;
+
+                if (request.ServiceImages != null)
+                {
+                    service.ServiceImages = request.ServiceImages.Any() 
+                        ? System.Text.Json.JsonSerializer.Serialize(request.ServiceImages) 
+                        : null;
+                }
 
                 if (request.CategoryId.HasValue)
                 {
@@ -290,6 +314,7 @@ namespace stibe.api.Controllers
                     service.CategoryId = request.CategoryId;
                 }
 
+                // Update technical fields
                 if (request.MaxConcurrentBookings.HasValue)
                     service.MaxConcurrentBookings = request.MaxConcurrentBookings.Value;
 
@@ -736,6 +761,204 @@ namespace stibe.api.Controllers
             }
         }
 
+        [HttpPost("{serviceId}/duplicate")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<ServiceResponseDto>>> DuplicateService(int salonId, int serviceId, [FromBody] DuplicateServiceRequestDto request)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<ServiceResponseDto>.ErrorResponse("Invalid token"));
+                }
+
+                // Verify salon ownership
+                var salon = await _context.Salons
+                    .FirstOrDefaultAsync(s => s.Id == salonId && !s.IsDeleted);
+
+                if (salon == null)
+                {
+                    return NotFound(ApiResponse<ServiceResponseDto>.ErrorResponse("Salon not found"));
+                }
+
+                if (salon.OwnerId != currentUserId.Value)
+                {
+                    return Forbid("You can only duplicate services from your own salons");
+                }
+
+                // Get the original service
+                var originalService = await _context.Services
+                    .Include(s => s.Availabilities)
+                    .FirstOrDefaultAsync(s => s.Id == serviceId && s.SalonId == salonId && !s.IsDeleted);
+
+                if (originalService == null)
+                {
+                    return NotFound(ApiResponse<ServiceResponseDto>.ErrorResponse("Service not found"));
+                }
+
+                // Create duplicate
+                var duplicateService = new Service
+                {
+                    Name = request.NewName,
+                    Description = originalService.Description,
+                    Price = originalService.Price,
+                    DurationInMinutes = originalService.DurationInMinutes,
+                    SalonId = salonId,
+                    IsActive = true,
+                    ImageUrl = originalService.ImageUrl,
+                    CategoryId = originalService.CategoryId,
+                    MaxConcurrentBookings = originalService.MaxConcurrentBookings,
+                    RequiresStaffAssignment = originalService.RequiresStaffAssignment,
+                    BufferTimeBeforeMinutes = originalService.BufferTimeBeforeMinutes,
+                    BufferTimeAfterMinutes = originalService.BufferTimeAfterMinutes
+                };
+
+                _context.Services.Add(duplicateService);
+                await _context.SaveChangesAsync();
+
+                // Duplicate availabilities
+                if (originalService.Availabilities != null && originalService.Availabilities.Any())
+                {
+                    var duplicateAvailabilities = originalService.Availabilities.Select(a => new ServiceAvailability
+                    {
+                        ServiceId = duplicateService.Id,
+                        DayOfWeek = a.DayOfWeek,
+                        StartTime = a.StartTime,
+                        EndTime = a.EndTime,
+                        IsAvailable = a.IsAvailable,
+                        MaxBookingsPerSlot = a.MaxBookingsPerSlot,
+                        SlotDurationMinutes = a.SlotDurationMinutes,
+                        BufferTimeMinutes = a.BufferTimeMinutes
+                    }).ToList();
+
+                    _context.ServiceAvailabilities.AddRange(duplicateAvailabilities);
+                    await _context.SaveChangesAsync();
+                }
+
+                // Load the created service with all related data
+                var createdService = await _context.Services
+                    .Include(s => s.Salon)
+                    .Include(s => s.Category)
+                    .Include(s => s.Availabilities)
+                    .FirstOrDefaultAsync(s => s.Id == duplicateService.Id);
+
+                var response = MapToServiceResponse(createdService!);
+
+                _logger.LogInformation($"Service duplicated successfully: {duplicateService.Name} from {originalService.Name} for salon {salonId} by user {currentUserId}");
+                return Ok(ApiResponse<ServiceResponseDto>.SuccessResponse(response, "Service duplicated successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error duplicating service");
+                return StatusCode(500, ApiResponse<ServiceResponseDto>.ErrorResponse("An error occurred while duplicating the service"));
+            }
+        }
+
+        [HttpPost("{serviceId}/toggle-status")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<ServiceResponseDto>>> ToggleServiceStatus(int salonId, int serviceId)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<ServiceResponseDto>.ErrorResponse("Invalid token"));
+                }
+
+                // Verify salon ownership
+                var salon = await _context.Salons
+                    .FirstOrDefaultAsync(s => s.Id == salonId && !s.IsDeleted);
+
+                if (salon == null)
+                {
+                    return NotFound(ApiResponse<ServiceResponseDto>.ErrorResponse("Salon not found"));
+                }
+
+                if (salon.OwnerId != currentUserId.Value)
+                {
+                    return Forbid("You can only toggle services for your own salons");
+                }
+
+                var service = await _context.Services
+                    .Include(s => s.Salon)
+                    .Include(s => s.Category)
+                    .FirstOrDefaultAsync(s => s.Id == serviceId && s.SalonId == salonId && !s.IsDeleted);
+
+                if (service == null)
+                {
+                    return NotFound(ApiResponse<ServiceResponseDto>.ErrorResponse("Service not found"));
+                }
+
+                // Toggle status
+                service.IsActive = !service.IsActive;
+                service.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                var response = MapToServiceResponse(service);
+
+                _logger.LogInformation($"Service status toggled: {service.Name} is now {(service.IsActive ? "active" : "inactive")} for salon {salonId} by user {currentUserId}");
+                return Ok(ApiResponse<ServiceResponseDto>.SuccessResponse(response, $"Service {(service.IsActive ? "activated" : "deactivated")} successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error toggling service status");
+                return StatusCode(500, ApiResponse<ServiceResponseDto>.ErrorResponse("An error occurred while toggling service status"));
+            }
+        }
+
+        [HttpGet("categories")]
+        public async Task<ActionResult<ApiResponse<List<ServiceCategoryResponseDto>>>> GetServiceCategories(
+            int salonId,
+            bool includeInactive = false)
+        {
+            try
+            {
+                var salon = await _context.Salons
+                    .FirstOrDefaultAsync(s => s.Id == salonId && !s.IsDeleted);
+
+                if (salon == null)
+                {
+                    return NotFound(ApiResponse<List<ServiceCategoryResponseDto>>.ErrorResponse("Salon not found"));
+                }
+
+                var query = _context.ServiceCategories.AsQueryable()
+                    .Where(c => c.SalonId == salonId && !c.IsDeleted);
+
+                if (!includeInactive)
+                {
+                    query = query.Where(c => c.IsActive);
+                }
+
+                var categories = await query
+                    .Include(c => c.Services.Where(s => !s.IsDeleted))
+                    .OrderBy(c => c.Name)
+                    .ToListAsync();
+
+                var response = categories.Select(c => new ServiceCategoryResponseDto
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    Description = c.Description,
+                    IconUrl = c.IconUrl,
+                    SalonId = c.SalonId,
+                    IsActive = c.IsActive,
+                    ServiceCount = c.Services.Count(s => !s.IsDeleted),
+                    CreatedAt = c.CreatedAt,
+                    UpdatedAt = c.UpdatedAt
+                }).ToList();
+
+                return Ok(ApiResponse<List<ServiceCategoryResponseDto>>.SuccessResponse(response));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving service categories");
+                return StatusCode(500, ApiResponse<List<ServiceCategoryResponseDto>>.ErrorResponse("An error occurred while retrieving service categories"));
+            }
+        }
+
         #region Helper Methods
 
         private int? GetCurrentUserId()
@@ -796,10 +1019,17 @@ namespace stibe.api.Controllers
                 SalonId = service.SalonId,
                 SalonName = service.Salon.Name,
 
-                // Extended properties
+                // Enhanced properties
                 ImageUrl = service.ImageUrl,
                 CategoryId = service.CategoryId,
                 CategoryName = service.Category?.Name,
+                OfferPrice = service.OfferPrice,
+                ProductsUsed = service.ProductsUsed,
+                ServiceImages = string.IsNullOrEmpty(service.ServiceImages) 
+                    ? new List<string>() 
+                    : System.Text.Json.JsonSerializer.Deserialize<List<string>>(service.ServiceImages) ?? new List<string>(),
+
+                // Technical properties
                 MaxConcurrentBookings = service.MaxConcurrentBookings,
                 RequiresStaffAssignment = service.RequiresStaffAssignment,
                 BufferTimeBeforeMinutes = service.BufferTimeBeforeMinutes,
@@ -881,6 +1111,256 @@ namespace stibe.api.Controllers
         }
 
         #endregion
+
+        [HttpPost("suggest-category")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<SuggestCategoryResponseDto>>> SuggestCategory(int salonId, SuggestCategoryRequestDto request)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<SuggestCategoryResponseDto>.ErrorResponse("Invalid token"));
+                }
+
+                // Verify salon exists and user owns it
+                var salon = await _context.Salons
+                    .FirstOrDefaultAsync(s => s.Id == salonId && !s.IsDeleted);
+
+                if (salon == null)
+                {
+                    return NotFound(ApiResponse<SuggestCategoryResponseDto>.ErrorResponse("Salon not found"));
+                }
+
+                if (salon.OwnerId != currentUserId.Value)
+                {
+                    return Forbid("You can only suggest categories for your own salons");
+                }
+
+                // Get all categories for this salon
+                var categories = await _context.ServiceCategories
+                    .Where(c => c.SalonId == salonId && !c.IsDeleted)
+                    .ToListAsync();
+
+                if (!categories.Any())
+                {
+                    return Ok(ApiResponse<SuggestCategoryResponseDto>.SuccessResponse(
+                        new SuggestCategoryResponseDto { CategoryId = null }));
+                }
+
+                // Simple keyword-based categorization algorithm
+                var serviceName = request.Name?.ToLower() ?? "";
+                var serviceDescription = request.Description?.ToLower() ?? "";
+                var combinedText = $"{serviceName} {serviceDescription}";
+
+                // Define category keywords mapping
+                Dictionary<int, List<string>> categoryKeywords = new Dictionary<int, List<string>>();
+                
+                // Populate keywords for each category based on its name and existing services
+                foreach (var category in categories)
+                {
+                    var keywords = new List<string> { category.Name.ToLower() };
+                    
+                    // Get services in this category to extract more keywords
+                    var services = await _context.Services
+                        .Where(s => s.CategoryId == category.Id && !s.IsDeleted)
+                        .ToListAsync();
+                        
+                    foreach (var service in services)
+                    {
+                        keywords.AddRange(service.Name.ToLower().Split(' '));
+                        if (!string.IsNullOrEmpty(service.Description))
+                        {
+                            keywords.AddRange(service.Description.ToLower().Split(' '));
+                        }
+                    }
+                    
+                    // Filter out common words and duplicates
+                    var filteredKeywords = keywords
+                        .Where(k => k.Length > 3)
+                        .Distinct()
+                        .ToList();
+                        
+                    categoryKeywords[category.Id] = filteredKeywords;
+                }
+                
+                // Find best match based on keyword occurrence
+                int? bestCategoryId = null;
+                int highestScore = 0;
+                
+                foreach (var categoryEntry in categoryKeywords)
+                {
+                    int score = 0;
+                    foreach (var keyword in categoryEntry.Value)
+                    {
+                        if (combinedText.Contains(keyword))
+                        {
+                            score++;
+                        }
+                    }
+                    
+                    if (score > highestScore)
+                    {
+                        highestScore = score;
+                        bestCategoryId = categoryEntry.Key;
+                    }
+                }
+                
+                // Only suggest if we have a reasonable match
+                if (highestScore < 2)
+                {
+                    bestCategoryId = null;
+                }
+
+                return Ok(ApiResponse<SuggestCategoryResponseDto>.SuccessResponse(
+                    new SuggestCategoryResponseDto { CategoryId = bestCategoryId }));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error suggesting category");
+                return StatusCode(500, ApiResponse<SuggestCategoryResponseDto>.ErrorResponse(
+                    "An error occurred while suggesting a category"));
+            }
+        }
+
+        [HttpPost("upload-profile-image")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<ImageUploadResponseDto>>> UploadServiceProfileImage(int salonId, IFormFile image)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<ImageUploadResponseDto>.ErrorResponse("Invalid token"));
+                }
+
+                // Verify salon exists and user owns it
+                var salon = await _context.Salons
+                    .FirstOrDefaultAsync(s => s.Id == salonId && !s.IsDeleted);
+
+                if (salon == null)
+                {
+                    return NotFound(ApiResponse<ImageUploadResponseDto>.ErrorResponse("Salon not found"));
+                }
+
+                if (salon.OwnerId != currentUserId.Value)
+                {
+                    return Forbid("You can only upload images for your own salons");
+                }
+
+                if (image == null || image.Length == 0)
+                {
+                    return BadRequest(ApiResponse<ImageUploadResponseDto>.ErrorResponse("No image file provided"));
+                }
+
+                // Validate file type and size
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+                var fileExtension = Path.GetExtension(image.FileName).ToLowerInvariant();
+                
+                if (!allowedExtensions.Contains(fileExtension))
+                {
+                    return BadRequest(ApiResponse<ImageUploadResponseDto>.ErrorResponse("Invalid file type. Only JPG, PNG, GIF, and WebP images are allowed."));
+                }
+
+                if (image.Length > 5 * 1024 * 1024) // 5MB limit
+                {
+                    return BadRequest(ApiResponse<ImageUploadResponseDto>.ErrorResponse("File size too large. Maximum size is 5MB."));
+                }
+
+                // Upload image
+                var imageUrl = await _fileService.UploadFileAsync(image, "service-images");
+
+                var response = new ImageUploadResponseDto
+                {
+                    ImageUrl = imageUrl,
+                    IsGalleryImage = false
+                };
+
+                return Ok(ApiResponse<ImageUploadResponseDto>.SuccessResponse(response, "Service profile image uploaded successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading service profile image for salon {SalonId}", salonId);
+                return StatusCode(500, ApiResponse<ImageUploadResponseDto>.ErrorResponse("Internal server error"));
+            }
+        }
+
+        [HttpPost("upload-gallery-images")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<GalleryUploadResponseDto>>> UploadServiceGalleryImages(int salonId, IFormFileCollection images)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<GalleryUploadResponseDto>.ErrorResponse("Invalid token"));
+                }
+
+                // Verify salon exists and user owns it
+                var salon = await _context.Salons
+                    .FirstOrDefaultAsync(s => s.Id == salonId && !s.IsDeleted);
+
+                if (salon == null)
+                {
+                    return NotFound(ApiResponse<GalleryUploadResponseDto>.ErrorResponse("Salon not found"));
+                }
+
+                if (salon.OwnerId != currentUserId.Value)
+                {
+                    return Forbid("You can only upload images for your own salons");
+                }
+
+                if (images == null || !images.Any())
+                {
+                    return BadRequest(ApiResponse<GalleryUploadResponseDto>.ErrorResponse("No image files provided"));
+                }
+
+                if (images.Count > 10)
+                {
+                    return BadRequest(ApiResponse<GalleryUploadResponseDto>.ErrorResponse("Maximum 10 images allowed"));
+                }
+
+                // Validate files
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+                var uploadedUrls = new List<string>();
+
+                foreach (var image in images)
+                {
+                    var fileExtension = Path.GetExtension(image.FileName).ToLowerInvariant();
+                    
+                    if (!allowedExtensions.Contains(fileExtension))
+                    {
+                        return BadRequest(ApiResponse<GalleryUploadResponseDto>.ErrorResponse($"Invalid file type for {image.FileName}. Only JPG, PNG, GIF, and WebP images are allowed."));
+                    }
+
+                    if (image.Length > 5 * 1024 * 1024) // 5MB limit per file
+                    {
+                        return BadRequest(ApiResponse<GalleryUploadResponseDto>.ErrorResponse($"File {image.FileName} is too large. Maximum size is 5MB per file."));
+                    }
+
+                    // Upload image
+                    var imageUrl = await _fileService.UploadFileAsync(image, "service-images");
+                    uploadedUrls.Add(imageUrl);
+                }
+
+                var response = new GalleryUploadResponseDto
+                {
+                    ImageUrls = uploadedUrls
+                };
+
+                return Ok(ApiResponse<GalleryUploadResponseDto>.SuccessResponse(response, $"{uploadedUrls.Count} gallery images uploaded successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading service gallery images for salon {SalonId}", salonId);
+                return StatusCode(500, ApiResponse<GalleryUploadResponseDto>.ErrorResponse("Internal server error"));
+            }
+        }
+
+        // ...existing code...
     }
 
     // Define additional DTOs if needed
@@ -889,5 +1369,27 @@ namespace stibe.api.Controllers
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
         public int AvailableSpots { get; set; }
+    }
+
+    public class SuggestCategoryRequestDto
+    {
+        public string? Name { get; set; }
+        public string? Description { get; set; }
+    }
+
+    public class SuggestCategoryResponseDto
+    {
+        public int? CategoryId { get; set; }
+    }
+
+    public class ImageUploadResponseDto
+    {
+        public string ImageUrl { get; set; } = null!;
+        public bool IsGalleryImage { get; set; }
+    }
+
+    public class GalleryUploadResponseDto
+    {
+        public List<string> ImageUrls { get; set; } = new List<string>();
     }
 }

@@ -24,20 +24,8 @@ namespace stibe.api.Models.DTOs.Auth
         [MinLength(6)]
         public string Password { get; set; } = string.Empty;
     }
-    public class GoogleAuthRequestDto
-    {
-        [Required]
-        public string IdToken { get; set; } = string.Empty;
-    }
-
-    public class ExternalAuthResponseDto
-    {
-        public bool IsNewUser { get; set; }
-        public string Token { get; set; } = string.Empty;
-        public string RefreshToken { get; set; } = string.Empty;
-        public DateTime ExpiresAt { get; set; }
-        public UserDto User { get; set; } = null!;
-    }
+    
+    // Google OAuth DTOs have been removed
 
     public class ResendVerificationRequestDto
     {

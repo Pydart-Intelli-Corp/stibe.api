@@ -13,6 +13,11 @@ namespace stibe.api.Models.Entities.PartnersEntity.ServicesEntity
         [StringLength(500)]
         public string Description { get; set; } = string.Empty;
 
+        [StringLength(500)]
+        public string IconUrl { get; set; } = string.Empty;
+
+        public bool IsActive { get; set; } = true;
+
         public int SalonId { get; set; }
 
         [ForeignKey("SalonId")]
