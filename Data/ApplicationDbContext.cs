@@ -167,9 +167,15 @@ namespace stibe.api.Data
                 .HasForeignKey(sc => sc.SalonId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Index for faster lookup by salon
+            // Index for salon categories lookup
             modelBuilder.Entity<ServiceCategory>()
-                .HasIndex(sc => sc.SalonId);
+                .HasIndex(sc => new { sc.SalonId, sc.IsActive });
+
+            // Unique constraint for category name per salon
+            modelBuilder.Entity<ServiceCategory>()
+                .HasIndex(sc => new { sc.SalonId, sc.Name })
+                .IsUnique()
+                .HasFilter("IsDeleted = 0");
         }
 
         private void ConfigureServiceOfferEntity(ModelBuilder modelBuilder)

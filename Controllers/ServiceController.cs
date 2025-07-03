@@ -61,10 +61,28 @@ namespace stibe.api.Controllers
 
                     if (!categoryExists)
                     {
-                        return BadRequest(ApiResponse<ServiceResponseDto>.ErrorResponse("Invalid category"));
+                        // Don't return an error, just set CategoryId to null
+                        // This allows the client to use "virtual" categories that don't exist in the database
+                        _logger.LogWarning($"Category ID {request.CategoryId.Value} not found for salon {salonId}. Setting to null.");
+                        request.CategoryId = null;
+
+                        // If category name is provided, we could try to find a matching one or create a new one
+                        if (!string.IsNullOrEmpty(request.Category))
+                        {
+                            var existingCategory = await _context.ServiceCategories
+                                .FirstOrDefaultAsync(c => c.SalonId == salonId && 
+                                                   c.Name.ToLower() == request.Category.ToLower() && 
+                                                   !c.IsDeleted);
+                            
+                            if (existingCategory != null)
+                            {
+                                request.CategoryId = existingCategory.Id;
+                                _logger.LogInformation($"Found matching category by name: {request.Category} (ID: {existingCategory.Id})");
+                            }
+                        }
                     }
                 }
-
+                
                 var service = new Service
                 {
                     Name = request.Name,
@@ -309,9 +327,43 @@ namespace stibe.api.Controllers
 
                     if (!categoryExists)
                     {
-                        return BadRequest(ApiResponse<ServiceResponseDto>.ErrorResponse("Invalid category"));
+                        // Don't return an error, just don't update the category if it doesn't exist
+                        // This allows the client to use "virtual" categories that don't exist in the database
+                        _logger.LogWarning($"Category ID {request.CategoryId.Value} not found for salon {salonId}. Not updating category.");
+                        
+                        // If category name is provided, we could try to find a matching one or create a new one
+                        if (!string.IsNullOrEmpty(request.Category))
+                        {
+                            var existingCategory = await _context.ServiceCategories
+                                .FirstOrDefaultAsync(c => c.SalonId == salonId && 
+                                                   c.Name.ToLower() == request.Category.ToLower() && 
+                                                   !c.IsDeleted);
+                            
+                            if (existingCategory != null)
+                            {
+                                service.CategoryId = existingCategory.Id;
+                                _logger.LogInformation($"Found matching category by name: {request.Category} (ID: {existingCategory.Id})");
+                            }
+                        }
                     }
-                    service.CategoryId = request.CategoryId;
+                    else
+                    {
+                        service.CategoryId = request.CategoryId;
+                    }
+                }
+                else if (!string.IsNullOrEmpty(request.Category))
+                {
+                    // If categoryId is null but category name is provided, try to find a matching category
+                    var existingCategory = await _context.ServiceCategories
+                        .FirstOrDefaultAsync(c => c.SalonId == salonId && 
+                                               c.Name.ToLower() == request.Category.ToLower() && 
+                                               !c.IsDeleted);
+                    
+                    if (existingCategory != null)
+                    {
+                        service.CategoryId = existingCategory.Id;
+                        _logger.LogInformation($"Found matching category by name: {request.Category} (ID: {existingCategory.Id})");
+                    }
                 }
 
                 // Update technical fields
