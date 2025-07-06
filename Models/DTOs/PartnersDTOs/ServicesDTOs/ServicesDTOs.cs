@@ -26,7 +26,8 @@ namespace stibe.api.Models.DTOs.PartnersDTOs.ServicesDTOs
         public string? Category { get; set; } // Category name instead of ID for simplicity
         public int? CategoryId { get; set; }
         public decimal? OfferPrice { get; set; } // Special offer pricing
-        public string? ProductsUsed { get; set; } // Products used in service
+        public string? ProductsUsed { get; set; } // Legacy: Products used in service as string
+        public List<ServiceProductDto>? Products { get; set; } // New: Structured products with images
         public List<string>? ServiceImages { get; set; } // Multiple service images
         
         // Existing technical fields
@@ -71,7 +72,8 @@ namespace stibe.api.Models.DTOs.PartnersDTOs.ServicesDTOs
         public string? Category { get; set; }
         public int? CategoryId { get; set; }
         public decimal? OfferPrice { get; set; }
-        public string? ProductsUsed { get; set; }
+        public string? ProductsUsed { get; set; } // Legacy: Products used in service as string
+        public List<ServiceProductDto>? Products { get; set; } // New: Structured products with images
         public List<string>? ServiceImages { get; set; }
 
         // Existing technical fields
@@ -97,7 +99,8 @@ namespace stibe.api.Models.DTOs.PartnersDTOs.ServicesDTOs
         public int? CategoryId { get; set; }
         public string? CategoryName { get; set; }
         public decimal? OfferPrice { get; set; }
-        public string? ProductsUsed { get; set; }
+        public string? ProductsUsed { get; set; } // Legacy: Products used in service as string
+        public List<ServiceProductDto>? Products { get; set; } // New: Structured products with images
         public List<string>? ServiceImages { get; set; }
 
         // Technical properties
@@ -169,6 +172,44 @@ namespace stibe.api.Models.DTOs.PartnersDTOs.ServicesDTOs
     }
 
     public class ServiceImagesUploadDto
+    {
+        public List<string> ImageUrls { get; set; } = new List<string>();
+    }
+
+    // Product DTOs for structured product management
+    public class ServiceProductDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public List<string> ImageUrls { get; set; } = new List<string>();
+        public bool IsUploaded { get; set; } = true;
+    }
+
+    public class CreateServiceProductDto
+    {
+        [Required]
+        [StringLength(200)]
+        public string Name { get; set; } = string.Empty;
+        
+        [StringLength(1000)]
+        public string? Description { get; set; }
+        
+        public List<string> ImageUrls { get; set; } = new List<string>();
+    }
+
+    public class UpdateServiceProductDto
+    {
+        [StringLength(200)]
+        public string? Name { get; set; }
+        
+        [StringLength(1000)]
+        public string? Description { get; set; }
+        
+        public List<string>? ImageUrls { get; set; }
+    }
+
+    public class ProductImagesUploadDto
     {
         public List<string> ImageUrls { get; set; } = new List<string>();
     }

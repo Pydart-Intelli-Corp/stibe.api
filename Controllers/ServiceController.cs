@@ -96,7 +96,9 @@ namespace stibe.api.Controllers
                     ImageUrl = request.ImageUrl ?? string.Empty,
                     CategoryId = request.CategoryId,
                     OfferPrice = request.OfferPrice,
-                    ProductsUsed = request.ProductsUsed,
+                    ProductsUsed = request.Products != null && request.Products.Any() 
+                        ? ConvertProductsToString(request.Products) 
+                        : request.ProductsUsed, // Fallback to legacy string format
                     ServiceImages = request.ServiceImages != null && request.ServiceImages.Any() 
                         ? System.Text.Json.JsonSerializer.Serialize(request.ServiceImages) 
                         : null,
@@ -310,8 +312,15 @@ namespace stibe.api.Controllers
                 if (request.OfferPrice.HasValue)
                     service.OfferPrice = request.OfferPrice;
 
-                if (request.ProductsUsed != null)
+                // Handle products update - priority to structured format
+                if (request.Products != null)
+                {
+                    service.ProductsUsed = ConvertProductsToString(request.Products);
+                }
+                else if (request.ProductsUsed != null)
+                {
                     service.ProductsUsed = request.ProductsUsed;
+                }
 
                 if (request.ServiceImages != null)
                 {
@@ -1077,6 +1086,7 @@ namespace stibe.api.Controllers
                 CategoryName = service.Category?.Name,
                 OfferPrice = service.OfferPrice,
                 ProductsUsed = service.ProductsUsed,
+                Products = ParseProductsFromString(service.ProductsUsed), // Parse structured products
                 ServiceImages = string.IsNullOrEmpty(service.ServiceImages) 
                     ? new List<string>() 
                     : System.Text.Json.JsonSerializer.Deserialize<List<string>>(service.ServiceImages) ?? new List<string>(),
@@ -1160,6 +1170,115 @@ namespace stibe.api.Controllers
             }
 
             return slots;
+        }
+
+        private List<ServiceProductDto>? ParseProductsFromString(string? productsUsedString)
+        {
+            if (string.IsNullOrEmpty(productsUsedString))
+                return null;
+
+            try
+            {
+                // Try to parse as JSON first (new format)
+                if (productsUsedString.StartsWith("["))
+                {
+                    var parsedProducts = System.Text.Json.JsonSerializer.Deserialize<List<ServiceProductDto>>(productsUsedString);
+                    return parsedProducts;
+                }
+                
+                // Legacy format: parse from custom string format
+                // Expected format: "Product1{Description1}[ImageUrl1,ImageUrl2]|Product2{Description2}[ImageUrl3]"
+                var productEntries = productsUsedString.Split('|', StringSplitOptions.RemoveEmptyEntries);
+                var products = new List<ServiceProductDto>();
+                
+                foreach (var entry in productEntries)
+                {
+                    var product = ParseSingleProductFromString(entry);
+                    if (product != null)
+                    {
+                        products.Add(product);
+                    }
+                }
+                
+                return products.Count > 0 ? products : null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"Failed to parse products from string: {ex.Message}");
+                // Fallback: treat as simple product names
+                var simpleProducts = productsUsedString.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select((name, index) => new ServiceProductDto
+                    {
+                        Id = $"legacy_{index}",
+                        Name = name.Trim(),
+                        Description = null,
+                        ImageUrls = new List<string>(),
+                        IsUploaded = true
+                    }).ToList();
+                
+                return simpleProducts.Count > 0 ? simpleProducts : null;
+            }
+        }
+
+        private ServiceProductDto? ParseSingleProductFromString(string productEntry)
+        {
+            try
+            {
+                var product = new ServiceProductDto
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ImageUrls = new List<string>(),
+                    IsUploaded = true
+                };
+
+                // Extract images if present [ImageUrl1,ImageUrl2]
+                var imageMatch = System.Text.RegularExpressions.Regex.Match(productEntry, @"\[([^\]]*)\]");
+                if (imageMatch.Success)
+                {
+                    var imageUrls = imageMatch.Groups[1].Value.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(url => url.Trim())
+                        .Where(url => !string.IsNullOrEmpty(url))
+                        .ToList();
+                    product.ImageUrls = imageUrls;
+                    productEntry = productEntry.Replace(imageMatch.Value, "").Trim();
+                }
+
+                // Extract description if present {Description}
+                var descMatch = System.Text.RegularExpressions.Regex.Match(productEntry, @"\{([^}]*)\}");
+                if (descMatch.Success)
+                {
+                    product.Description = descMatch.Groups[1].Value;
+                    productEntry = productEntry.Replace(descMatch.Value, "").Trim();
+                }
+
+                // Remaining text is the product name
+                product.Name = productEntry.Trim();
+
+                return !string.IsNullOrEmpty(product.Name) ? product : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private string? ConvertProductsToString(List<ServiceProductDto>? products)
+        {
+            if (products == null || !products.Any())
+                return null;
+
+            try
+            {
+                // Store as JSON for new format
+                return System.Text.Json.JsonSerializer.Serialize(products);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"Failed to serialize products to string: {ex.Message}");
+                
+                // Fallback: simple comma-separated names
+                return string.Join(", ", products.Select(p => p.Name));
+            }
         }
 
         #endregion
@@ -1412,7 +1531,79 @@ namespace stibe.api.Controllers
             }
         }
 
-        // ...existing code...
+        [HttpPost("upload-product-images")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<ProductImagesUploadDto>>> UploadProductImages(int salonId, IFormFileCollection images)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<ProductImagesUploadDto>.ErrorResponse("Invalid token"));
+                }
+
+                // Verify salon exists and user owns it
+                var salon = await _context.Salons
+                    .FirstOrDefaultAsync(s => s.Id == salonId && !s.IsDeleted);
+
+                if (salon == null)
+                {
+                    return NotFound(ApiResponse<ProductImagesUploadDto>.ErrorResponse("Salon not found"));
+                }
+
+                if (salon.OwnerId != currentUserId.Value)
+                {
+                    return Forbid("You can only upload images for your own salons");
+                }
+
+                if (images == null || !images.Any())
+                {
+                    return BadRequest(ApiResponse<ProductImagesUploadDto>.ErrorResponse("No image files provided"));
+                }
+
+                if (images.Count > 10)
+                {
+                    return BadRequest(ApiResponse<ProductImagesUploadDto>.ErrorResponse("Maximum 10 images allowed per product"));
+                }
+
+                // Validate files
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+                var uploadedUrls = new List<string>();
+
+                foreach (var image in images)
+                {
+                    var fileExtension = Path.GetExtension(image.FileName).ToLowerInvariant();
+                    
+                    if (!allowedExtensions.Contains(fileExtension))
+                    {
+                        return BadRequest(ApiResponse<ProductImagesUploadDto>.ErrorResponse($"Invalid file type for {image.FileName}. Only JPG, PNG, GIF, and WebP images are allowed."));
+                    }
+
+                    if (image.Length > 5 * 1024 * 1024) // 5MB limit per file
+                    {
+                        return BadRequest(ApiResponse<ProductImagesUploadDto>.ErrorResponse($"File {image.FileName} is too large. Maximum size is 5MB per file."));
+                    }
+
+                    // Upload image to product-images container
+                    var imageUrl = await _fileService.UploadFileAsync(image, "product-images");
+                    uploadedUrls.Add(imageUrl);
+                }
+
+                var response = new ProductImagesUploadDto
+                {
+                    ImageUrls = uploadedUrls
+                };
+
+                _logger.LogInformation($"Successfully uploaded {uploadedUrls.Count} product images for salon {salonId}");
+                return Ok(ApiResponse<ProductImagesUploadDto>.SuccessResponse(response, $"{uploadedUrls.Count} product images uploaded successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading product images for salon {SalonId}", salonId);
+                return StatusCode(500, ApiResponse<ProductImagesUploadDto>.ErrorResponse("Internal server error"));
+            }
+        }
     }
 
     // Define additional DTOs if needed
@@ -1441,6 +1632,11 @@ namespace stibe.api.Controllers
     }
 
     public class GalleryUploadResponseDto
+    {
+        public List<string> ImageUrls { get; set; } = new List<string>();
+    }
+
+    public class ProductImagesUploadDto
     {
         public List<string> ImageUrls { get; set; } = new List<string>();
     }

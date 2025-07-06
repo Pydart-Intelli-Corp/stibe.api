@@ -128,7 +128,7 @@ namespace stibe.api.Migrations
 
                     b.HasIndex("SalonId", "BookingDate");
 
-                    b.ToTable("Bookings", (string)null);
+                    b.ToTable("Bookings");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.Salon", b =>
@@ -232,7 +232,7 @@ namespace stibe.api.Migrations
                     b.HasIndex("Latitude", "Longitude")
                         .HasFilter("Latitude IS NOT NULL AND Longitude IS NOT NULL");
 
-                    b.ToTable("Salons", (string)null);
+                    b.ToTable("Salons");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.Service", b =>
@@ -288,8 +288,8 @@ namespace stibe.api.Migrations
                         .HasColumnType("decimal(10,2)");
 
                     b.Property<string>("ProductsUsed")
-                        .HasMaxLength(2000)
-                        .HasColumnType("varchar(2000)");
+                        .HasMaxLength(8000)
+                        .HasColumnType("varchar(8000)");
 
                     b.Property<bool>("RequiresStaffAssignment")
                         .HasColumnType("tinyint(1)");
@@ -310,7 +310,7 @@ namespace stibe.api.Migrations
 
                     b.HasIndex("SalonId", "IsActive");
 
-                    b.ToTable("Services", (string)null);
+                    b.ToTable("Services");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceAvailability", b =>
@@ -358,7 +358,7 @@ namespace stibe.api.Migrations
 
                     b.HasIndex("ServiceId", "DayOfWeek");
 
-                    b.ToTable("ServiceAvailabilities", (string)null);
+                    b.ToTable("ServiceAvailabilities");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceCategory", b =>
@@ -401,9 +401,13 @@ namespace stibe.api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SalonId");
+                    b.HasIndex("SalonId", "IsActive");
 
-                    b.ToTable("ServiceCategories", (string)null);
+                    b.HasIndex("SalonId", "Name")
+                        .IsUnique()
+                        .HasFilter("IsDeleted = 0");
+
+                    b.ToTable("ServiceCategories");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceOffer", b =>
@@ -474,7 +478,7 @@ namespace stibe.api.Migrations
 
                     b.HasIndex("StartDate", "EndDate");
 
-                    b.ToTable("ServiceOffers", (string)null);
+                    b.ToTable("ServiceOffers");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceOfferItem", b =>
@@ -507,7 +511,7 @@ namespace stibe.api.Migrations
                     b.HasIndex("ServiceId", "OfferID")
                         .IsUnique();
 
-                    b.ToTable("ServiceOfferItems", (string)null);
+                    b.ToTable("ServiceOfferItems");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.StaffEntity.Staff", b =>
@@ -634,7 +638,7 @@ namespace stibe.api.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("Staff", (string)null);
+                    b.ToTable("Staff");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.StaffEntity.StaffSpecialization", b =>
@@ -683,7 +687,7 @@ namespace stibe.api.Migrations
                     b.HasIndex("StaffId", "ServiceId")
                         .IsUnique();
 
-                    b.ToTable("StaffSpecializations", (string)null);
+                    b.ToTable("StaffSpecializations");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.StaffEntity.StaffWorkSession", b =>
@@ -760,7 +764,7 @@ namespace stibe.api.Migrations
                     b.HasIndex("StaffId", "WorkDate")
                         .IsUnique();
 
-                    b.ToTable("StaffWorkSessions", (string)null);
+                    b.ToTable("StaffWorkSessions");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.User", b =>
@@ -867,7 +871,7 @@ namespace stibe.api.Migrations
 
                     b.HasIndex("SalonId");
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.Booking", b =>

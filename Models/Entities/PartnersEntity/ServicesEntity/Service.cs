@@ -26,7 +26,7 @@ namespace stibe.api.Models.Entities.PartnersEntity.ServicesEntity
         [Column(TypeName = "decimal(10,2)")]
         public decimal? OfferPrice { get; set; }
         
-        [StringLength(2000)]
+        [StringLength(8000)]
         public string? ProductsUsed { get; set; }
         
         [StringLength(4000)]
