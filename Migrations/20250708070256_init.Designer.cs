@@ -12,8 +12,8 @@ using stibe.api.Data;
 namespace stibe.api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250701182233_UpdateServiceCategoryFields")]
-    partial class UpdateServiceCategoryFields
+    [Migration("20250708070256_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -284,14 +284,25 @@ namespace stibe.api.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
 
+                    b.Property<decimal?>("OfferPrice")
+                        .HasColumnType("decimal(10,2)");
+
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("ProductsUsed")
+                        .HasMaxLength(8000)
+                        .HasColumnType("varchar(8000)");
 
                     b.Property<bool>("RequiresStaffAssignment")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<int>("SalonId")
                         .HasColumnType("int");
+
+                    b.Property<string>("ServiceImages")
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -393,7 +404,11 @@ namespace stibe.api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SalonId");
+                    b.HasIndex("SalonId", "IsActive");
+
+                    b.HasIndex("SalonId", "Name")
+                        .IsUnique()
+                        .HasFilter("IsDeleted = 0");
 
                     b.ToTable("ServiceCategories");
                 });
@@ -794,12 +809,6 @@ namespace stibe.api.Migrations
 
                     b.Property<DateTime?>("EmailVerifiedAt")
                         .HasColumnType("datetime(6)");
-
-                    b.Property<string>("ExternalAuthId")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("ExternalAuthProvider")
-                        .HasColumnType("longtext");
 
                     b.Property<string>("FirstName")
                         .IsRequired()

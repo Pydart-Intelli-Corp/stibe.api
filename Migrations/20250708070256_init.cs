@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace stibe.api.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialMigration : Migration
+    public partial class init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -80,8 +80,12 @@ namespace stibe.api.Migrations
                     Longitude = table.Column<decimal>(type: "decimal(11,8)", nullable: true),
                     PhoneNumber = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    Email = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     OpeningTime = table.Column<TimeSpan>(type: "time(6)", nullable: false),
                     ClosingTime = table.Column<TimeSpan>(type: "time(6)", nullable: false),
+                    BusinessHours = table.Column<string>(type: "varchar(2000)", maxLength: 2000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     ProfilePictureUrl = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -109,6 +113,9 @@ namespace stibe.api.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    IconUrl = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     SalonId = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
@@ -180,10 +187,6 @@ namespace stibe.api.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     PasswordHash = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ExternalAuthProvider = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    ExternalAuthId = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
                     ProfilePictureUrl = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     IsEmailVerified = table.Column<bool>(type: "tinyint(1)", nullable: false),
@@ -235,6 +238,11 @@ namespace stibe.api.Migrations
                     DurationInMinutes = table.Column<int>(type: "int", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     ImageUrl = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    OfferPrice = table.Column<decimal>(type: "decimal(10,2)", nullable: true),
+                    ProductsUsed = table.Column<string>(type: "varchar(8000)", maxLength: 8000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ServiceImages = table.Column<string>(type: "varchar(4000)", maxLength: 4000, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CategoryId = table.Column<int>(type: "int", nullable: true),
                     MaxConcurrentBookings = table.Column<int>(type: "int", nullable: false),
@@ -517,9 +525,16 @@ namespace stibe.api.Migrations
                 columns: new[] { "ServiceId", "DayOfWeek" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_ServiceCategories_SalonId",
+                name: "IX_ServiceCategories_SalonId_IsActive",
                 table: "ServiceCategories",
-                column: "SalonId");
+                columns: new[] { "SalonId", "IsActive" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ServiceCategories_SalonId_Name",
+                table: "ServiceCategories",
+                columns: new[] { "SalonId", "Name" },
+                unique: true,
+                filter: "IsDeleted = 0");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ServiceOfferItems_OfferID",
