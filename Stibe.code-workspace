@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../stibe_control"
+		},
+		{
+			"path": "../stibe_one"
+		},
+		{
+			"path": "../stibe_partner"
+		}
+	],
+	"settings": {}
+}
