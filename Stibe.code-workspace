@@ -1,16 +1,20 @@
 {
 	"folders": [
 		{
+			"name": "stibe.api",
 			"path": "."
 		},
 		{
-			"path": "../stibe_control"
-		},
-		{
+			"name": "stibe_one",
 			"path": "../stibe_one"
 		},
 		{
+			"name": "stibe_partner",
 			"path": "../stibe_partner"
+		},
+		{
+			"name": "stibe_control",
+			"path": "../stibe_control"
 		}
 	],
 	"settings": {}
