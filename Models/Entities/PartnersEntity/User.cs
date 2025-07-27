@@ -25,6 +25,7 @@ namespace stibe.api.Models.Entities.PartnersEntity
         [Required]
         public string PasswordHash { get; set; } = string.Empty;
         public string? ProfilePictureUrl { get; set; }
+        public string? GoogleId { get; set; } // For Google OAuth integration
 
         public bool IsEmailVerified { get; set; } = false;
         public DateTime? EmailVerifiedAt { get; set; }

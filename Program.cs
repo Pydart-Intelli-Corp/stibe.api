@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -31,6 +32,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
 
+// Configure Google OAuth Settings
+builder.Services.Configure<GoogleOAuthSettings>(builder.Configuration.GetSection("GoogleOAuth"));
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -49,6 +53,15 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings?.SecretKey ?? "")),
         ClockSkew = TimeSpan.Zero
     };
+})
+.AddGoogle(googleOptions =>
+{
+    var googleSettings = builder.Configuration.GetSection("GoogleOAuth").Get<GoogleOAuthSettings>();
+    if (googleSettings != null && googleSettings.Enabled)
+    {
+        googleOptions.ClientId = googleSettings.ClientId;
+        googleOptions.ClientSecret = googleSettings.ClientSecret;
+    }
 });
 
 // Configure Authorization
@@ -60,6 +73,7 @@ builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("Featu
 // Register custom services
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
 
 // Configure Feature Flags first
 builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("FeatureFlags"));

@@ -25,6 +25,7 @@ namespace stibe.api.Controllers
         private readonly IEmailService _emailService;
         private readonly ILogger<AuthController> _logger;
         private readonly IWebHostEnvironment _environment;
+        private readonly IGoogleOAuthService _googleOAuthService;
 
         public AuthController(
             ApplicationDbContext context,
@@ -32,7 +33,8 @@ namespace stibe.api.Controllers
             IJwtService jwtService,
             IEmailService emailService,
             ILogger<AuthController> logger,
-            IWebHostEnvironment environment)
+            IWebHostEnvironment environment,
+            IGoogleOAuthService googleOAuthService)
         {
             _context = context;
             _passwordService = passwordService;
@@ -40,6 +42,7 @@ namespace stibe.api.Controllers
             _emailService = emailService;
             _logger = logger;
             _environment = environment;
+            _googleOAuthService = googleOAuthService;
         }
 
         [HttpPost("register-admin")]
@@ -211,7 +214,350 @@ namespace stibe.api.Controllers
             }
         }
 
-        // Google OAuth functionality has been removed
+        #region Google OAuth Methods
+
+        [HttpPost("google-login")]
+        [AllowAnonymous]
+        public async Task<ActionResult<ApiResponse<LoginResponseDto>>> GoogleLogin(GoogleLoginRequestDto request)
+        {
+            try
+            {
+                _logger.LogInformation("Google login attempt");
+
+                // Validate Google token and get user info
+                var googleUserInfo = await _googleOAuthService.ValidateGoogleTokenAsync(request.GoogleToken);
+                if (googleUserInfo == null)
+                {
+                    return BadRequest(ApiResponse<LoginResponseDto>.ErrorResponse("Invalid Google token"));
+                }
+
+                _logger.LogInformation($"Google login attempt for email: {googleUserInfo.Email}");
+
+                // Check if user already exists
+                var existingUser = await _context.Users
+                    .Where(u => u.Email.ToLower() == googleUserInfo.Email.ToLower() && !u.IsDeleted)
+                    .FirstOrDefaultAsync();
+
+                User user;
+
+                if (existingUser != null)
+                {
+                    // Update existing user with Google info if not already set
+                    user = existingUser;
+                    
+                    // Update Google ID if not set
+                    try
+                    {
+                        var googleIdProp = typeof(User).GetProperty("GoogleId");
+                        if (googleIdProp != null)
+                        {
+                            var currentGoogleId = googleIdProp.GetValue(user)?.ToString();
+                            if (string.IsNullOrEmpty(currentGoogleId))
+                            {
+                                googleIdProp.SetValue(user, googleUserInfo.GoogleId);
+                            }
+                        }
+
+                        // Update profile picture if not set
+                        if (string.IsNullOrEmpty(user.ProfilePictureUrl) && !string.IsNullOrEmpty(googleUserInfo.Picture))
+                        {
+                            user.ProfilePictureUrl = googleUserInfo.Picture;
+                        }
+
+                        // Ensure email is verified for Google users
+                        if (!user.IsEmailVerified && googleUserInfo.EmailVerified)
+                        {
+                            user.IsEmailVerified = true;
+                        }
+
+                        await _context.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not update Google properties for existing user");
+                        // Continue with login even if update fails
+                    }
+                }
+                else
+                {
+                    // Create new user from Google info
+                    user = new User
+                    {
+                        FirstName = googleUserInfo.FirstName,
+                        LastName = googleUserInfo.LastName,
+                        Email = googleUserInfo.Email.ToLower().Trim(),
+                        PhoneNumber = "", // Will be updated later by user if needed
+                        PasswordHash = _passwordService.HashPassword(Guid.NewGuid().ToString()), // Random password for Google users
+                        Role = request.Role,
+                        IsEmailVerified = googleUserInfo.EmailVerified,
+                        ProfilePictureUrl = googleUserInfo.Picture
+                    };
+
+                    // Set Google ID if property exists
+                    try
+                    {
+                        var googleIdProp = typeof(User).GetProperty("GoogleId");
+                        if (googleIdProp != null)
+                        {
+                            googleIdProp.SetValue(user, googleUserInfo.GoogleId);
+                        }
+
+                        // Set registration IP if property exists
+                        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+                        if (!string.IsNullOrEmpty(ipAddress))
+                        {
+                            var prop = typeof(User).GetProperty("RegistrationIP");
+                            if (prop != null)
+                            {
+                                prop.SetValue(user, ipAddress);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not set Google properties for new user");
+                        // Continue with user creation
+                    }
+
+                    _context.Users.Add(user);
+                    await _context.SaveChangesAsync();
+
+                    _logger.LogInformation($"New user created via Google OAuth: {user.Email}");
+                }
+
+                // Update last login info
+                try
+                {
+                    var lastLoginDateProp = typeof(User).GetProperty("LastLoginDate");
+                    if (lastLoginDateProp != null)
+                    {
+                        lastLoginDateProp.SetValue(user, DateTime.UtcNow);
+                    }
+
+                    var lastLoginIPProp = typeof(User).GetProperty("LastLoginIP");
+                    if (lastLoginIPProp != null)
+                    {
+                        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+                        lastLoginIPProp.SetValue(user, ipAddress);
+                    }
+
+                    await _context.SaveChangesAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not update last login info");
+                    // Continue with login even if update fails
+                }
+
+                // Generate JWT tokens
+                var token = _jwtService.GenerateToken(user);
+                var refreshToken = _jwtService.GenerateRefreshToken();
+                var expiresAt = DateTime.UtcNow.AddMinutes(60);
+
+                var response = new LoginResponseDto
+                {
+                    Token = token,
+                    RefreshToken = refreshToken,
+                    ExpiresAt = expiresAt,
+                    User = new UserDto
+                    {
+                        Id = user.Id,
+                        FirstName = user.FirstName,
+                        LastName = user.LastName,
+                        Email = user.Email,
+                        PhoneNumber = user.PhoneNumber,
+                        Role = user.Role,
+                        IsEmailVerified = user.IsEmailVerified,
+                        CreatedAt = user.CreatedAt,
+                        ProfilePictureUrl = user.ProfilePictureUrl
+                    }
+                };
+
+                _logger.LogInformation($"Google login successful for: {user.Email}");
+                return Ok(ApiResponse<LoginResponseDto>.SuccessResponse(response, $"Welcome back, {user.FirstName}!"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during Google login");
+                return StatusCode(500, ApiResponse<LoginResponseDto>.ErrorResponse("An error occurred during Google login. Please try again later."));
+            }
+        }
+
+        [HttpPost("google-register")]
+        [AllowAnonymous]
+        public async Task<ActionResult<ApiResponse<UserDto>>> GoogleRegister(GoogleLoginRequestDto request)
+        {
+            try
+            {
+                _logger.LogInformation("Google registration attempt");
+
+                // Validate Google token and get user info
+                var googleUserInfo = await _googleOAuthService.ValidateGoogleTokenAsync(request.GoogleToken);
+                if (googleUserInfo == null)
+                {
+                    return BadRequest(ApiResponse<UserDto>.ErrorResponse("Invalid Google token"));
+                }
+
+                _logger.LogInformation($"Google registration attempt for email: {googleUserInfo.Email}");
+
+                // Check if user already exists
+                var existingUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Email.ToLower() == googleUserInfo.Email.ToLower());
+
+                if (existingUser != null)
+                {
+                    return BadRequest(ApiResponse<UserDto>.ErrorResponse("User with this email already exists. Please try logging in instead."));
+                }
+
+                // Validate role
+                if (request.Role != "Customer" && request.Role != "SalonOwner")
+                {
+                    return BadRequest(ApiResponse<UserDto>.ErrorResponse("Invalid role. Must be 'Customer' or 'SalonOwner'"));
+                }
+
+                // Create new user from Google info
+                var user = new User
+                {
+                    FirstName = googleUserInfo.FirstName,
+                    LastName = googleUserInfo.LastName,
+                    Email = googleUserInfo.Email.ToLower().Trim(),
+                    PhoneNumber = "", // Will be updated later by user if needed
+                    PasswordHash = _passwordService.HashPassword(Guid.NewGuid().ToString()), // Random password for Google users
+                    Role = request.Role,
+                    IsEmailVerified = googleUserInfo.EmailVerified,
+                    ProfilePictureUrl = googleUserInfo.Picture
+                };
+
+                // Set Google ID and other optional properties
+                try
+                {
+                    var googleIdProp = typeof(User).GetProperty("GoogleId");
+                    if (googleIdProp != null)
+                    {
+                        googleIdProp.SetValue(user, googleUserInfo.GoogleId);
+                    }
+
+                    // Set registration IP if property exists
+                    var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+                    if (!string.IsNullOrEmpty(ipAddress))
+                    {
+                        var prop = typeof(User).GetProperty("RegistrationIP");
+                        if (prop != null)
+                        {
+                            prop.SetValue(user, ipAddress);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not set optional properties for Google user");
+                    // Continue with user creation
+                }
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                var userDto = new UserDto
+                {
+                    Id = user.Id,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Email = user.Email,
+                    PhoneNumber = user.PhoneNumber,
+                    Role = user.Role,
+                    IsEmailVerified = user.IsEmailVerified,
+                    CreatedAt = user.CreatedAt,
+                    ProfilePictureUrl = user.ProfilePictureUrl
+                };
+
+                _logger.LogInformation($"Google user registered successfully: {user.Email}");
+                return Ok(ApiResponse<UserDto>.SuccessResponse(userDto, "Registration successful via Google! You can now log in."));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during Google registration");
+                return StatusCode(500, ApiResponse<UserDto>.ErrorResponse("An error occurred during Google registration. Please try again later."));
+            }
+        }
+
+        #endregion
+
+        [HttpGet("debug-google-auth")]
+        [AllowAnonymous]
+        public ActionResult<object> DebugGoogleAuth()
+        {
+            try
+            {
+                var settings = new
+                {
+                    GoogleOAuthEnabled = _googleOAuthService != null,
+                    ClientId = _googleOAuthService != null ? "Configured" : "Not Configured",
+                    SupportedAudiences = new[]
+                    {
+                        "986486622148-0811nmnfmnjmnc0er554rvlqpn6dlvpl.apps.googleusercontent.com (Android/Web)"
+                    },
+                    Endpoints = new[]
+                    {
+                        "POST /api/auth/google-login",
+                        "POST /api/auth/google-register"
+                    }
+                };
+
+                return Ok(settings);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in debug Google auth");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("validate-google-token")]
+        [AllowAnonymous]
+        public async Task<ActionResult<object>> ValidateGoogleToken([FromBody] object tokenRequest)
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(tokenRequest);
+                var tokenData = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                
+                if (tokenData == null || !tokenData.ContainsKey("token"))
+                {
+                    return BadRequest(new { error = "Token is required", field = "token" });
+                }
+
+                var token = tokenData["token"]?.ToString();
+                if (string.IsNullOrEmpty(token))
+                {
+                    return BadRequest(new { error = "Token cannot be empty" });
+                }
+
+                var userInfo = await _googleOAuthService.ValidateGoogleTokenAsync(token);
+                
+                if (userInfo == null)
+                {
+                    return BadRequest(new { 
+                        error = "Invalid Google token",
+                        details = "Token validation failed. Please ensure you're using a valid Google ID token."
+                    });
+                }
+
+                return Ok(new
+                {
+                    valid = true,
+                    userInfo = userInfo,
+                    message = "Token is valid and ready for authentication"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating Google token");
+                return StatusCode(500, new { 
+                    error = "Internal server error",
+                    details = ex.Message
+                });
+            }
+        }
 
         [HttpPost("register")]
         [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]

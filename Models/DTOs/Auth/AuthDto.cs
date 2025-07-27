@@ -27,6 +27,29 @@ namespace stibe.api.Models.DTOs.Auth
     
     // Google OAuth DTOs have been removed
 
+    
+    // Google OAuth DTOs
+    public class GoogleLoginRequestDto
+    {
+        [Required]
+        public string GoogleToken { get; set; } = string.Empty;
+        
+        [Required]
+        public string Role { get; set; } = "Customer"; // Default role for Google sign-ins
+        
+        public bool AcceptTerms { get; set; } = true; // For new users
+    }
+
+    public class GoogleUserInfoDto
+    {
+        public string Email { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Picture { get; set; } = string.Empty;
+        public bool EmailVerified { get; set; }
+        public string GoogleId { get; set; } = string.Empty;
+    }
+
     public class ResendVerificationRequestDto
     {
         public string Email { get; set; } = string.Empty;
