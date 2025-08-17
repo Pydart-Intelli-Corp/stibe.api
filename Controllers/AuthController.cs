@@ -1584,7 +1584,7 @@ namespace stibe.api.Controllers
             try
             {
                 var user = await _context.Users
-                    .Where(u => u.Email.ToLower() == email.ToLower())
+                    .Where(u => u.Email.ToLower() == email.ToLower() && !u.IsDeleted)
                     .Select(u => new { u.Email, u.Role, u.IsDeleted, u.IsEmailVerified })
                     .FirstOrDefaultAsync();
 
@@ -1598,6 +1598,50 @@ namespace stibe.api.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("check-email-status/{email}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<ApiResponse<object>>> CheckEmailStatus(string email)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(email))
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse("Email is required"));
+                }
+
+                var user = await _context.Users
+                    .Where(u => u.Email.ToLower() == email.ToLower() && !u.IsDeleted)
+                    .Select(u => new { u.Email, u.Role, u.IsDeleted, u.IsEmailVerified })
+                    .FirstOrDefaultAsync();
+
+                if (user == null)
+                {
+                    return Ok(ApiResponse<object>.SuccessResponse(new { 
+                        exists = false, 
+                        isVerified = false,
+                        status = "not_registered"
+                    }, "User not found"));
+                }
+
+                var status = user.IsEmailVerified ? "verified" : "not_verified";
+                return Ok(ApiResponse<object>.SuccessResponse(new { 
+                    exists = true, 
+                    isVerified = user.IsEmailVerified,
+                    status = status,
+                    user = new {
+                        email = user.Email,
+                        role = user.Role,
+                        isEmailVerified = user.IsEmailVerified
+                    }
+                }, "Email status retrieved successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking email status");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while checking email status"));
             }
         }
 

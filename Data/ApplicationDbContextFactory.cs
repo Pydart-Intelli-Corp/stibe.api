@@ -10,9 +10,9 @@ namespace stibe.api.Data
             var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
             
             // Use the connection string directly for design-time operations
-            var connectionString = "Server=psrazuredb.mysql.database.azure.com;Port=3306;UserID=psrcloud;Password=Access@LRC2404;Database=psrtest;SslMode=Required;SslCa=e:\\PYDART\\Stibe\\DigiCertGlobalRootCA.crt.pem";
+            var connectionString = "Server=localhost;Port=3306;UserID=root;Password=2232;Database=stibe_db;SslMode=None";
             
-            optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+            optionsBuilder.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 40)));
             
             return new ApplicationDbContext(optionsBuilder.Options);
         }
