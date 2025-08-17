@@ -1645,6 +1645,48 @@ namespace stibe.api.Controllers
             }
         }
 
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<object>>> GetCurrentUser()
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<object>.ErrorResponse("Invalid token"));
+                }
+
+                var user = await _context.Users
+                    .Where(u => u.Id == currentUserId && !u.IsDeleted)
+                    .Select(u => new {
+                        u.Id,
+                        u.FirstName,
+                        u.LastName,
+                        u.Email,
+                        u.PhoneNumber,
+                        u.Role,
+                        u.IsEmailVerified,
+                        u.ProfilePictureUrl,
+                        u.CreatedAt,
+                        u.LastLoginDate
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (user == null)
+                {
+                    return NotFound(ApiResponse<object>.ErrorResponse("User not found"));
+                }
+
+                return Ok(ApiResponse<object>.SuccessResponse(user, "User data retrieved successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving current user data");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while retrieving user data"));
+            }
+        }
+
         private int? GetCurrentUserId()
         {
             // Check if user is authenticated
