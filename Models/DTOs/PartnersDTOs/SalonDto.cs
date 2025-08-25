@@ -44,6 +44,34 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         // Business hours (JSON string)
         public string? BusinessHours { get; set; }
 
+        // Category and Services properties
+        [StringLength(50)]
+        public string? ServiceType { get; set; } // salon, beauty_parlour, spa, barbershop, nail_studio, unisex_salon
+
+        public List<string>? GenderServices { get; set; } // men, women, kids, unisex
+
+        public List<string>? Specializations { get; set; } // hair_cut, hair_color, facial, etc.
+
+        // Bank Details
+        [StringLength(20)]
+        public string? BankAccountNumber { get; set; }
+
+        [StringLength(11)]
+        public string? IFSCCode { get; set; }
+
+        [StringLength(100)]
+        public string? BankName { get; set; }
+
+        [StringLength(200)]
+        public string? AccountHolderName { get; set; }
+
+        // Tax Details
+        [StringLength(15)]
+        public string? GSTNumber { get; set; }
+
+        [StringLength(10)]
+        public string? PANNumber { get; set; }
+
         // Current location properties
         public decimal? CurrentLatitude { get; set; }
         public decimal? CurrentLongitude { get; set; }
@@ -87,6 +115,34 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         // Business hours (JSON string)
         public Dictionary<string, object>? BusinessHours { get; set; }
 
+        // Category and Services properties
+        [StringLength(50)]
+        public string? ServiceType { get; set; } // salon, beauty_parlour, spa, barbershop, nail_studio, unisex_salon
+
+        public List<string>? GenderServices { get; set; } // men, women, kids, unisex
+
+        public List<string>? Specializations { get; set; } // hair_cut, hair_color, facial, etc.
+
+        // Bank Details
+        [StringLength(20)]
+        public string? BankAccountNumber { get; set; }
+
+        [StringLength(11)]
+        public string? IFSCCode { get; set; }
+
+        [StringLength(100)]
+        public string? BankName { get; set; }
+
+        [StringLength(200)]
+        public string? AccountHolderName { get; set; }
+
+        // Tax Details
+        [StringLength(15)]
+        public string? GSTNumber { get; set; }
+
+        [StringLength(10)]
+        public string? PANNumber { get; set; }
+
         public bool? IsActive { get; set; }
 
         // Location properties
@@ -122,6 +178,22 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public TimeSpan OpeningTime { get; set; }
         public TimeSpan ClosingTime { get; set; }
         public string? BusinessHours { get; set; }
+        
+        // Category and Services properties
+        public string? ServiceType { get; set; }
+        public List<string>? GenderServices { get; set; }
+        public List<string>? Specializations { get; set; }
+        
+        // Bank Details
+        public string? BankAccountNumber { get; set; }
+        public string? IFSCCode { get; set; }
+        public string? BankName { get; set; }
+        public string? AccountHolderName { get; set; }
+        
+        // Tax Details
+        public string? GSTNumber { get; set; }
+        public string? PANNumber { get; set; }
+        
         public bool IsActive { get; set; }
         public int OwnerId { get; set; }
         public string OwnerName { get; set; } = string.Empty;
@@ -147,6 +219,11 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public int PageSize { get; set; } = 10;
         public string SortBy { get; set; } = "distance"; // distance, name, rating
         public string SortOrder { get; set; } = "asc"; // asc, desc
+        
+        // Category filtering properties
+        public string? ServiceType { get; set; }
+        public List<string>? GenderServices { get; set; }
+        public List<string>? Specializations { get; set; }
     }
 
     public class SalonListResponseDto
@@ -201,6 +278,14 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
 
         // Business hours as dictionary/object
         public Dictionary<string, BusinessHourDto>? BusinessHours { get; set; }
+
+        // Category and Services properties
+        [StringLength(50)]
+        public string? ServiceType { get; set; } // salon, beauty_parlour, spa, barbershop, nail_studio, unisex_salon
+
+        public List<string>? GenderServices { get; set; } // men, women, kids, unisex
+
+        public List<string>? Specializations { get; set; } // hair_cut, hair_color, facial, etc.
 
         // Current location properties
         public decimal? CurrentLatitude { get; set; }

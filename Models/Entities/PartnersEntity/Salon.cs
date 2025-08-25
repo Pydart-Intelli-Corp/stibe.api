@@ -49,6 +49,36 @@ namespace stibe.api.Models.Entities.PartnersEntity
         [StringLength(2000)]
         public string? BusinessHours { get; set; }
 
+        // Category and Services properties
+        [StringLength(50)]
+        public string? ServiceType { get; set; } // salon, beauty_parlour, spa, barbershop, nail_studio, unisex_salon
+
+        [StringLength(500)]
+        public string? GenderServices { get; set; } // JSON array of gender services (men, women, kids, unisex)
+
+        [StringLength(1000)]
+        public string? Specializations { get; set; } // JSON array of specializations
+
+        // Bank Details
+        [StringLength(20)]
+        public string? BankAccountNumber { get; set; }
+
+        [StringLength(11)]
+        public string? IFSCCode { get; set; }
+
+        [StringLength(100)]
+        public string? BankName { get; set; }
+
+        [StringLength(200)]
+        public string? AccountHolderName { get; set; }
+
+        // Tax Details
+        [StringLength(15)]
+        public string? GSTNumber { get; set; }
+
+        [StringLength(10)]
+        public string? PANNumber { get; set; }
+
         public bool IsActive { get; set; } = true;
         // Models/Entities/PartnersEntity/Salon.cs - Add these properties
         [StringLength(500)]

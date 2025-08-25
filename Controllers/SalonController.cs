@@ -8,6 +8,7 @@ using stibe.api.Models.Entities.PartnersEntity;
 using stibe.api.Services.Interfaces;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace stibe.api.Controllers
 {
@@ -84,7 +85,21 @@ namespace stibe.api.Controllers
                     City = request.City,
                     State = request.State,
                     ZipCode = request.ZipCode,
-                    PhoneNumber = request.PhoneNumber,                    OpeningTime = openingTime,
+                    PhoneNumber = request.PhoneNumber,
+                    ServiceType = request.ServiceType,
+                    GenderServices = request.GenderServices != null && request.GenderServices.Any() 
+                        ? JsonSerializer.Serialize(request.GenderServices) 
+                        : null,
+                    Specializations = request.Specializations != null && request.Specializations.Any() 
+                        ? JsonSerializer.Serialize(request.Specializations) 
+                        : null,
+                    BankAccountNumber = request.BankAccountNumber,
+                    IFSCCode = request.IFSCCode,
+                    BankName = request.BankName,
+                    AccountHolderName = request.AccountHolderName,
+                    GSTNumber = request.GSTNumber,
+                    PANNumber = request.PANNumber,
+                    OpeningTime = openingTime,
                     ClosingTime = closingTime,
                     Latitude = request.CurrentLatitude,
                     Longitude = request.CurrentLongitude,
@@ -107,6 +122,19 @@ namespace stibe.api.Controllers
                     State = salon.State,
                     ZipCode = salon.ZipCode,
                     PhoneNumber = salon.PhoneNumber,
+                    ServiceType = salon.ServiceType,
+                    GenderServices = !string.IsNullOrEmpty(salon.GenderServices) 
+                        ? JsonSerializer.Deserialize<List<string>>(salon.GenderServices) 
+                        : new List<string>(),
+                    Specializations = !string.IsNullOrEmpty(salon.Specializations) 
+                        ? JsonSerializer.Deserialize<List<string>>(salon.Specializations) 
+                        : new List<string>(),
+                    BankAccountNumber = salon.BankAccountNumber,
+                    IFSCCode = salon.IFSCCode,
+                    BankName = salon.BankName,
+                    AccountHolderName = salon.AccountHolderName,
+                    GSTNumber = salon.GSTNumber,
+                    PANNumber = salon.PANNumber,
                     OpeningTime = salon.OpeningTime,
                     ClosingTime = salon.ClosingTime,
                     Latitude = salon.Latitude,
@@ -195,6 +223,13 @@ namespace stibe.api.Controllers
                     ZipCode = request.ZipCode,
                     PhoneNumber = request.PhoneNumber,
                     Email = request.Email,
+                    ServiceType = request.ServiceType,
+                    GenderServices = request.GenderServices != null && request.GenderServices.Any() 
+                        ? JsonSerializer.Serialize(request.GenderServices) 
+                        : null,
+                    Specializations = request.Specializations != null && request.Specializations.Any() 
+                        ? JsonSerializer.Serialize(request.Specializations) 
+                        : null,
                     OpeningTime = openingTime,
                     ClosingTime = closingTime,
                     BusinessHours = businessHoursJson,
@@ -227,6 +262,13 @@ namespace stibe.api.Controllers
                     ZipCode = salon.ZipCode,
                     PhoneNumber = salon.PhoneNumber,
                     Email = salon.Email,
+                    ServiceType = salon.ServiceType,
+                    GenderServices = !string.IsNullOrEmpty(salon.GenderServices) 
+                        ? JsonSerializer.Deserialize<List<string>>(salon.GenderServices) 
+                        : new List<string>(),
+                    Specializations = !string.IsNullOrEmpty(salon.Specializations) 
+                        ? JsonSerializer.Deserialize<List<string>>(salon.Specializations) 
+                        : new List<string>(),
                     OpeningTime = salon.OpeningTime,
                     ClosingTime = salon.ClosingTime,
                     BusinessHours = salon.BusinessHours,
@@ -278,6 +320,13 @@ namespace stibe.api.Controllers
                         ZipCode = s.ZipCode,
                         PhoneNumber = s.PhoneNumber,
                         Email = s.Email,
+                        ServiceType = s.ServiceType,
+                        GenderServices = !string.IsNullOrEmpty(s.GenderServices) 
+                            ? JsonSerializer.Deserialize<List<string>>(s.GenderServices) ?? new List<string>()
+                            : new List<string>(),
+                        Specializations = !string.IsNullOrEmpty(s.Specializations) 
+                            ? JsonSerializer.Deserialize<List<string>>(s.Specializations) ?? new List<string>()
+                            : new List<string>(),
                         OpeningTime = s.OpeningTime,
                         ClosingTime = s.ClosingTime,
                         BusinessHours = s.BusinessHours,
@@ -342,6 +391,13 @@ namespace stibe.api.Controllers
                     ZipCode = salon.ZipCode,
                     PhoneNumber = salon.PhoneNumber,
                     Email = salon.Email,
+                    ServiceType = salon.ServiceType,
+                    GenderServices = !string.IsNullOrEmpty(salon.GenderServices) 
+                        ? JsonSerializer.Deserialize<List<string>>(salon.GenderServices) ?? new List<string>()
+                        : new List<string>(),
+                    Specializations = !string.IsNullOrEmpty(salon.Specializations) 
+                        ? JsonSerializer.Deserialize<List<string>>(salon.Specializations) ?? new List<string>()
+                        : new List<string>(),
                     OpeningTime = salon.OpeningTime,
                     ClosingTime = salon.ClosingTime,
                     BusinessHours = salon.BusinessHours,
@@ -575,6 +631,16 @@ namespace stibe.api.Controllers
                     existingSalon.PhoneNumber = request.PhoneNumber;
                 if (!string.IsNullOrEmpty(request.Email))
                     existingSalon.Email = request.Email;
+                if (!string.IsNullOrEmpty(request.ServiceType))
+                    existingSalon.ServiceType = request.ServiceType;
+                if (request.GenderServices != null)
+                    existingSalon.GenderServices = request.GenderServices.Any() 
+                        ? JsonSerializer.Serialize(request.GenderServices) 
+                        : null;
+                if (request.Specializations != null)
+                    existingSalon.Specializations = request.Specializations.Any() 
+                        ? JsonSerializer.Serialize(request.Specializations) 
+                        : null;
                 if (!string.IsNullOrEmpty(request.OpeningTime))
                     existingSalon.OpeningTime = TimeSpan.Parse(request.OpeningTime);
                 if (!string.IsNullOrEmpty(request.ClosingTime))
@@ -627,6 +693,13 @@ namespace stibe.api.Controllers
                     ZipCode = existingSalon.ZipCode ?? "",
                     PhoneNumber = existingSalon.PhoneNumber ?? "",
                     Email = existingSalon.Email ?? "",
+                    ServiceType = existingSalon.ServiceType,
+                    GenderServices = !string.IsNullOrEmpty(existingSalon.GenderServices) 
+                        ? JsonSerializer.Deserialize<List<string>>(existingSalon.GenderServices) ?? new List<string>()
+                        : new List<string>(),
+                    Specializations = !string.IsNullOrEmpty(existingSalon.Specializations) 
+                        ? JsonSerializer.Deserialize<List<string>>(existingSalon.Specializations) ?? new List<string>()
+                        : new List<string>(),
                     OpeningTime = existingSalon.OpeningTime,
                     ClosingTime = existingSalon.ClosingTime,
                     BusinessHours = existingSalon.BusinessHours,
@@ -684,6 +757,130 @@ namespace stibe.api.Controllers
             {
                 _logger.LogError(ex, "Error deleting salon");
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while deleting the salon"));
+            }
+        }
+
+        [HttpGet("check-salon-phone-status/{phone}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<ApiResponse<object>>> CheckSalonPhoneStatus(string phone)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(phone))
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse("Phone number is required"));
+                }
+
+                // Clean the phone number to handle different formats
+                var cleanPhone = Regex.Replace(phone, @"[^\d+]", "");
+
+                var salon = await _context.Salons
+                    .Where(s => s.PhoneNumber == cleanPhone && !s.IsDeleted)
+                    .Select(s => new { s.PhoneNumber, s.Name, s.City, s.State })
+                    .FirstOrDefaultAsync();
+
+                if (salon == null)
+                {
+                    return Ok(ApiResponse<object>.SuccessResponse(new { 
+                        exists = false, 
+                        status = "not_registered",
+                        message = "Phone number is available for salon registration"
+                    }, "Phone number not registered for any salon"));
+                }
+
+                return Ok(ApiResponse<object>.SuccessResponse(new { 
+                    exists = true, 
+                    status = "registered",
+                    salon = new {
+                        phoneNumber = salon.PhoneNumber,
+                        name = salon.Name,
+                        location = $"{salon.City}, {salon.State}"
+                    },
+                    message = "Phone number is already registered for another salon"
+                }, "Phone number is already registered for a salon"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking salon phone number status");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while checking phone number status"));
+            }
+        }
+
+        [HttpGet("check-salon-email-status/{email}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<ApiResponse<object>>> CheckSalonEmailStatus(string email)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(email))
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse("Email address is required"));
+                }
+
+                // Validate email format
+                if (!IsValidEmail(email))
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse("Invalid email format"));
+                }
+
+                var salon = await _context.Salons
+                    .Where(s => s.Email.ToLower() == email.ToLower() && !s.IsDeleted)
+                    .Select(s => new { s.Email, s.Name, s.City, s.State })
+                    .FirstOrDefaultAsync();
+
+                if (salon == null)
+                {
+                    return Ok(ApiResponse<object>.SuccessResponse(new { 
+                        exists = false, 
+                        status = "not_registered",
+                        message = "Email address is available for salon registration"
+                    }, "Email address not registered for any salon"));
+                }
+
+                return Ok(ApiResponse<object>.SuccessResponse(new { 
+                    exists = true, 
+                    status = "registered",
+                    salon = new {
+                        email = salon.Email,
+                        name = salon.Name,
+                        location = $"{salon.City}, {salon.State}"
+                    },
+                    message = "Email address is already registered for another salon"
+                }, "Email address is already registered for a salon"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking salon email address status");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while checking email address status"));
+            }
+        }
+
+        private bool IsValidPhoneNumber(string phoneNumber)
+        {
+            if (string.IsNullOrWhiteSpace(phoneNumber))
+                return false;
+
+            // Remove all non-digit characters for validation
+            var digitsOnly = new Regex(@"[^\d]").Replace(phoneNumber, "");
+
+            // Most phone numbers are between 8 and 15 digits
+            return digitsOnly.Length >= 8 && digitsOnly.Length <= 15;
+        }
+
+        private bool IsValidEmail(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return false;
+
+            try
+            {
+                // Use a simple regex pattern for email validation
+                var emailPattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+                return Regex.IsMatch(email, emailPattern, RegexOptions.IgnoreCase);
+            }
+            catch
+            {
+                return false;
             }
         }
     }

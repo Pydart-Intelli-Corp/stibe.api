@@ -1645,6 +1645,49 @@ namespace stibe.api.Controllers
             }
         }
 
+        [HttpGet("check-phone-status/{phone}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<ApiResponse<object>>> CheckPhoneStatus(string phone)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(phone))
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse("Phone number is required"));
+                }
+
+                // Clean the phone number to handle different formats
+                var cleanPhone = Regex.Replace(phone, @"[^\d+]", "");
+
+                var user = await _context.Users
+                    .Where(u => u.PhoneNumber == cleanPhone && !u.IsDeleted)
+                    .Select(u => new { u.PhoneNumber, u.Role, u.IsDeleted })
+                    .FirstOrDefaultAsync();
+
+                if (user == null)
+                {
+                    return Ok(ApiResponse<object>.SuccessResponse(new { 
+                        exists = false, 
+                        status = "not_registered"
+                    }, "Phone number not registered"));
+                }
+
+                return Ok(ApiResponse<object>.SuccessResponse(new { 
+                    exists = true, 
+                    status = "registered",
+                    user = new {
+                        phoneNumber = user.PhoneNumber,
+                        role = user.Role
+                    }
+                }, "Phone number is already registered"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking phone number status");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while checking phone number status"));
+            }
+        }
+
         [HttpGet("me")]
         [Authorize]
         public async Task<ActionResult<ApiResponse<object>>> GetCurrentUser()
