@@ -122,6 +122,7 @@ namespace stibe.api.Controllers
                     State = salon.State,
                     ZipCode = salon.ZipCode,
                     PhoneNumber = salon.PhoneNumber,
+                    Email = salon.Email,
                     ServiceType = salon.ServiceType,
                     GenderServices = !string.IsNullOrEmpty(salon.GenderServices) 
                         ? JsonSerializer.Deserialize<List<string>>(salon.GenderServices) 
@@ -129,14 +130,17 @@ namespace stibe.api.Controllers
                     Specializations = !string.IsNullOrEmpty(salon.Specializations) 
                         ? JsonSerializer.Deserialize<List<string>>(salon.Specializations) 
                         : new List<string>(),
+                    // Bank Details
                     BankAccountNumber = salon.BankAccountNumber,
                     IFSCCode = salon.IFSCCode,
                     BankName = salon.BankName,
                     AccountHolderName = salon.AccountHolderName,
+                    // Tax Details
                     GSTNumber = salon.GSTNumber,
                     PANNumber = salon.PANNumber,
                     OpeningTime = salon.OpeningTime,
                     ClosingTime = salon.ClosingTime,
+                    BusinessHours = salon.BusinessHours,
                     Latitude = salon.Latitude,
                     Longitude = salon.Longitude,
                     IsActive = salon.IsActive,
@@ -230,6 +234,14 @@ namespace stibe.api.Controllers
                     Specializations = request.Specializations != null && request.Specializations.Any() 
                         ? JsonSerializer.Serialize(request.Specializations) 
                         : null,
+                    // Bank Details
+                    BankAccountNumber = request.BankAccountNumber,
+                    IFSCCode = request.IFSCCode,
+                    BankName = request.BankName,
+                    AccountHolderName = request.AccountHolderName,
+                    // Tax Details
+                    GSTNumber = request.GSTNumber,
+                    PANNumber = request.PANNumber,
                     OpeningTime = openingTime,
                     ClosingTime = closingTime,
                     BusinessHours = businessHoursJson,
@@ -269,6 +281,14 @@ namespace stibe.api.Controllers
                     Specializations = !string.IsNullOrEmpty(salon.Specializations) 
                         ? JsonSerializer.Deserialize<List<string>>(salon.Specializations) 
                         : new List<string>(),
+                    // Bank Details
+                    BankAccountNumber = salon.BankAccountNumber,
+                    IFSCCode = salon.IFSCCode,
+                    BankName = salon.BankName,
+                    AccountHolderName = salon.AccountHolderName,
+                    // Tax Details
+                    GSTNumber = salon.GSTNumber,
+                    PANNumber = salon.PANNumber,
                     OpeningTime = salon.OpeningTime,
                     ClosingTime = salon.ClosingTime,
                     BusinessHours = salon.BusinessHours,
@@ -327,6 +347,14 @@ namespace stibe.api.Controllers
                         Specializations = !string.IsNullOrEmpty(s.Specializations) 
                             ? JsonSerializer.Deserialize<List<string>>(s.Specializations) ?? new List<string>()
                             : new List<string>(),
+                        // Bank Details
+                        BankAccountNumber = s.BankAccountNumber,
+                        IFSCCode = s.IFSCCode,
+                        BankName = s.BankName,
+                        AccountHolderName = s.AccountHolderName,
+                        // Tax Details
+                        GSTNumber = s.GSTNumber,
+                        PANNumber = s.PANNumber,
                         OpeningTime = s.OpeningTime,
                         ClosingTime = s.ClosingTime,
                         BusinessHours = s.BusinessHours,
@@ -398,6 +426,14 @@ namespace stibe.api.Controllers
                     Specializations = !string.IsNullOrEmpty(salon.Specializations) 
                         ? JsonSerializer.Deserialize<List<string>>(salon.Specializations) ?? new List<string>()
                         : new List<string>(),
+                    // Bank Details
+                    BankAccountNumber = salon.BankAccountNumber,
+                    IFSCCode = salon.IFSCCode,
+                    BankName = salon.BankName,
+                    AccountHolderName = salon.AccountHolderName,
+                    // Tax Details
+                    GSTNumber = salon.GSTNumber,
+                    PANNumber = salon.PANNumber,
                     OpeningTime = salon.OpeningTime,
                     ClosingTime = salon.ClosingTime,
                     BusinessHours = salon.BusinessHours,
@@ -483,6 +519,131 @@ namespace stibe.api.Controllers
             {
                 _logger.LogError(ex, "Error uploading salon image");
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while uploading salon image"));
+            }
+        }
+
+        [HttpGet("{id}/bank-details")]
+        [Authorize(Roles = "SalonOwner,Admin")]
+        public async Task<ActionResult<ApiResponse<SalonBankDetailsDto>>> GetSalonBankDetails(int id)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                var userRole = GetCurrentUserRole();
+                
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<SalonBankDetailsDto>.ErrorResponse("Invalid token"));
+                }
+
+                var salon = await _context.Salons
+                    .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted);
+
+                if (salon == null)
+                {
+                    return NotFound(ApiResponse<SalonBankDetailsDto>.ErrorResponse("Salon not found"));
+                }
+
+                // Check ownership (only owner or admin can view bank details)
+                if (userRole != "Admin" && salon.OwnerId != currentUserId.Value)
+                {
+                    return Forbid("You can only view your own salon's bank details");
+                }
+
+                var bankDetails = new SalonBankDetailsDto
+                {
+                    SalonId = salon.Id,
+                    SalonName = salon.Name,
+                    BankAccountNumber = salon.BankAccountNumber,
+                    IFSCCode = salon.IFSCCode,
+                    BankName = salon.BankName,
+                    AccountHolderName = salon.AccountHolderName,
+                    GSTNumber = salon.GSTNumber,
+                    PANNumber = salon.PANNumber,
+                    IsActive = salon.IsActive,
+                    UpdatedAt = salon.UpdatedAt
+                };
+
+                return Ok(ApiResponse<SalonBankDetailsDto>.SuccessResponse(bankDetails, "Bank details retrieved successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving salon bank details");
+                return StatusCode(500, ApiResponse<SalonBankDetailsDto>.ErrorResponse("An error occurred while retrieving the salon bank details"));
+            }
+        }
+
+        [HttpPut("{id}/bank-details")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<SalonBankDetailsDto>>> UpdateSalonBankDetails(int id, [FromBody] UpdateSalonBankDetailsDto request)
+        {
+            try
+            {
+                _logger.LogInformation($"🏦 UpdateSalonBankDetails called for salon ID: {id}");
+                
+                if (request == null)
+                {
+                    return BadRequest(ApiResponse<SalonBankDetailsDto>.ErrorResponse("Invalid request data"));
+                }
+                
+                if (!ModelState.IsValid)
+                {
+                    var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                    return BadRequest(ApiResponse<SalonBankDetailsDto>.ErrorResponse("Validation failed", errors));
+                }
+                
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<SalonBankDetailsDto>.ErrorResponse("User not authenticated"));
+                }
+
+                // Find the existing salon
+                var existingSalon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == id && s.OwnerId == currentUserId);
+                if (existingSalon == null)
+                {
+                    return NotFound(ApiResponse<SalonBankDetailsDto>.ErrorResponse("Salon not found or you don't have permission to update it"));
+                }
+
+                // Update bank details
+                if (!string.IsNullOrEmpty(request.BankAccountNumber))
+                    existingSalon.BankAccountNumber = request.BankAccountNumber;
+                if (!string.IsNullOrEmpty(request.IFSCCode))
+                    existingSalon.IFSCCode = request.IFSCCode;
+                if (!string.IsNullOrEmpty(request.BankName))
+                    existingSalon.BankName = request.BankName;
+                if (!string.IsNullOrEmpty(request.AccountHolderName))
+                    existingSalon.AccountHolderName = request.AccountHolderName;
+                if (!string.IsNullOrEmpty(request.GSTNumber))
+                    existingSalon.GSTNumber = request.GSTNumber;
+                if (!string.IsNullOrEmpty(request.PANNumber))
+                    existingSalon.PANNumber = request.PANNumber;
+                    
+                existingSalon.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                var responseDto = new SalonBankDetailsDto
+                {
+                    SalonId = existingSalon.Id,
+                    SalonName = existingSalon.Name,
+                    BankAccountNumber = existingSalon.BankAccountNumber,
+                    IFSCCode = existingSalon.IFSCCode,
+                    BankName = existingSalon.BankName,
+                    AccountHolderName = existingSalon.AccountHolderName,
+                    GSTNumber = existingSalon.GSTNumber,
+                    PANNumber = existingSalon.PANNumber,
+                    IsActive = existingSalon.IsActive,
+                    UpdatedAt = existingSalon.UpdatedAt
+                };
+
+                _logger.LogInformation($"✅ Salon bank details updated successfully for salon ID: {existingSalon.Id}");
+                return Ok(ApiResponse<SalonBankDetailsDto>.SuccessResponse(responseDto, "Bank details updated successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating salon bank details");
+                return StatusCode(500, ApiResponse<SalonBankDetailsDto>.ErrorResponse("An error occurred while updating the salon bank details"));
             }
         }
 
@@ -641,6 +802,20 @@ namespace stibe.api.Controllers
                     existingSalon.Specializations = request.Specializations.Any() 
                         ? JsonSerializer.Serialize(request.Specializations) 
                         : null;
+                // Update bank details
+                if (!string.IsNullOrEmpty(request.BankAccountNumber))
+                    existingSalon.BankAccountNumber = request.BankAccountNumber;
+                if (!string.IsNullOrEmpty(request.IFSCCode))
+                    existingSalon.IFSCCode = request.IFSCCode;
+                if (!string.IsNullOrEmpty(request.BankName))
+                    existingSalon.BankName = request.BankName;
+                if (!string.IsNullOrEmpty(request.AccountHolderName))
+                    existingSalon.AccountHolderName = request.AccountHolderName;
+                // Update tax details
+                if (!string.IsNullOrEmpty(request.GSTNumber))
+                    existingSalon.GSTNumber = request.GSTNumber;
+                if (!string.IsNullOrEmpty(request.PANNumber))
+                    existingSalon.PANNumber = request.PANNumber;
                 if (!string.IsNullOrEmpty(request.OpeningTime))
                     existingSalon.OpeningTime = TimeSpan.Parse(request.OpeningTime);
                 if (!string.IsNullOrEmpty(request.ClosingTime))
@@ -700,6 +875,14 @@ namespace stibe.api.Controllers
                     Specializations = !string.IsNullOrEmpty(existingSalon.Specializations) 
                         ? JsonSerializer.Deserialize<List<string>>(existingSalon.Specializations) ?? new List<string>()
                         : new List<string>(),
+                    // Bank Details
+                    BankAccountNumber = existingSalon.BankAccountNumber,
+                    IFSCCode = existingSalon.IFSCCode,
+                    BankName = existingSalon.BankName,
+                    AccountHolderName = existingSalon.AccountHolderName,
+                    // Tax Details
+                    GSTNumber = existingSalon.GSTNumber,
+                    PANNumber = existingSalon.PANNumber,
                     OpeningTime = existingSalon.OpeningTime,
                     ClosingTime = existingSalon.ClosingTime,
                     BusinessHours = existingSalon.BusinessHours,
@@ -852,6 +1035,110 @@ namespace stibe.api.Controllers
             {
                 _logger.LogError(ex, "Error checking salon email address status");
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while checking email address status"));
+            }
+        }
+
+        [HttpDelete("{salonId}/images/{imageUrl}")]
+        [Authorize(Roles = "SalonOwner,Admin")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteSalonImage(int salonId, string imageUrl)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                var userRole = GetCurrentUserRole();
+                
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<object>.ErrorResponse("Invalid token"));
+                }
+
+                // URL decode the image URL parameter
+                imageUrl = Uri.UnescapeDataString(imageUrl);
+                
+                _logger.LogInformation($"🗑️ DeleteSalonImage called for salon ID: {salonId}, imageUrl: {imageUrl}");
+
+                var salon = await _context.Salons
+                    .FirstOrDefaultAsync(s => s.Id == salonId && !s.IsDeleted);
+
+                if (salon == null)
+                {
+                    return NotFound(ApiResponse<object>.ErrorResponse("Salon not found"));
+                }
+
+                // Check ownership (only owner or admin can delete images)
+                if (userRole != "Admin" && salon.OwnerId != currentUserId.Value)
+                {
+                    return Forbid("You can only delete images from your own salon");
+                }
+
+                // Get current images
+                var currentImages = !string.IsNullOrEmpty(salon.ImageUrls) 
+                    ? JsonSerializer.Deserialize<List<string>>(salon.ImageUrls) ?? new List<string>()
+                    : new List<string>();
+
+                // Check if the image exists in the salon's image list
+                var imageToDelete = currentImages.FirstOrDefault(img => img == imageUrl);
+                if (imageToDelete == null)
+                {
+                    return NotFound(ApiResponse<object>.ErrorResponse("Image not found in salon's gallery"));
+                }
+
+                // Remove image from the list
+                currentImages.Remove(imageToDelete);
+
+                // Update salon's image URLs
+                salon.ImageUrls = currentImages.Any() 
+                    ? JsonSerializer.Serialize(currentImages)
+                    : null;
+
+                // If the deleted image was the profile picture, set a new one or clear it
+                if (salon.ProfilePictureUrl == imageUrl)
+                {
+                    salon.ProfilePictureUrl = currentImages.FirstOrDefault();
+                }
+
+                salon.UpdatedAt = DateTime.UtcNow;
+
+                // Save changes to database
+                await _context.SaveChangesAsync();
+
+                // Delete the physical file
+                try
+                {
+                    // Extract filename from URL
+                    var uri = new Uri(imageUrl);
+                    var fileName = Path.GetFileName(uri.LocalPath);
+                    var filePath = Path.Combine(_environment.WebRootPath, "uploads", "salon-images", fileName);
+
+                    if (System.IO.File.Exists(filePath))
+                    {
+                        System.IO.File.Delete(filePath);
+                        _logger.LogInformation($"✅ Physical file deleted: {filePath}");
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"⚠️ Physical file not found: {filePath}");
+                    }
+                }
+                catch (Exception fileEx)
+                {
+                    _logger.LogError(fileEx, $"❌ Error deleting physical file: {imageUrl}");
+                    // Continue execution even if physical file deletion fails
+                }
+
+                _logger.LogInformation($"✅ Image deleted successfully from salon {salonId}");
+
+                return Ok(ApiResponse<object>.SuccessResponse(new 
+                { 
+                    deletedImageUrl = imageUrl,
+                    remainingImagesCount = currentImages.Count,
+                    newProfilePictureUrl = salon.ProfilePictureUrl
+                }, "Image deleted successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error deleting salon image: {imageUrl}");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while deleting the image"));
             }
         }
 

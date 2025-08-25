@@ -10,7 +10,7 @@ namespace stibe.api.Data
             var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
             
             // Use the connection string directly for design-time operations
-            var connectionString = "Server=localhost;Port=3306;UserID=root;Password=Access@404;Database=stibe_db;SslMode=None";
+            var connectionString = "Server=localhost;Port=3306;UserID=root;Password=2232;Database=stibe_db;SslMode=None";
             
             optionsBuilder.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 40)));
             

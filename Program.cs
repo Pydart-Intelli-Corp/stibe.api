@@ -6,13 +6,13 @@ using Microsoft.OpenApi.Models;
 using stibe.api.Configuration;
 using stibe.api.Data;
 using stibe.api.Services.Interfaces;
+using stibe.api.Services.Implementations.General;
 using System.Text;
 using stibe.api.Services.Interfaces.Partner;
 using stibe.api.Services.Implementations.MockServices;
 using stibe.api.Services.Implementations.LocationServices;
 using stibe.api.Services.Implementations.SecurityServices;
 using stibe.api.Services.Implementations.PartnerServices.StaffServices;
-using stibe.api.Services.Implementations.General;
 using stibe.api.Services.Implementations.FileService;
 using Microsoft.Extensions.FileProviders;
 
@@ -74,6 +74,7 @@ builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("Featu
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
+builder.Services.AddScoped<IOtpService, OtpService>();
 
 // Configure Feature Flags first
 builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("FeatureFlags"));

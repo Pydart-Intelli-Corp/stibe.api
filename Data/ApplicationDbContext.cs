@@ -24,6 +24,9 @@ namespace stibe.api.Data
         public DbSet<StaffWorkSession> StaffWorkSessions { get; set; } = null!;
         public DbSet<StaffSpecialization> StaffSpecializations { get; set; } = null!;
 
+        // OTP Management
+        public DbSet<OtpEntity> OtpEntities { get; set; } = null!;
+
         // New DbSet properties for service management enhancements
         public DbSet<ServiceCategory> ServiceCategories { get; set; } = null!;
         public DbSet<ServiceOffer> ServiceOffers { get; set; } = null!;
@@ -41,11 +44,37 @@ namespace stibe.api.Data
             ConfigureStaffSpecializationEntity(modelBuilder);
             ConfigureStaffWorkSessionEntity(modelBuilder);
 
+            // OTP Management configuration
+            ConfigureOtpEntity(modelBuilder);
+
             // New configurations for service management
             ConfigureServiceCategoryEntity(modelBuilder);
             ConfigureServiceOfferEntity(modelBuilder);
             ConfigureServiceOfferItemEntity(modelBuilder);
             ConfigureServiceAvailabilityEntity(modelBuilder);
+        }
+
+        private void ConfigureOtpEntity(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<OtpEntity>()
+                .HasKey(o => o.Id);
+
+            // Index for email and purpose lookups
+            modelBuilder.Entity<OtpEntity>()
+                .HasIndex(o => new { o.Email, o.Purpose });
+
+            // Index for cleanup operations
+            modelBuilder.Entity<OtpEntity>()
+                .HasIndex(o => o.ExpiresAt);
+
+            // Index for rate limiting checks
+            modelBuilder.Entity<OtpEntity>()
+                .HasIndex(o => new { o.Email, o.Purpose, o.CreatedAt });
+
+            // Unique constraint to prevent multiple active OTPs
+            modelBuilder.Entity<OtpEntity>()
+                .HasIndex(o => new { o.Email, o.Purpose, o.IsUsed })
+                .HasFilter("IsUsed = 0 AND ExpiresAt > CURRENT_TIMESTAMP");
         }
 
         // Add missing configuration methods

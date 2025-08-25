@@ -287,6 +287,26 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
 
         public List<string>? Specializations { get; set; } // hair_cut, hair_color, facial, etc.
 
+        // Bank Details
+        [StringLength(20)]
+        public string? BankAccountNumber { get; set; }
+
+        [StringLength(11)]
+        public string? IFSCCode { get; set; }
+
+        [StringLength(100)]
+        public string? BankName { get; set; }
+
+        [StringLength(200)]
+        public string? AccountHolderName { get; set; }
+
+        // Tax Details
+        [StringLength(15)]
+        public string? GSTNumber { get; set; }
+
+        [StringLength(10)]
+        public string? PANNumber { get; set; }
+
         // Current location properties
         public decimal? CurrentLatitude { get; set; }
         public decimal? CurrentLongitude { get; set; }
@@ -305,5 +325,40 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public bool IsOpen { get; set; }
         public string Open { get; set; } = "09:00";
         public string Close { get; set; } = "18:00";
+    }
+
+    public class SalonBankDetailsDto
+    {
+        public int SalonId { get; set; }
+        public string SalonName { get; set; } = string.Empty;
+        public string? BankAccountNumber { get; set; }
+        public string? IFSCCode { get; set; }
+        public string? BankName { get; set; }
+        public string? AccountHolderName { get; set; }
+        public string? GSTNumber { get; set; }
+        public string? PANNumber { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime UpdatedAt { get; set; }
+    }
+
+    public class UpdateSalonBankDetailsDto
+    {
+        [StringLength(20)]
+        public string? BankAccountNumber { get; set; }
+
+        [StringLength(11)]
+        public string? IFSCCode { get; set; }
+
+        [StringLength(100)]
+        public string? BankName { get; set; }
+
+        [StringLength(200)]
+        public string? AccountHolderName { get; set; }
+
+        [StringLength(15)]
+        public string? GSTNumber { get; set; }
+
+        [StringLength(10)]
+        public string? PANNumber { get; set; }
     }
 }
