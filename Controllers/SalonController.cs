@@ -238,7 +238,7 @@ namespace stibe.api.Controllers
                     UpdatedAt = salon.UpdatedAt,
                     ProfilePictureUrl = salon.ProfilePictureUrl ?? string.Empty,
                     ImageUrls = !string.IsNullOrEmpty(salon.ImageUrls) 
-                        ? salon.ImageUrls.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+                        ? JsonSerializer.Deserialize<List<string>>(salon.ImageUrls) ?? new List<string>()
                         : new List<string>()
                 };
 
@@ -265,7 +265,9 @@ namespace stibe.api.Controllers
 
                 var salons = await _context.Salons
                     .Where(s => s.OwnerId == currentUserId.Value && !s.IsDeleted)
-                    .Select(s => new SalonResponseDto
+                    .ToListAsync();
+
+                var salonDtos = salons.Select(s => new SalonResponseDto
                     {
                         Id = s.Id,
                         Name = s.Name,
@@ -287,12 +289,12 @@ namespace stibe.api.Controllers
                         UpdatedAt = s.UpdatedAt,
                         ProfilePictureUrl = s.ProfilePictureUrl ?? string.Empty,
                         ImageUrls = !string.IsNullOrEmpty(s.ImageUrls) 
-                            ? s.ImageUrls.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+                            ? JsonSerializer.Deserialize<List<string>>(s.ImageUrls) ?? new List<string>()
                             : new List<string>()
                     })
-                    .ToListAsync();
+                    .ToList();
 
-                return Ok(ApiResponse<List<SalonResponseDto>>.SuccessResponse(salons, "Salons retrieved successfully"));
+                return Ok(ApiResponse<List<SalonResponseDto>>.SuccessResponse(salonDtos, "Salons retrieved successfully"));
             }
             catch (Exception ex)
             {
@@ -351,7 +353,7 @@ namespace stibe.api.Controllers
                     UpdatedAt = salon.UpdatedAt,
                     ProfilePictureUrl = salon.ProfilePictureUrl ?? string.Empty,
                     ImageUrls = !string.IsNullOrEmpty(salon.ImageUrls) 
-                        ? salon.ImageUrls.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+                        ? JsonSerializer.Deserialize<List<string>>(salon.ImageUrls) ?? new List<string>()
                         : new List<string>()
                 };
 
