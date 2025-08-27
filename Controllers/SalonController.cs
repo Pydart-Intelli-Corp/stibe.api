@@ -5,6 +5,7 @@ using stibe.api.Data;
 using stibe.api.Models.DTOs.Features;
 using stibe.api.Models.DTOs.PartnersDTOs;
 using stibe.api.Models.Entities.PartnersEntity;
+using stibe.api.Models.Entities;
 using stibe.api.Services.Interfaces;
 using System.Security.Claims;
 using System.Text.Json;
@@ -20,13 +21,15 @@ namespace stibe.api.Controllers
         private readonly ILogger<SalonController> _logger;
         private readonly IWebHostEnvironment _environment;
         private readonly IFileService _fileService;
+        private readonly IOtpService _otpService;
 
-        public SalonController(ApplicationDbContext context, ILogger<SalonController> logger, IWebHostEnvironment environment, IFileService fileService)
+        public SalonController(ApplicationDbContext context, ILogger<SalonController> logger, IWebHostEnvironment environment, IFileService fileService, IOtpService otpService)
         {
             _context = context;
             _logger = logger;
             _environment = environment;
             _fileService = fileService;
+            _otpService = otpService;
         }        [HttpPost]
         [Authorize(Roles = "SalonOwner")]
         public async Task<ActionResult<ApiResponse<SalonResponseDto>>> CreateSalon([FromBody] CreateSalonRequestDto request)
@@ -71,7 +74,12 @@ namespace stibe.api.Controllers
                 // Check if user already has a salon (if business rule applies)
                 var existingSalons = await _context.Salons
                     .Where(s => s.OwnerId == currentUserId.Value && !s.IsDeleted)
-                    .CountAsync();                // For now, allow multiple salons per owner
+                    .CountAsync();
+                
+                // Automatically set as default if this is the first salon
+                bool isDefault = existingSalons == 0;
+
+                // For now, allow multiple salons per owner
                 // if (existingSalons > 0)
                 // {
                 //     return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("You already have a salon registered"));
@@ -105,6 +113,7 @@ namespace stibe.api.Controllers
                     Longitude = request.CurrentLongitude,
                     OwnerId = currentUserId.Value,
                     IsActive = true,
+                    IsDefault = isDefault,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
@@ -144,6 +153,7 @@ namespace stibe.api.Controllers
                     Latitude = salon.Latitude,
                     Longitude = salon.Longitude,
                     IsActive = salon.IsActive,
+                    IsDefault = salon.IsDefault,
                     OwnerId = salon.OwnerId,
                     CreatedAt = salon.CreatedAt,
                     UpdatedAt = salon.UpdatedAt,
@@ -325,6 +335,9 @@ namespace stibe.api.Controllers
                     return Unauthorized(ApiResponse<List<SalonResponseDto>>.ErrorResponse("Invalid token"));
                 }
 
+                // Auto-set default salon if only one exists
+                await AutoSetDefaultSalonIfNeeded(currentUserId.Value);
+
                 var salons = await _context.Salons
                     .Where(s => s.OwnerId == currentUserId.Value && !s.IsDeleted)
                     .ToListAsync();
@@ -361,6 +374,7 @@ namespace stibe.api.Controllers
                         Latitude = s.Latitude,
                         Longitude = s.Longitude,
                         IsActive = s.IsActive,
+                        IsDefault = s.IsDefault,
                         OwnerId = s.OwnerId,
                         CreatedAt = s.CreatedAt,
                         UpdatedAt = s.UpdatedAt,
@@ -440,6 +454,7 @@ namespace stibe.api.Controllers
                     Latitude = salon.Latitude,
                     Longitude = salon.Longitude,
                     IsActive = salon.IsActive,
+                    IsDefault = salon.IsDefault,
                     OwnerId = salon.OwnerId,
                     CreatedAt = salon.CreatedAt,
                     UpdatedAt = salon.UpdatedAt,
@@ -725,7 +740,286 @@ namespace stibe.api.Controllers
             }
         }
 
-     
+        [HttpPut("{id}/set-default")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<SalonResponseDto>>> SetDefaultSalon(int id)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("User not authenticated"));
+                }
+
+                // Find the salon to set as default
+                var salon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == id && s.OwnerId == currentUserId && !s.IsDeleted);
+                if (salon == null)
+                {
+                    return NotFound(ApiResponse<SalonResponseDto>.ErrorResponse("Salon not found or you don't have permission to modify it"));
+                }
+
+                // Remove default from all other salons of this owner
+                var otherSalons = await _context.Salons
+                    .Where(s => s.OwnerId == currentUserId.Value && s.Id != id && !s.IsDeleted)
+                    .ToListAsync();
+                
+                foreach (var otherSalon in otherSalons)
+                {
+                    otherSalon.IsDefault = false;
+                }
+
+                // Set this salon as default
+                salon.IsDefault = true;
+                salon.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                var response = new SalonResponseDto
+                {
+                    Id = salon.Id,
+                    Name = salon.Name ?? "",
+                    Description = salon.Description ?? "",
+                    Address = salon.Address ?? "",
+                    City = salon.City ?? "",
+                    State = salon.State ?? "",
+                    ZipCode = salon.ZipCode ?? "",
+                    PhoneNumber = salon.PhoneNumber ?? "",
+                    Email = salon.Email ?? "",
+                    ServiceType = salon.ServiceType,
+                    GenderServices = !string.IsNullOrEmpty(salon.GenderServices) 
+                        ? JsonSerializer.Deserialize<List<string>>(salon.GenderServices) ?? new List<string>()
+                        : new List<string>(),
+                    Specializations = !string.IsNullOrEmpty(salon.Specializations) 
+                        ? JsonSerializer.Deserialize<List<string>>(salon.Specializations) ?? new List<string>()
+                        : new List<string>(),
+                    BankAccountNumber = salon.BankAccountNumber,
+                    IFSCCode = salon.IFSCCode,
+                    BankName = salon.BankName,
+                    AccountHolderName = salon.AccountHolderName,
+                    GSTNumber = salon.GSTNumber,
+                    PANNumber = salon.PANNumber,
+                    OpeningTime = salon.OpeningTime,
+                    ClosingTime = salon.ClosingTime,
+                    BusinessHours = salon.BusinessHours,
+                    Latitude = salon.Latitude,
+                    Longitude = salon.Longitude,
+                    IsActive = salon.IsActive,
+                    IsDefault = salon.IsDefault,
+                    OwnerId = salon.OwnerId,
+                    CreatedAt = salon.CreatedAt,
+                    UpdatedAt = salon.UpdatedAt,
+                    ProfilePictureUrl = salon.ProfilePictureUrl ?? "",
+                    ImageUrls = string.IsNullOrEmpty(salon.ImageUrls) ? 
+                        new List<string>() : 
+                        JsonSerializer.Deserialize<List<string>>(salon.ImageUrls) ?? new List<string>()
+                };
+
+                return Ok(ApiResponse<SalonResponseDto>.SuccessResponse(response, "Default salon updated successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting default salon");
+                return StatusCode(500, ApiResponse<SalonResponseDto>.ErrorResponse("An error occurred while setting the default salon"));
+            }
+        }
+
+        [HttpPost("change-status-with-otp")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<SalonResponseDto>>> ChangeSalonStatusWithOtp([FromBody] SalonStatusChangeRequestDto request)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("User not authenticated"));
+                }
+
+                var currentUserEmail = GetCurrentUserEmail();
+                if (string.IsNullOrEmpty(currentUserEmail))
+                {
+                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("User email not found in token"));
+                }
+
+                // Verify email matches current user's email (owner email)
+                if (!string.Equals(currentUserEmail, request.Email, StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Email does not match the salon owner's registered email"));
+                }
+
+                // Verify OTP first
+                var otpResult = await _otpService.VerifyOtpAsync(request.Email, request.OtpCode, OtpEntity.PURPOSE_SALON_STATUS_CHANGE);
+                if (!otpResult.Success)
+                {
+                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse($"OTP verification failed: {otpResult.Message}"));
+                }
+
+                // Find the salon
+                var salon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == request.SalonId && s.OwnerId == currentUserId && !s.IsDeleted);
+                if (salon == null)
+                {
+                    return NotFound(ApiResponse<SalonResponseDto>.ErrorResponse("Salon not found or you don't have permission to modify it"));
+                }
+
+                // Update salon status
+                salon.IsActive = request.IsActive;
+                salon.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                var response = new SalonResponseDto
+                {
+                    Id = salon.Id,
+                    Name = salon.Name ?? "",
+                    Description = salon.Description ?? "",
+                    Address = salon.Address ?? "",
+                    City = salon.City ?? "",
+                    State = salon.State ?? "",
+                    ZipCode = salon.ZipCode ?? "",
+                    PhoneNumber = salon.PhoneNumber ?? "",
+                    Email = salon.Email ?? "",
+                    ServiceType = salon.ServiceType,
+                    GenderServices = !string.IsNullOrEmpty(salon.GenderServices) 
+                        ? JsonSerializer.Deserialize<List<string>>(salon.GenderServices) ?? new List<string>()
+                        : new List<string>(),
+                    Specializations = !string.IsNullOrEmpty(salon.Specializations) 
+                        ? JsonSerializer.Deserialize<List<string>>(salon.Specializations) ?? new List<string>()
+                        : new List<string>(),
+                    BankAccountNumber = salon.BankAccountNumber,
+                    IFSCCode = salon.IFSCCode,
+                    BankName = salon.BankName,
+                    AccountHolderName = salon.AccountHolderName,
+                    GSTNumber = salon.GSTNumber,
+                    PANNumber = salon.PANNumber,
+                    OpeningTime = salon.OpeningTime,
+                    ClosingTime = salon.ClosingTime,
+                    BusinessHours = salon.BusinessHours,
+                    Latitude = salon.Latitude,
+                    Longitude = salon.Longitude,
+                    IsActive = salon.IsActive,
+                    IsDefault = salon.IsDefault,
+                    OwnerId = salon.OwnerId,
+                    CreatedAt = salon.CreatedAt,
+                    UpdatedAt = salon.UpdatedAt,
+                    ProfilePictureUrl = salon.ProfilePictureUrl ?? "",
+                    ImageUrls = string.IsNullOrEmpty(salon.ImageUrls) ? 
+                        new List<string>() : 
+                        JsonSerializer.Deserialize<List<string>>(salon.ImageUrls) ?? new List<string>()
+                };
+
+                return Ok(ApiResponse<SalonResponseDto>.SuccessResponse(response, $"Salon {(request.IsActive ? "activated" : "deactivated")} successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error changing salon status with OTP");
+                return StatusCode(500, ApiResponse<SalonResponseDto>.ErrorResponse("An error occurred while changing salon status"));
+            }
+        }
+
+        [HttpPost("set-default-with-otp")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<SalonResponseDto>>> SetDefaultSalonWithOtp([FromBody] SalonDefaultChangeRequestDto request)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("User not authenticated"));
+                }
+
+                var currentUserEmail = GetCurrentUserEmail();
+                if (string.IsNullOrEmpty(currentUserEmail))
+                {
+                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("User email not found in token"));
+                }
+
+                // Verify email matches current user's email (owner email)
+                if (!string.Equals(currentUserEmail, request.Email, StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Email does not match the salon owner's registered email"));
+                }
+
+                // Verify OTP first
+                var otpResult = await _otpService.VerifyOtpAsync(request.Email, request.OtpCode, OtpEntity.PURPOSE_SALON_DEFAULT_CHANGE);
+                if (!otpResult.Success)
+                {
+                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse($"OTP verification failed: {otpResult.Message}"));
+                }
+
+                // Find the salon
+                var salon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == request.SalonId && s.OwnerId == currentUserId && !s.IsDeleted);
+                if (salon == null)
+                {
+                    return NotFound(ApiResponse<SalonResponseDto>.ErrorResponse("Salon not found or you don't have permission to modify it"));
+                }
+
+                // Remove default from all other salons of this owner
+                var otherSalons = await _context.Salons
+                    .Where(s => s.OwnerId == currentUserId.Value && s.Id != request.SalonId && !s.IsDeleted)
+                    .ToListAsync();
+                
+                foreach (var otherSalon in otherSalons)
+                {
+                    otherSalon.IsDefault = false;
+                }
+
+                // Set this salon as default
+                salon.IsDefault = true;
+                salon.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                var response = new SalonResponseDto
+                {
+                    Id = salon.Id,
+                    Name = salon.Name ?? "",
+                    Description = salon.Description ?? "",
+                    Address = salon.Address ?? "",
+                    City = salon.City ?? "",
+                    State = salon.State ?? "",
+                    ZipCode = salon.ZipCode ?? "",
+                    PhoneNumber = salon.PhoneNumber ?? "",
+                    Email = salon.Email ?? "",
+                    ServiceType = salon.ServiceType,
+                    GenderServices = !string.IsNullOrEmpty(salon.GenderServices) 
+                        ? JsonSerializer.Deserialize<List<string>>(salon.GenderServices) ?? new List<string>()
+                        : new List<string>(),
+                    Specializations = !string.IsNullOrEmpty(salon.Specializations) 
+                        ? JsonSerializer.Deserialize<List<string>>(salon.Specializations) ?? new List<string>()
+                        : new List<string>(),
+                    BankAccountNumber = salon.BankAccountNumber,
+                    IFSCCode = salon.IFSCCode,
+                    BankName = salon.BankName,
+                    AccountHolderName = salon.AccountHolderName,
+                    GSTNumber = salon.GSTNumber,
+                    PANNumber = salon.PANNumber,
+                    OpeningTime = salon.OpeningTime,
+                    ClosingTime = salon.ClosingTime,
+                    BusinessHours = salon.BusinessHours,
+                    Latitude = salon.Latitude,
+                    Longitude = salon.Longitude,
+                    IsActive = salon.IsActive,
+                    IsDefault = salon.IsDefault,
+                    OwnerId = salon.OwnerId,
+                    CreatedAt = salon.CreatedAt,
+                    UpdatedAt = salon.UpdatedAt,
+                    ProfilePictureUrl = salon.ProfilePictureUrl ?? "",
+                    ImageUrls = string.IsNullOrEmpty(salon.ImageUrls) ? 
+                        new List<string>() : 
+                        JsonSerializer.Deserialize<List<string>>(salon.ImageUrls) ?? new List<string>()
+                };
+
+                return Ok(ApiResponse<SalonResponseDto>.SuccessResponse(response, "Default salon updated successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting default salon with OTP");
+                return StatusCode(500, ApiResponse<SalonResponseDto>.ErrorResponse("An error occurred while setting the default salon"));
+            }
+        }
+
         private int? GetCurrentUserId()
         {
             var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
@@ -739,6 +1033,11 @@ namespace stibe.api.Controllers
         private string? GetCurrentUserRole()
         {
             return User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+        }
+
+        private string? GetCurrentUserEmail()
+        {
+            return User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
         }
 
         [HttpPut("{id}")]
@@ -822,6 +1121,22 @@ namespace stibe.api.Controllers
                     existingSalon.ClosingTime = TimeSpan.Parse(request.ClosingTime);
                 if (request.IsActive.HasValue)
                     existingSalon.IsActive = request.IsActive.Value;
+                if (request.IsDefault.HasValue)
+                    existingSalon.IsDefault = request.IsDefault.Value;
+                    
+                // Handle default salon business logic
+                if (request.IsDefault.HasValue && request.IsDefault.Value)
+                {
+                    // If setting this salon as default, ensure no other salon is default for this owner
+                    var otherSalons = await _context.Salons
+                        .Where(s => s.OwnerId == currentUserId.Value && s.Id != id && !s.IsDeleted)
+                        .ToListAsync();
+                    
+                    foreach (var salon in otherSalons)
+                    {
+                        salon.IsDefault = false;
+                    }
+                }
                     
                 existingSalon.UpdatedAt = DateTime.UtcNow;
                 
@@ -838,18 +1153,21 @@ namespace stibe.api.Controllers
                     existingSalon.BusinessHours = JsonSerializer.Serialize(request.BusinessHours);
                 }
                 
-                // Update profile picture URL if provided
-                if (!string.IsNullOrEmpty(request.ProfilePictureUrl))
+                // Update profile picture URL only when explicitly provided
+                if (request.ProfilePictureUrl != null)
                 {
-                    existingSalon.ProfilePictureUrl = request.ProfilePictureUrl;
-                }
-                else if (request.ProfilePictureUrl == "")
-                {
-                    // If ProfilePictureUrl is explicitly set to empty string, remove it
-                    existingSalon.ProfilePictureUrl = null;
+                    if (!string.IsNullOrEmpty(request.ProfilePictureUrl))
+                    {
+                        existingSalon.ProfilePictureUrl = request.ProfilePictureUrl;
+                    }
+                    else if (request.ProfilePictureUrl == "")
+                    {
+                        // If ProfilePictureUrl is explicitly set to empty string, remove it
+                        existingSalon.ProfilePictureUrl = null;
+                    }
                 }
                 
-                // Update image URLs if provided
+                // Update image URLs only when explicitly provided
                 if (request.ImageUrls != null)
                 {
                     existingSalon.ImageUrls = JsonSerializer.Serialize(request.ImageUrls);
@@ -889,6 +1207,7 @@ namespace stibe.api.Controllers
                     Latitude = existingSalon.Latitude,
                     Longitude = existingSalon.Longitude,
                     IsActive = existingSalon.IsActive,
+                    IsDefault = existingSalon.IsDefault,
                     OwnerId = existingSalon.OwnerId,
                     CreatedAt = existingSalon.CreatedAt,
                     UpdatedAt = existingSalon.UpdatedAt,
@@ -933,12 +1252,70 @@ namespace stibe.api.Controllers
                 _context.Salons.Remove(existingSalon);
                 await _context.SaveChangesAsync();
 
+                // Auto-set default salon if only one remains
+                await AutoSetDefaultSalonIfNeeded(currentUserId.Value);
+
                 _logger.LogInformation($"✅ Salon deleted successfully with ID: {id}");
                 return Ok(ApiResponse<object>.SuccessResponse(new { }, "Salon deleted successfully"));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting salon");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while deleting the salon"));
+            }
+        }
+
+        [HttpPost("delete-with-otp")]
+        [Authorize(Roles = "SalonOwner")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteSalonWithOtp([FromBody] SalonDeleteRequestDto request)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<object>.ErrorResponse("User not authenticated"));
+                }
+
+                var currentUserEmail = GetCurrentUserEmail();
+                if (string.IsNullOrEmpty(currentUserEmail))
+                {
+                    return Unauthorized(ApiResponse<object>.ErrorResponse("User email not found in token"));
+                }
+
+                // Verify email matches current user's email (owner email)
+                if (!string.Equals(currentUserEmail, request.Email, StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse("Email does not match the salon owner's registered email"));
+                }
+
+                // Verify OTP first
+                var otpResult = await _otpService.VerifyOtpAsync(request.Email, request.OtpCode, OtpEntity.PURPOSE_SALON_DELETE);
+                if (!otpResult.Success)
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse($"OTP verification failed: {otpResult.Message}"));
+                }
+
+                // Find the salon
+                var salon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == request.SalonId && s.OwnerId == currentUserId && !s.IsDeleted);
+                if (salon == null)
+                {
+                    return NotFound(ApiResponse<object>.ErrorResponse("Salon not found or you don't have permission to delete it"));
+                }
+
+                // Remove the salon from the database
+                _context.Salons.Remove(salon);
+                await _context.SaveChangesAsync();
+
+                // Auto-set default salon if only one remains
+                await AutoSetDefaultSalonIfNeeded(currentUserId.Value);
+
+                _logger.LogInformation($"✅ Salon deleted successfully with OTP verification. Salon ID: {request.SalonId}, Owner: {currentUserEmail}");
+                return Ok(ApiResponse<object>.SuccessResponse(new { SalonId = request.SalonId, SalonName = salon.Name }, "Salon deleted successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting salon with OTP");
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while deleting the salon"));
             }
         }
@@ -1168,6 +1545,33 @@ namespace stibe.api.Controllers
             catch
             {
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Automatically sets the default salon if there's only one salon left
+        /// </summary>
+        private async Task AutoSetDefaultSalonIfNeeded(int ownerId)
+        {
+            try
+            {
+                var userSalons = await _context.Salons
+                    .Where(s => s.OwnerId == ownerId && !s.IsDeleted)
+                    .ToListAsync();
+
+                // If there's exactly one salon and it's not set as default, make it default
+                if (userSalons.Count == 1 && !userSalons[0].IsDefault)
+                {
+                    userSalons[0].IsDefault = true;
+                    userSalons[0].UpdatedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+                    
+                    _logger.LogInformation($"🎯 Auto-set salon '{userSalons[0].Name}' as default (only one salon remaining)");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error auto-setting default salon");
             }
         }
     }

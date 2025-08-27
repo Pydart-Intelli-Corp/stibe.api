@@ -144,6 +144,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public string? PANNumber { get; set; }
 
         public bool? IsActive { get; set; }
+        public bool? IsDefault { get; set; }
 
         // Location properties
         public decimal? Latitude { get; set; }
@@ -195,6 +196,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public string? PANNumber { get; set; }
         
         public bool IsActive { get; set; }
+        public bool IsDefault { get; set; }
         public int OwnerId { get; set; }
         public string OwnerName { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }

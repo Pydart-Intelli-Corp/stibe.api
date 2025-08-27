@@ -402,6 +402,9 @@ namespace stibe.api.Services.Implementations.General
             {
                 OtpEntity.PURPOSE_EMAIL_VERIFICATION => "Email Verification Code - Stibe",
                 OtpEntity.PURPOSE_SALON_ACCESS => "Salon Access Code - Stibe",
+                OtpEntity.PURPOSE_SALON_STATUS_CHANGE => "Salon Status Change Verification - Stibe",
+                OtpEntity.PURPOSE_SALON_DEFAULT_CHANGE => "Default Salon Change Verification - Stibe",
+                OtpEntity.PURPOSE_SALON_DELETE => "Salon Deletion Verification - Stibe",
                 OtpEntity.PURPOSE_PASSWORD_RESET => "Password Reset Code - Stibe",
                 OtpEntity.PURPOSE_PHONE_VERIFICATION => "Phone Verification Code - Stibe",
                 OtpEntity.PURPOSE_TWO_FACTOR_AUTH => "Two-Factor Authentication Code - Stibe",
@@ -415,6 +418,9 @@ namespace stibe.api.Services.Implementations.General
             {
                 OtpEntity.PURPOSE_EMAIL_VERIFICATION => "verify your email address",
                 OtpEntity.PURPOSE_SALON_ACCESS => "access salon editing features",
+                OtpEntity.PURPOSE_SALON_STATUS_CHANGE => "change your salon's active status",
+                OtpEntity.PURPOSE_SALON_DEFAULT_CHANGE => "change your default salon setting",
+                OtpEntity.PURPOSE_SALON_DELETE => "permanently delete your salon",
                 OtpEntity.PURPOSE_PASSWORD_RESET => "reset your password",
                 OtpEntity.PURPOSE_PHONE_VERIFICATION => "verify your phone number",
                 OtpEntity.PURPOSE_TWO_FACTOR_AUTH => "complete two-factor authentication",

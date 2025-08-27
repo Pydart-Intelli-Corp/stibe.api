@@ -216,6 +216,7 @@ namespace stibe.api.Controllers
             {
                 EmailVerification = OtpEntity.PURPOSE_EMAIL_VERIFICATION,
                 SalonAccess = OtpEntity.PURPOSE_SALON_ACCESS,
+                SalonDelete = OtpEntity.PURPOSE_SALON_DELETE,
                 PasswordReset = OtpEntity.PURPOSE_PASSWORD_RESET,
                 PhoneVerification = OtpEntity.PURPOSE_PHONE_VERIFICATION,
                 TwoFactorAuth = OtpEntity.PURPOSE_TWO_FACTOR_AUTH
@@ -230,6 +231,9 @@ namespace stibe.api.Controllers
             {
                 OtpEntity.PURPOSE_EMAIL_VERIFICATION,
                 OtpEntity.PURPOSE_SALON_ACCESS,
+                OtpEntity.PURPOSE_SALON_STATUS_CHANGE,
+                OtpEntity.PURPOSE_SALON_DEFAULT_CHANGE,
+                OtpEntity.PURPOSE_SALON_DELETE,
                 OtpEntity.PURPOSE_PASSWORD_RESET,
                 OtpEntity.PURPOSE_PHONE_VERIFICATION,
                 OtpEntity.PURPOSE_TWO_FACTOR_AUTH

@@ -80,6 +80,9 @@ namespace stibe.api.Models.Entities.PartnersEntity
         public string? PANNumber { get; set; }
 
         public bool IsActive { get; set; } = true;
+        
+        public bool IsDefault { get; set; } = false;
+        
         // Models/Entities/PartnersEntity/Salon.cs - Add these properties
         [StringLength(500)]
         public string? ProfilePictureUrl { get; set; }
