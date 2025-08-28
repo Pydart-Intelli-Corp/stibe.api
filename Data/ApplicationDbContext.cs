@@ -17,7 +17,7 @@ namespace stibe.api.Data
 
         // Existing DbSet properties
         public DbSet<User> Users { get; set; } = null!;
-        public DbSet<Salon> Salons { get; set; } = null!;
+        public DbSet<Shop> Shops { get; set; } = null!;
         public DbSet<Service> Services { get; set; } = null!;
         public DbSet<Booking> Bookings { get; set; } = null!;
         public DbSet<Staff> Staff { get; set; } = null!;
@@ -37,7 +37,7 @@ namespace stibe.api.Data
         {
             // Existing configurations
             ConfigureUserEntity(modelBuilder);
-            ConfigureSalonEntity(modelBuilder);
+            ConfigureShopEntity(modelBuilder);
             ConfigureServiceEntity(modelBuilder);
             ConfigureBookingEntity(modelBuilder);
             ConfigureStaffEntity(modelBuilder);
@@ -94,24 +94,24 @@ namespace stibe.api.Data
                 .OnDelete(DeleteBehavior.SetNull);
         }
 
-        private void ConfigureSalonEntity(ModelBuilder modelBuilder)
+        private void ConfigureShopEntity(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Salon>()
+            modelBuilder.Entity<Shop>()
                 .HasKey(s => s.Id);
 
-            modelBuilder.Entity<Salon>()
+            modelBuilder.Entity<Shop>()
                 .HasOne(s => s.Owner)
                 .WithMany()
                 .HasForeignKey(s => s.OwnerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Index for location-based searches
-            modelBuilder.Entity<Salon>()
+            modelBuilder.Entity<Shop>()
                 .HasIndex(s => new { s.Latitude, s.Longitude })
                 .HasFilter("Latitude IS NOT NULL AND Longitude IS NOT NULL");
 
-            // Index for salon status
-            modelBuilder.Entity<Salon>()
+            // Index for shop status
+            modelBuilder.Entity<Shop>()
                 .HasIndex(s => s.IsActive);
         }
 
@@ -121,9 +121,9 @@ namespace stibe.api.Data
                 .HasKey(s => s.Id);
 
             modelBuilder.Entity<Staff>()
-                .HasOne(s => s.Salon)
+                .HasOne(s => s.Shop)
                 .WithMany()
-                .HasForeignKey(s => s.SalonId)
+                .HasForeignKey(s => s.ShopId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Staff>()
@@ -143,7 +143,7 @@ namespace stibe.api.Data
                 .HasIndex(b => b.BookingDate);
 
             modelBuilder.Entity<Booking>()
-                .HasIndex(b => new { b.SalonId, b.BookingDate });
+                .HasIndex(b => new { b.ShopId, b.BookingDate });
 
             modelBuilder.Entity<Booking>()
                 .HasIndex(b => new { b.CustomerId, b.Status });
@@ -191,18 +191,18 @@ namespace stibe.api.Data
                 .HasKey(sc => sc.Id);
 
             modelBuilder.Entity<ServiceCategory>()
-                .HasOne(sc => sc.Salon)
+                .HasOne(sc => sc.Shop)
                 .WithMany()
-                .HasForeignKey(sc => sc.SalonId)
+                .HasForeignKey(sc => sc.ShopId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Index for salon categories lookup
+            // Index for shop categories lookup
             modelBuilder.Entity<ServiceCategory>()
-                .HasIndex(sc => new { sc.SalonId, sc.IsActive });
+                .HasIndex(sc => new { sc.ShopId, sc.IsActive });
 
-            // Unique constraint for category name per salon
+            // Unique constraint for category name per shop
             modelBuilder.Entity<ServiceCategory>()
-                .HasIndex(sc => new { sc.SalonId, sc.Name })
+                .HasIndex(sc => new { sc.ShopId, sc.Name })
                 .IsUnique()
                 .HasFilter("IsDeleted = 0");
         }
@@ -213,14 +213,14 @@ namespace stibe.api.Data
                 .HasKey(so => so.Id);
 
             modelBuilder.Entity<ServiceOffer>()
-                .HasOne(so => so.Salon)
+                .HasOne(so => so.Shop)
                 .WithMany()
-                .HasForeignKey(so => so.SalonId)
+                .HasForeignKey(so => so.ShopId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Indexes for faster querying of active offers
             modelBuilder.Entity<ServiceOffer>()
-                .HasIndex(so => new { so.SalonId, so.IsActive });
+                .HasIndex(so => new { so.ShopId, so.IsActive });
 
             modelBuilder.Entity<ServiceOffer>()
                 .HasIndex(so => new { so.StartDate, so.EndDate });
@@ -273,9 +273,9 @@ namespace stibe.api.Data
                 .HasKey(s => s.Id);
 
             modelBuilder.Entity<Service>()
-                .HasOne(s => s.Salon)
+                .HasOne(s => s.Shop)
                 .WithMany(s => s.Services)
-                .HasForeignKey(s => s.SalonId)
+                .HasForeignKey(s => s.ShopId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Add new relationship to category
@@ -285,9 +285,9 @@ namespace stibe.api.Data
                 .HasForeignKey(s => s.CategoryId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // Index for finding active services in a salon
+            // Index for finding active services in a shop
             modelBuilder.Entity<Service>()
-                .HasIndex(s => new { s.SalonId, s.IsActive });
+                .HasIndex(s => new { s.ShopId, s.IsActive });
 
             // Index for category-based searches
             modelBuilder.Entity<Service>()

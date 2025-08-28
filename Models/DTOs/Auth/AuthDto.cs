@@ -5,7 +5,7 @@ namespace stibe.api.Models.DTOs.Auth
     public class AdminRegistrationDto : RegisterRequestDto
     {
         public bool IsSystemAdmin { get; set; } = false;
-        public bool CanMonitorSalons { get; set; } = true;
+        public bool CanMonitorShops { get; set; } = true;
         public bool CanMonitorStaff { get; set; } = true;
         public bool CanMonitorBookings { get; set; } = true;
         public bool CanMonitorUsers { get; set; } = true;
@@ -101,7 +101,7 @@ namespace stibe.api.Models.DTOs.Auth
     public class AdminUserDto : UserDto
     {
         public bool IsSystemAdmin { get; set; }
-        public bool CanMonitorSalons { get; set; }
+        public bool CanMonitorShops { get; set; }
         public bool CanMonitorStaff { get; set; }
         public bool CanMonitorBookings { get; set; }
         public bool CanMonitorUsers { get; set; }

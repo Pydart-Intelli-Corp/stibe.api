@@ -10,7 +10,7 @@ The Stibe API now includes a comprehensive OTP (One-Time Password) service that 
 
 1. **Multi-Purpose OTP Support**
    - Email Verification
-   - Salon Access Control
+   - Shop Access Control
    - Password Reset
    - Phone Verification
    - Two-Factor Authentication
@@ -45,7 +45,7 @@ Generates and sends a 6-digit OTP to the specified email address.
 ```json
 {
   "email": "user@example.com",
-  "purpose": "SALON_ACCESS"
+  "purpose": "SHOP_ACCESS"
 }
 ```
 
@@ -72,7 +72,7 @@ Verifies the provided OTP code for the specified email and purpose.
 {
   "email": "user@example.com",
   "code": "123456",
-  "purpose": "SALON_ACCESS"
+  "purpose": "SHOP_ACCESS"
 }
 ```
 
@@ -89,7 +89,7 @@ Verifies the provided OTP code for the specified email and purpose.
 ```
 
 ### 3. Get OTP Status
-**GET** `/status?email=user@example.com&purpose=SALON_ACCESS`
+**GET** `/status?email=user@example.com&purpose=SHOP_ACCESS`
 
 Retrieves the current status of OTPs for the specified email and purpose.
 
@@ -100,7 +100,7 @@ Retrieves the current status of OTPs for the specified email and purpose.
   "message": "OTP status retrieved successfully",
   "data": {
     "hasPendingOtp": true,
-    "purpose": "SALON_ACCESS",
+    "purpose": "SHOP_ACCESS",
     "expiresAt": "2025-08-25T17:14:00Z",
     "attemptsRemaining": 2,
     "nextAllowedAt": "2025-08-25T17:06:00Z",
@@ -117,7 +117,7 @@ Marks all pending OTPs as used for the specified email and purpose.
 ```json
 {
   "email": "user@example.com",
-  "purpose": "SALON_ACCESS"
+  "purpose": "SHOP_ACCESS"
 }
 ```
 
@@ -136,7 +136,7 @@ Returns all supported OTP purposes.
 | Purpose | Description | Use Case |
 |---------|-------------|----------|
 | `EMAIL_VERIFICATION` | Email address verification | User registration |
-| `SALON_ACCESS` | Salon editing access control | Secure salon management |
+| `SHOP_ACCESS` | Shop editing access control | Secure shop management |
 | `PASSWORD_RESET` | Password reset verification | Account recovery |
 | `PHONE_VERIFICATION` | Phone number verification | Contact verification |
 | `TWO_FACTOR_AUTH` | Two-factor authentication | Enhanced security |
@@ -201,14 +201,14 @@ CREATE TABLE OtpEntities (
 ### Flutter Integration
 
 ```dart
-// Send OTP for salon access
-Future<bool> sendSalonAccessOtp(String email) async {
+// Send OTP for shop access
+Future<bool> sendShopAccessOtp(String email) async {
   final response = await http.post(
     Uri.parse('$apiBaseUrl/api/otp/send'),
     headers: {'Content-Type': 'application/json'},
     body: jsonEncode({
       'email': email,
-      'purpose': 'SALON_ACCESS'
+      'purpose': 'SHOP_ACCESS'
     }),
   );
   
@@ -220,14 +220,14 @@ Future<bool> sendSalonAccessOtp(String email) async {
 }
 
 // Verify OTP
-Future<bool> verifySalonAccessOtp(String email, String code) async {
+Future<bool> verifyShopAccessOtp(String email, String code) async {
   final response = await http.post(
     Uri.parse('$apiBaseUrl/api/otp/verify'),
     headers: {'Content-Type': 'application/json'},
     body: jsonEncode({
       'email': email,
       'code': code,
-      'purpose': 'SALON_ACCESS'
+      'purpose': 'SHOP_ACCESS'
     }),
   );
   
@@ -243,7 +243,7 @@ Future<bool> verifySalonAccessOtp(String email, String code) async {
 
 ```dart
 try {
-  final success = await sendSalonAccessOtp(email);
+  final success = await sendShopAccessOtp(email);
   if (!success) {
     // Handle rate limiting or other errors
     showSnackBar('Please wait before requesting another OTP');
@@ -305,12 +305,12 @@ try {
 # Send OTP
 curl -X POST "http://localhost:5074/api/otp/send" \
   -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","purpose":"SALON_ACCESS"}'
+  -d '{"email":"test@example.com","purpose":"SHOP_ACCESS"}'
 
 # Verify OTP
 curl -X POST "http://localhost:5074/api/otp/verify" \
   -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","code":"123456","purpose":"SALON_ACCESS"}'
+  -d '{"email":"test@example.com","code":"123456","purpose":"SHOP_ACCESS"}'
 ```
 
 ## Troubleshooting
@@ -352,4 +352,4 @@ The service provides detailed logging for:
 
 The OTP service is now fully implemented and ready for use in the Stibe application. It provides enterprise-grade security features while maintaining ease of use for both developers and end users.
 
-For integration with the Flutter app's salon editing functionality, simply replace the placeholder OTP sending logic with calls to this API service.
+For integration with the Flutter app's shop editing functionality, simply replace the placeholder OTP sending logic with calls to this API service.

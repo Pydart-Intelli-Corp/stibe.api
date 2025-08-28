@@ -8,7 +8,7 @@ namespace stibe.api.Services.Interfaces
         /// Generates and sends an OTP to the specified email for the given purpose
         /// </summary>
         /// <param name="email">Email address to send OTP to</param>
-        /// <param name="purpose">Purpose of the OTP (e.g., EMAIL_VERIFICATION, SALON_ACCESS)</param>
+        /// <param name="purpose">Purpose of the OTP (e.g., EMAIL_VERIFICATION, SHOP_ACCESS)</param>
         /// <param name="ipAddress">Client IP address for security tracking</param>
         /// <param name="userAgent">Client user agent for security tracking</param>
         /// <returns>OTP response with success status and metadata</returns>

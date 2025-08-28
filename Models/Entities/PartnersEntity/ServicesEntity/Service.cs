@@ -43,11 +43,11 @@ namespace stibe.api.Models.Entities.PartnersEntity.ServicesEntity
         public int BufferTimeAfterMinutes { get; set; } = 0;
 
         // Foreign key
-        public int SalonId { get; set; }
+        public int ShopId { get; set; }
 
         // Navigation properties
-        [ForeignKey("SalonId")]
-        public virtual Salon Salon { get; set; } = null!;
+        [ForeignKey("ShopId")]
+        public virtual Shop Shop { get; set; } = null!;
 
         [ForeignKey("CategoryId")]
         public virtual ServiceCategory? Category { get; set; }

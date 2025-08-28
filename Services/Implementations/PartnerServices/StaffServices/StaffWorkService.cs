@@ -49,7 +49,7 @@ namespace stibe.api.Services.Implementations.PartnerServices.StaffServices
                 }
 
                 var staff = await _context.Staff
-                    .Include(s => s.Salon)
+                    .Include(s => s.Shop)
                     .FirstOrDefaultAsync(s => s.Id == staffId);
 
                 if (staff == null)
@@ -73,9 +73,9 @@ namespace stibe.api.Services.Implementations.PartnerServices.StaffServices
 
                 // Validate location if provided
                 string locationStatus = "Location not provided";
-                if (request.Latitude.HasValue && request.Longitude.HasValue && staff.Salon != null)
+                if (request.Latitude.HasValue && request.Longitude.HasValue && staff.Shop != null)
                 {
-                    locationStatus = await GetLocationStatusAsync(request.Latitude, request.Longitude, staff.SalonId);
+                    locationStatus = await GetLocationStatusAsync(request.Latitude, request.Longitude, staff.ShopId);
                 }
 
                 var workSession = new StaffWorkSession
@@ -195,7 +195,7 @@ namespace stibe.api.Services.Implementations.PartnerServices.StaffServices
             {
                 var today = DateTime.Today;
                 var staff = await _context.Staff
-                    .Include(s => s.Salon)
+                    .Include(s => s.Shop)
                     .FirstOrDefaultAsync(s => s.Id == staffId);
 
                 if (staff == null)
@@ -244,7 +244,7 @@ namespace stibe.api.Services.Implementations.PartnerServices.StaffServices
                     NextBreakTime = GetNextBreakTime(staff, DateTime.Now.TimeOfDay, isOnBreak),
                     IsOnBreak = isOnBreak,
                     BreakEndTime = isOnBreak ? staff.LunchBreakEnd : null,
-                    LocationStatus = "At Salon" // Will be dynamic with real location tracking
+                    LocationStatus = "At Shop" // Will be dynamic with real location tracking
                 };
             }
             catch (Exception ex)
@@ -432,7 +432,7 @@ namespace stibe.api.Services.Implementations.PartnerServices.StaffServices
             try
             {
                 var staff = await _context.Staff
-                    .Include(s => s.Salon)
+                    .Include(s => s.Shop)
                     .FirstOrDefaultAsync(s => s.Id == staffId);
 
                 if (staff == null)
@@ -492,7 +492,7 @@ namespace stibe.api.Services.Implementations.PartnerServices.StaffServices
                     NextBreakTime = date.Date == DateTime.Today ? GetNextBreakTime(staff, DateTime.Now.TimeOfDay, isOnBreak) : null,
                     IsOnBreak = isOnBreak,
                     BreakEndTime = isOnBreak ? staff.LunchBreakEnd : null,
-                    LocationStatus = "At Salon"
+                    LocationStatus = "At Shop"
                 };
             }
             catch (Exception ex)
@@ -552,42 +552,42 @@ namespace stibe.api.Services.Implementations.PartnerServices.StaffServices
                 return true; // Allow if no location provided
 
             var staff = await _context.Staff
-                .Include(s => s.Salon)
+                .Include(s => s.Shop)
                 .FirstOrDefaultAsync(s => s.Id == staffId);
 
-            if (staff?.Salon == null) return true;
+            if (staff?.Shop == null) return true;
 
-            // If salon has coordinates, check distance
-            if (staff.Salon.Latitude.HasValue && staff.Salon.Longitude.HasValue)
+            // If shop has coordinates, check distance
+            if (staff.Shop.Latitude.HasValue && staff.Shop.Longitude.HasValue)
             {
                 var distance = _locationService.CalculateDistance(
                     latitude.Value, longitude.Value,
-                    staff.Salon.Latitude.Value, staff.Salon.Longitude.Value);
+                    staff.Shop.Latitude.Value, staff.Shop.Longitude.Value);
 
-                // Allow clock in within 200 meters of salon
+                // Allow clock in within 200 meters of shop
                 return distance <= 0.2; // 200 meters
             }
 
-            return true; // Allow if salon has no coordinates
+            return true; // Allow if shop has no coordinates
         }
 
-        public async Task<string> GetLocationStatusAsync(decimal? latitude, decimal? longitude, int salonId)
+        public async Task<string> GetLocationStatusAsync(decimal? latitude, decimal? longitude, int shopId)
         {
             if (!latitude.HasValue || !longitude.HasValue)
                 return "Location not provided";
 
-            var salon = await _context.Salons.FindAsync(salonId);
-            if (salon?.Latitude == null || salon.Longitude == null)
-                return "Salon location not configured";
+            var shop = await _context.Shops.FindAsync(shopId);
+            if (shop?.Latitude == null || shop.Longitude == null)
+                return "Shop location not configured";
 
             var distance = _locationService.CalculateDistance(
                 latitude.Value, longitude.Value,
-                salon.Latitude.Value, salon.Longitude.Value);
+                shop.Latitude.Value, shop.Longitude.Value);
 
             if (distance <= 0.05) // 50 meters
-                return "At salon premises";
+                return "At shop premises";
             else if (distance <= 0.2) // 200 meters  
-                return "Near salon";
+                return "Near shop";
             else
                 return $"Remote location ({distance:F1} km away)";
         }

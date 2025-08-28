@@ -36,10 +36,10 @@ namespace stibe.api.Models.Entities.PartnersEntity.ServicesEntity
 
         public int CurrentUsage { get; set; } = 0;
 
-        public int SalonId { get; set; }
+        public int ShopId { get; set; }
 
-        [ForeignKey("SalonId")]
-        public virtual Salon Salon { get; set; } = null!;
+        [ForeignKey("ShopId")]
+        public virtual Shop Shop { get; set; } = null!;
 
         public virtual ICollection<ServiceOfferItem> ServiceOfferItems { get; set; } = new List<ServiceOfferItem>();
     }

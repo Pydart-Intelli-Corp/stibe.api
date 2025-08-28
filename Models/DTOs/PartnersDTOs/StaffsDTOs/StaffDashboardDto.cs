@@ -23,7 +23,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs.StaffsDTOs
         public int ExperienceYears { get; set; }
         public decimal AverageRating { get; set; }
         public int TotalReviews { get; set; }
-        public string SalonName { get; set; } = string.Empty;
+        public string ShopName { get; set; } = string.Empty;
         public bool IsOnShift { get; set; }
         public TimeSpan ShiftStart { get; set; }
         public TimeSpan ShiftEnd { get; set; }

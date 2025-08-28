@@ -45,9 +45,9 @@ namespace stibe.api.Models.DTOs.Auth
         public int TotalReviews { get; set; }
         public int TotalServices { get; set; }
 
-        // Salon
-        public int SalonId { get; set; }
-        public string SalonName { get; set; } = string.Empty;
+        // Shop
+        public int ShopId { get; set; }
+        public string ShopName { get; set; } = string.Empty;
 
         // Additional
         public string Certifications { get; set; } = string.Empty;

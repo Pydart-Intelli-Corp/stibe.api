@@ -10,7 +10,7 @@ using System.Security.Claims;
 namespace stibe.api.Controllers
 {
     [ApiController]
-    [Route("api/salon/{salonId}/service-category")]
+    [Route("api/shop/{shopId}/service-category")]
     public class ServiceCategoryController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -23,8 +23,8 @@ namespace stibe.api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "SalonOwner")]
-        public async Task<ActionResult<ApiResponse<ServiceCategoryResponseDto>>> CreateServiceCategory(int salonId, CreateServiceCategoryRequestDto request)
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse<ServiceCategoryResponseDto>>> CreateServiceCategory(int shopId, CreateServiceCategoryRequestDto request)
         {
             try
             {
@@ -34,23 +34,23 @@ namespace stibe.api.Controllers
                     return Unauthorized(ApiResponse<ServiceCategoryResponseDto>.ErrorResponse("Invalid token"));
                 }
 
-                // Verify salon exists and user owns it
-                var salon = await _context.Salons
-                    .FirstOrDefaultAsync(s => s.Id == salonId && !s.IsDeleted);
+                // Verify shop exists and user owns it
+                var shop = await _context.Shops
+                    .FirstOrDefaultAsync(s => s.Id == shopId && !s.IsDeleted);
 
-                if (salon == null)
+                if (shop == null)
                 {
-                    return NotFound(ApiResponse<ServiceCategoryResponseDto>.ErrorResponse("Salon not found"));
+                    return NotFound(ApiResponse<ServiceCategoryResponseDto>.ErrorResponse("Shop not found"));
                 }
 
-                if (salon.OwnerId != currentUserId.Value)
+                if (shop.OwnerId != currentUserId.Value)
                 {
-                    return Forbid("You can only add categories to your own salons");
+                    return Forbid("You can only add categories to your own shops");
                 }
 
-                // Check if category name already exists for this salon
+                // Check if category name already exists for this shop
                 var existingCategory = await _context.ServiceCategories
-                    .FirstOrDefaultAsync(c => c.SalonId == salonId && c.Name.ToLower() == request.Name.ToLower() && !c.IsDeleted);
+                    .FirstOrDefaultAsync(c => c.ShopId == shopId && c.Name.ToLower() == request.Name.ToLower() && !c.IsDeleted);
 
                 if (existingCategory != null)
                 {
@@ -62,7 +62,7 @@ namespace stibe.api.Controllers
                     Name = request.Name,
                     Description = request.Description,
                     IconUrl = request.IconUrl ?? string.Empty,
-                    SalonId = salonId,
+                    ShopId = shopId,
                     IsActive = request.IsActive,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
@@ -73,7 +73,7 @@ namespace stibe.api.Controllers
 
                 var response = MapToCategoryResponse(category);
 
-                _logger.LogInformation($"Service category created successfully: {category.Name} for salon {salonId} by user {currentUserId}");
+                _logger.LogInformation($"Service category created successfully: {category.Name} for shop {shopId} by user {currentUserId}");
                 return Ok(ApiResponse<ServiceCategoryResponseDto>.SuccessResponse(response, "Service category created successfully"));
             }
             catch (Exception ex)
@@ -85,22 +85,22 @@ namespace stibe.api.Controllers
 
         [HttpGet]
         public async Task<ActionResult<ApiResponse<List<ServiceCategoryResponseDto>>>> GetServiceCategories(
-            int salonId,
+            int shopId,
             bool includeInactive = false,
             bool includeServiceCount = false)
         {
             try
             {
-                var salon = await _context.Salons
-                    .FirstOrDefaultAsync(s => s.Id == salonId && !s.IsDeleted);
+                var shop = await _context.Shops
+                    .FirstOrDefaultAsync(s => s.Id == shopId && !s.IsDeleted);
 
-                if (salon == null)
+                if (shop == null)
                 {
-                    return NotFound(ApiResponse<List<ServiceCategoryResponseDto>>.ErrorResponse("Salon not found"));
+                    return NotFound(ApiResponse<List<ServiceCategoryResponseDto>>.ErrorResponse("Shop not found"));
                 }
 
                 var query = _context.ServiceCategories.AsQueryable()
-                    .Where(c => c.SalonId == salonId && !c.IsDeleted);
+                    .Where(c => c.ShopId == shopId && !c.IsDeleted);
 
                 if (!includeInactive)
                 {
@@ -129,14 +129,14 @@ namespace stibe.api.Controllers
 
         [HttpGet("{categoryId}")]
         public async Task<ActionResult<ApiResponse<ServiceCategoryResponseDto>>> GetServiceCategory(
-            int salonId,
+            int shopId,
             int categoryId,
             bool includeServices = false)
         {
             try
             {
                 var query = _context.ServiceCategories.AsQueryable()
-                    .Where(c => c.Id == categoryId && c.SalonId == salonId && !c.IsDeleted);
+                    .Where(c => c.Id == categoryId && c.ShopId == shopId && !c.IsDeleted);
 
                 if (includeServices)
                 {
@@ -162,9 +162,9 @@ namespace stibe.api.Controllers
         }
 
         [HttpPut("{categoryId}")]
-        [Authorize(Roles = "SalonOwner")]
+        [Authorize(Roles = "ShopOwner")]
         public async Task<ActionResult<ApiResponse<ServiceCategoryResponseDto>>> UpdateServiceCategory(
-            int salonId,
+            int shopId,
             int categoryId,
             UpdateServiceCategoryRequestDto request)
         {
@@ -176,22 +176,22 @@ namespace stibe.api.Controllers
                     return Unauthorized(ApiResponse<ServiceCategoryResponseDto>.ErrorResponse("Invalid token"));
                 }
 
-                // Verify salon ownership
-                var salon = await _context.Salons
-                    .FirstOrDefaultAsync(s => s.Id == salonId && !s.IsDeleted);
+                // Verify shop ownership
+                var shop = await _context.Shops
+                    .FirstOrDefaultAsync(s => s.Id == shopId && !s.IsDeleted);
 
-                if (salon == null)
+                if (shop == null)
                 {
-                    return NotFound(ApiResponse<ServiceCategoryResponseDto>.ErrorResponse("Salon not found"));
+                    return NotFound(ApiResponse<ServiceCategoryResponseDto>.ErrorResponse("Shop not found"));
                 }
 
-                if (salon.OwnerId != currentUserId.Value)
+                if (shop.OwnerId != currentUserId.Value)
                 {
-                    return Forbid("You can only update categories for your own salons");
+                    return Forbid("You can only update categories for your own shops");
                 }
 
                 var category = await _context.ServiceCategories
-                    .FirstOrDefaultAsync(c => c.Id == categoryId && c.SalonId == salonId && !c.IsDeleted);
+                    .FirstOrDefaultAsync(c => c.Id == categoryId && c.ShopId == shopId && !c.IsDeleted);
 
                 if (category == null)
                 {
@@ -202,7 +202,7 @@ namespace stibe.api.Controllers
                 if (!string.IsNullOrEmpty(request.Name) && request.Name != category.Name)
                 {
                     var existingCategory = await _context.ServiceCategories
-                        .FirstOrDefaultAsync(c => c.SalonId == salonId && c.Name.ToLower() == request.Name.ToLower() && c.Id != categoryId && !c.IsDeleted);
+                        .FirstOrDefaultAsync(c => c.ShopId == shopId && c.Name.ToLower() == request.Name.ToLower() && c.Id != categoryId && !c.IsDeleted);
 
                     if (existingCategory != null)
                     {
@@ -221,7 +221,7 @@ namespace stibe.api.Controllers
 
                 var response = MapToCategoryResponse(category);
 
-                _logger.LogInformation($"Service category updated successfully: {category.Name} for salon {salonId} by user {currentUserId}");
+                _logger.LogInformation($"Service category updated successfully: {category.Name} for shop {shopId} by user {currentUserId}");
                 return Ok(ApiResponse<ServiceCategoryResponseDto>.SuccessResponse(response, "Service category updated successfully"));
             }
             catch (Exception ex)
@@ -232,8 +232,8 @@ namespace stibe.api.Controllers
         }
 
         [HttpDelete("{categoryId}")]
-        [Authorize(Roles = "SalonOwner")]
-        public async Task<ActionResult<ApiResponse>> DeleteServiceCategory(int salonId, int categoryId)
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse>> DeleteServiceCategory(int shopId, int categoryId)
         {
             try
             {
@@ -243,23 +243,23 @@ namespace stibe.api.Controllers
                     return Unauthorized(ApiResponse.ErrorResponse("Invalid token"));
                 }
 
-                // Verify salon ownership
-                var salon = await _context.Salons
-                    .FirstOrDefaultAsync(s => s.Id == salonId && !s.IsDeleted);
+                // Verify shop ownership
+                var shop = await _context.Shops
+                    .FirstOrDefaultAsync(s => s.Id == shopId && !s.IsDeleted);
 
-                if (salon == null)
+                if (shop == null)
                 {
-                    return NotFound(ApiResponse.ErrorResponse("Salon not found"));
+                    return NotFound(ApiResponse.ErrorResponse("Shop not found"));
                 }
 
-                if (salon.OwnerId != currentUserId.Value)
+                if (shop.OwnerId != currentUserId.Value)
                 {
-                    return Forbid("You can only delete categories from your own salons");
+                    return Forbid("You can only delete categories from your own shops");
                 }
 
                 var category = await _context.ServiceCategories
                     .Include(c => c.Services)
-                    .FirstOrDefaultAsync(c => c.Id == categoryId && c.SalonId == salonId && !c.IsDeleted);
+                    .FirstOrDefaultAsync(c => c.Id == categoryId && c.ShopId == shopId && !c.IsDeleted);
 
                 if (category == null)
                 {
@@ -287,7 +287,7 @@ namespace stibe.api.Controllers
 
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation($"Service category deleted successfully: {category.Name} for salon {salonId} by user {currentUserId}");
+                _logger.LogInformation($"Service category deleted successfully: {category.Name} for shop {shopId} by user {currentUserId}");
                 return Ok(ApiResponse.SuccessResponse("Service category deleted successfully"));
             }
             catch (Exception ex)
@@ -305,7 +305,7 @@ namespace stibe.api.Controllers
                 Name = category.Name,
                 Description = category.Description,
                 IconUrl = category.IconUrl,
-                SalonId = category.SalonId,
+                ShopId = category.ShopId,
                 IsActive = category.IsActive,
                 ServiceCount = includeServiceCount ? category.Services?.Count(s => !s.IsDeleted) ?? 0 : 0,
                 CreatedAt = category.CreatedAt,

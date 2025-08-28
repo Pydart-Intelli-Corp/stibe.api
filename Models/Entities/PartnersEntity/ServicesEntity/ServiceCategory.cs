@@ -18,10 +18,10 @@ namespace stibe.api.Models.Entities.PartnersEntity.ServicesEntity
 
         public bool IsActive { get; set; } = true;
 
-        public int SalonId { get; set; }
+        public int ShopId { get; set; }
 
-        [ForeignKey("SalonId")]
-        public virtual Salon Salon { get; set; } = null!;
+        [ForeignKey("ShopId")]
+        public virtual Shop Shop { get; set; } = null!;
 
         public virtual ICollection<Service> Services { get; set; } = new List<Service>();
     }

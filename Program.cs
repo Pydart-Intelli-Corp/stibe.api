@@ -120,7 +120,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Stibe Booking API",
         Version = "v1",
-        Description = "Salon Booking Management System API"
+        Description = "Shop Booking Management System API"
     });
 
     // Add JWT Authentication to Swagger

@@ -33,13 +33,13 @@ namespace stibe.api.Models.Entities.PartnersEntity
         public DateTime? LastLoginDate { get; set; }
         public string? LastLoginIP { get; set; }
         // Add these properties to the existing User entity
-        public int? SalonId { get; set; } // For staff members
+        public int? ShopId { get; set; } // For staff members
         public bool IsStaffActive { get; set; } = false;
         public DateTime? StaffJoinDate { get; set; }
 
         // Admin-specific properties
         public bool IsSystemAdmin { get; set; } = false;
-        public bool CanMonitorSalons { get; set; } = false;
+        public bool CanMonitorShops { get; set; } = false;
         public bool CanMonitorStaff { get; set; } = false;
         public bool CanMonitorBookings { get; set; } = false;
         public bool CanMonitorUsers { get; set; } = false;
@@ -50,15 +50,15 @@ namespace stibe.api.Models.Entities.PartnersEntity
         // Navigation property for staff profile
         public virtual Staff? StaffProfile { get; set; }
 
-        [ForeignKey("SalonId")]
-        public virtual Salon? WorkingSalon { get; set; }
+        [ForeignKey("ShopId")]
+        public virtual Shop? WorkingShop { get; set; }
 
         [Required]
         [StringLength(20)]
-        public string Role { get; set; } = "Customer"; // Customer, SalonOwner, Admin, SuperAdmin
+        public string Role { get; set; } = "Customer"; // Customer, ShopOwner, Admin, SuperAdmin
 
         // Navigation properties
-        public virtual ICollection<Salon> OwnedSalons { get; set; } = new List<Salon>();
+        public virtual ICollection<Shop> OwnedShops { get; set; } = new List<Shop>();
         public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
 
         // Method to check if user has specific admin permission
@@ -69,7 +69,7 @@ namespace stibe.api.Models.Entities.PartnersEntity
 
             return permissionType switch
             {
-                "Salons" => CanMonitorSalons,
+                "Shops" => CanMonitorShops,
                 "Staff" => CanMonitorStaff,
                 "Bookings" => CanMonitorBookings,
                 "Users" => CanMonitorUsers,

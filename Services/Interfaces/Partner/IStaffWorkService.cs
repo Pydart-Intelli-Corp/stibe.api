@@ -25,7 +25,7 @@ namespace stibe.api.Services.Interfaces.Partner
 
         // Validation
         Task<bool> ValidateClockInLocationAsync(int staffId, decimal? latitude, decimal? longitude);
-        Task<string> GetLocationStatusAsync(decimal? latitude, decimal? longitude, int salonId);
+        Task<string> GetLocationStatusAsync(decimal? latitude, decimal? longitude, int shopId);
 
         Task<StaffWorkStatusDto> GetWorkStatusForDateAsync(int staffId, DateTime date);
     }

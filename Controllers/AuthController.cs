@@ -87,7 +87,7 @@ namespace stibe.api.Controllers
 
                     // Admin-specific properties
                     IsSystemAdmin = request.IsSystemAdmin,
-                    CanMonitorSalons = request.CanMonitorSalons,
+                    CanMonitorShops = request.CanMonitorShops,
                     CanMonitorStaff = request.CanMonitorStaff,
                     CanMonitorBookings = request.CanMonitorBookings,
                     CanMonitorUsers = request.CanMonitorUsers,
@@ -117,7 +117,7 @@ namespace stibe.api.Controllers
 
                     // Admin-specific properties
                     IsSystemAdmin = adminUser.IsSystemAdmin,
-                    CanMonitorSalons = adminUser.CanMonitorSalons,
+                    CanMonitorShops = adminUser.CanMonitorShops,
                     CanMonitorStaff = adminUser.CanMonitorStaff,
                     CanMonitorBookings = adminUser.CanMonitorBookings,
                     CanMonitorUsers = adminUser.CanMonitorUsers,
@@ -172,7 +172,7 @@ namespace stibe.api.Controllers
 
                     // Admin-specific properties
                     IsSystemAdmin = true,
-                    CanMonitorSalons = true,
+                    CanMonitorShops = true,
                     CanMonitorStaff = true,
                     CanMonitorBookings = true,
                     CanMonitorUsers = true,
@@ -196,7 +196,7 @@ namespace stibe.api.Controllers
 
                     // Admin-specific properties
                     IsSystemAdmin = superAdmin.IsSystemAdmin,
-                    CanMonitorSalons = superAdmin.CanMonitorSalons,
+                    CanMonitorShops = superAdmin.CanMonitorShops,
                     CanMonitorStaff = superAdmin.CanMonitorStaff,
                     CanMonitorBookings = superAdmin.CanMonitorBookings,
                     CanMonitorUsers = superAdmin.CanMonitorUsers,
@@ -410,9 +410,9 @@ namespace stibe.api.Controllers
                 }
 
                 // Validate role
-                if (request.Role != "Customer" && request.Role != "SalonOwner")
+                if (request.Role != "Customer" && request.Role != "ShopOwner")
                 {
-                    return BadRequest(ApiResponse<UserDto>.ErrorResponse("Invalid role. Must be 'Customer' or 'SalonOwner'"));
+                    return BadRequest(ApiResponse<UserDto>.ErrorResponse("Invalid role. Must be 'Customer' or 'ShopOwner'"));
                 }
 
                 // Create new user from Google info
@@ -601,9 +601,9 @@ namespace stibe.api.Controllers
                 }
 
                 // Validate role
-                if (request.Role != "Customer" && request.Role != "SalonOwner")
+                if (request.Role != "Customer" && request.Role != "ShopOwner")
                 {
-                    validationErrors.Add("Invalid role. Must be 'Customer' or 'SalonOwner'");
+                    validationErrors.Add("Invalid role. Must be 'Customer' or 'ShopOwner'");
                 }
 
                 if (validationErrors.Any())

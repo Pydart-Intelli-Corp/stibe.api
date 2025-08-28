@@ -23,15 +23,15 @@ namespace stibe.api.Models.Entities.PartnersEntity
 
         // Foreign keys
         public int CustomerId { get; set; }
-        public int SalonId { get; set; }
+        public int ShopId { get; set; }
         public int ServiceId { get; set; }
 
         // Navigation properties
         [ForeignKey("CustomerId")]
         public virtual User Customer { get; set; } = null!;
 
-        [ForeignKey("SalonId")]
-        public virtual Salon Salon { get; set; } = null!;
+        [ForeignKey("ShopId")]
+        public virtual Shop Shop { get; set; } = null!;
 
         [ForeignKey("ServiceId")]
         public virtual Service Service { get; set; } = null!;

@@ -2,10 +2,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace stibe.api.Models.DTOs.PartnersDTOs
 {
-    public class SalonStatusChangeRequestDto
+    public class ShopStatusChangeRequestDto
     {
         [Required]
-        public int SalonId { get; set; }
+        public int ShopId { get; set; }
         
         [Required]
         public bool IsActive { get; set; }
@@ -19,10 +19,10 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public string OtpCode { get; set; } = string.Empty;
     }
 
-    public class SalonDefaultChangeRequestDto
+    public class ShopDefaultChangeRequestDto
     {
         [Required]
-        public int SalonId { get; set; }
+        public int ShopId { get; set; }
         
         [Required]
         [EmailAddress]
@@ -33,10 +33,10 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public string OtpCode { get; set; } = string.Empty;
     }
 
-    public class SalonDeleteRequestDto
+    public class ShopDeleteRequestDto
     {
         [Required]
-        public int SalonId { get; set; }
+        public int ShopId { get; set; }
         
         [Required]
         [EmailAddress]

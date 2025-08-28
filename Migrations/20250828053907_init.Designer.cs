@@ -12,8 +12,8 @@ using stibe.api.Data;
 namespace stibe.api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250827133645_init1")]
-    partial class init1
+    [Migration("20250828053907_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -154,9 +154,6 @@ namespace stibe.api.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
 
-                    b.Property<int>("SalonId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime?>("ServiceCompletedAt")
                         .HasColumnType("datetime(6)");
 
@@ -170,6 +167,9 @@ namespace stibe.api.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
+
+                    b.Property<int>("ShopId")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("StaffCommissionEarned")
                         .HasColumnType("decimal(65,30)");
@@ -198,12 +198,291 @@ namespace stibe.api.Migrations
 
                     b.HasIndex("CustomerId", "Status");
 
-                    b.HasIndex("SalonId", "BookingDate");
+                    b.HasIndex("ShopId", "BookingDate");
 
                     b.ToTable("Bookings");
                 });
 
-            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.Salon", b =>
+            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.Service", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BufferTimeAfterMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BufferTimeBeforeMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<int>("DurationInMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("MaxConcurrentBookings")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<decimal?>("OfferPrice")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("ProductsUsed")
+                        .HasMaxLength(8000)
+                        .HasColumnType("varchar(8000)");
+
+                    b.Property<bool>("RequiresStaffAssignment")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("ServiceImages")
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
+
+                    b.Property<int>("ShopId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("ShopId", "IsActive");
+
+                    b.ToTable("Services");
+                });
+
+            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceAvailability", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BufferTimeMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<TimeSpan>("EndTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("MaxBookingsPerSlot")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ServiceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SlotDurationMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<TimeSpan>("StartTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceId", "DayOfWeek");
+
+                    b.ToTable("ServiceAvailabilities");
+                });
+
+            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("IconUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("ShopId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShopId", "IsActive");
+
+                    b.HasIndex("ShopId", "Name")
+                        .IsUnique()
+                        .HasFilter("IsDeleted = 0");
+
+                    b.ToTable("ServiceCategories");
+                });
+
+            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceOffer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("CurrentUsage")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal>("DiscountPercentage")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsPercentage")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("MaxUsage")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("PromoCode")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<bool>("RequiresPromoCode")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("ShopId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShopId", "IsActive");
+
+                    b.HasIndex("StartDate", "EndDate");
+
+                    b.ToTable("ServiceOffers");
+                });
+
+            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceOfferItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("OfferID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ServiceId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OfferID");
+
+                    b.HasIndex("ServiceId", "OfferID")
+                        .IsUnique();
+
+                    b.ToTable("ServiceOfferItems");
+                });
+
+            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.Shop", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -343,286 +622,7 @@ namespace stibe.api.Migrations
                     b.HasIndex("Latitude", "Longitude")
                         .HasFilter("Latitude IS NOT NULL AND Longitude IS NOT NULL");
 
-                    b.ToTable("Salons");
-                });
-
-            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.Service", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("BufferTimeAfterMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<int>("BufferTimeBeforeMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("CategoryId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<int>("DurationInMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("MaxConcurrentBookings")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<decimal?>("OfferPrice")
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<string>("ProductsUsed")
-                        .HasMaxLength(8000)
-                        .HasColumnType("varchar(8000)");
-
-                    b.Property<bool>("RequiresStaffAssignment")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("SalonId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ServiceImages")
-                        .HasMaxLength(4000)
-                        .HasColumnType("varchar(4000)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CategoryId");
-
-                    b.HasIndex("SalonId", "IsActive");
-
-                    b.ToTable("Services");
-                });
-
-            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceAvailability", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("BufferTimeMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("DayOfWeek")
-                        .HasColumnType("int");
-
-                    b.Property<TimeSpan>("EndTime")
-                        .HasColumnType("time(6)");
-
-                    b.Property<bool>("IsAvailable")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("MaxBookingsPerSlot")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ServiceId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SlotDurationMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<TimeSpan>("StartTime")
-                        .HasColumnType("time(6)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ServiceId", "DayOfWeek");
-
-                    b.ToTable("ServiceAvailabilities");
-                });
-
-            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceCategory", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<string>("IconUrl")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<int>("SalonId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SalonId", "IsActive");
-
-                    b.HasIndex("SalonId", "Name")
-                        .IsUnique()
-                        .HasFilter("IsDeleted = 0");
-
-                    b.ToTable("ServiceCategories");
-                });
-
-            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceOffer", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("CurrentUsage")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<decimal>("DiscountAmount")
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<decimal>("DiscountPercentage")
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<DateTime>("EndDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsPercentage")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("MaxUsage")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<string>("PromoCode")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<bool>("RequiresPromoCode")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("SalonId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SalonId", "IsActive");
-
-                    b.HasIndex("StartDate", "EndDate");
-
-                    b.ToTable("ServiceOffers");
-                });
-
-            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceOfferItem", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("OfferID")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ServiceId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OfferID");
-
-                    b.HasIndex("ServiceId", "OfferID")
-                        .IsUnique();
-
-                    b.ToTable("ServiceOfferItems");
+                    b.ToTable("Shops");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.StaffEntity.Staff", b =>
@@ -724,7 +724,7 @@ namespace stibe.api.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
 
-                    b.Property<int>("SalonId")
+                    b.Property<int>("ShopId")
                         .HasColumnType("int");
 
                     b.Property<TimeSpan>("StartTime")
@@ -744,7 +744,7 @@ namespace stibe.api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SalonId");
+                    b.HasIndex("ShopId");
 
                     b.HasIndex("UserId")
                         .IsUnique();
@@ -898,7 +898,7 @@ namespace stibe.api.Migrations
                     b.Property<bool>("CanMonitorBookings")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<bool>("CanMonitorSalons")
+                    b.Property<bool>("CanMonitorShops")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("CanMonitorStaff")
@@ -969,7 +969,7 @@ namespace stibe.api.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
-                    b.Property<int?>("SalonId")
+                    b.Property<int?>("ShopId")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("StaffJoinDate")
@@ -983,7 +983,7 @@ namespace stibe.api.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.HasIndex("SalonId");
+                    b.HasIndex("ShopId");
 
                     b.ToTable("Users");
                 });
@@ -1000,15 +1000,15 @@ namespace stibe.api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.Salon", "Salon")
-                        .WithMany("Bookings")
-                        .HasForeignKey("SalonId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.Service", "Service")
                         .WithMany("Bookings")
                         .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.Shop", "Shop")
+                        .WithMany("Bookings")
+                        .HasForeignKey("ShopId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -1016,24 +1016,9 @@ namespace stibe.api.Migrations
 
                     b.Navigation("Customer");
 
-                    b.Navigation("Salon");
-
                     b.Navigation("Service");
-                });
 
-            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.Salon", b =>
-                {
-                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.User", "Owner")
-                        .WithMany()
-                        .HasForeignKey("OwnerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.User", null)
-                        .WithMany("OwnedSalons")
-                        .HasForeignKey("UserId");
-
-                    b.Navigation("Owner");
+                    b.Navigation("Shop");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.Service", b =>
@@ -1043,15 +1028,15 @@ namespace stibe.api.Migrations
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.Salon", "Salon")
+                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.Shop", "Shop")
                         .WithMany("Services")
-                        .HasForeignKey("SalonId")
+                        .HasForeignKey("ShopId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Category");
 
-                    b.Navigation("Salon");
+                    b.Navigation("Shop");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceAvailability", b =>
@@ -1067,24 +1052,24 @@ namespace stibe.api.Migrations
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceCategory", b =>
                 {
-                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.Salon", "Salon")
+                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.Shop", "Shop")
                         .WithMany()
-                        .HasForeignKey("SalonId")
+                        .HasForeignKey("ShopId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Salon");
+                    b.Navigation("Shop");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceOffer", b =>
                 {
-                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.Salon", "Salon")
+                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.Shop", "Shop")
                         .WithMany()
-                        .HasForeignKey("SalonId")
+                        .HasForeignKey("ShopId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Salon");
+                    b.Navigation("Shop");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceOfferItem", b =>
@@ -1106,11 +1091,26 @@ namespace stibe.api.Migrations
                     b.Navigation("Service");
                 });
 
+            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.Shop", b =>
+                {
+                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.User", null)
+                        .WithMany("OwnedShops")
+                        .HasForeignKey("UserId");
+
+                    b.Navigation("Owner");
+                });
+
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.StaffEntity.Staff", b =>
                 {
-                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.Salon", "Salon")
+                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.Shop", "Shop")
                         .WithMany()
-                        .HasForeignKey("SalonId")
+                        .HasForeignKey("ShopId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -1119,7 +1119,7 @@ namespace stibe.api.Migrations
                         .HasForeignKey("stibe.api.Models.Entities.PartnersEntity.StaffEntity.Staff", "UserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.Navigation("Salon");
+                    b.Navigation("Shop");
 
                     b.Navigation("User");
                 });
@@ -1156,18 +1156,11 @@ namespace stibe.api.Migrations
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.User", b =>
                 {
-                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.Salon", "WorkingSalon")
+                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.Shop", "WorkingShop")
                         .WithMany()
-                        .HasForeignKey("SalonId");
+                        .HasForeignKey("ShopId");
 
-                    b.Navigation("WorkingSalon");
-                });
-
-            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.Salon", b =>
-                {
-                    b.Navigation("Bookings");
-
-                    b.Navigation("Services");
+                    b.Navigation("WorkingShop");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.Service", b =>
@@ -1189,6 +1182,13 @@ namespace stibe.api.Migrations
                     b.Navigation("ServiceOfferItems");
                 });
 
+            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.Shop", b =>
+                {
+                    b.Navigation("Bookings");
+
+                    b.Navigation("Services");
+                });
+
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.StaffEntity.Staff", b =>
                 {
                     b.Navigation("AssignedBookings");
@@ -1200,7 +1200,7 @@ namespace stibe.api.Migrations
                 {
                     b.Navigation("Bookings");
 
-                    b.Navigation("OwnedSalons");
+                    b.Navigation("OwnedShops");
 
                     b.Navigation("StaffProfile");
                 });

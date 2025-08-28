@@ -1,4 +1,4 @@
-# 🏗️ Stibe.API - Professional Salon Management Backend
+# 🏗️ Stibe.API - Professional Shop Management Backend
 
 <div align="center">
 
@@ -8,7 +8,7 @@
 [![MySQL](https://img.shields.io/badge/MySQL-8.0-orange.svg)](https://mysql.com/)
 [![JWT](https://img.shields.io/badge/Auth-JWT-red.svg)](https://jwt.io/)
 
-**🌟 Enterprise-Grade RESTful API for Modern Salon Operations 🌟**
+**🌟 Enterprise-Grade RESTful API for Modern Shop Operations 🌟**
 
 *Powering the Stibe One Flutter application with secure, scalable backend services*
 
@@ -20,12 +20,12 @@
 
 ## 🎯 **Project Overview**
 
-Stibe.API is a comprehensive ASP.NET Core 8.0 RESTful API designed to power professional salon management operations. Built with enterprise-grade architecture, it provides secure, scalable backend services for the Stibe One Flutter application.
+Stibe.API is a comprehensive ASP.NET Core 8.0 RESTful API designed to power professional shop management operations. Built with enterprise-grade architecture, it provides secure, scalable backend services for the Stibe One Flutter application.
 
 ### ✨ **Core Features**
 - **🔐 JWT Authentication**: Secure user authentication with token refresh
 - **👥 User Management**: Complete registration, profile management, and roles
-- **🏪 Salon Operations**: Multi-salon support with comprehensive business data
+- **🏪 Shop Operations**: Multi-shop support with comprehensive business data
 - **👨‍💼 Staff Management**: Employee scheduling, profiles, and service assignments
 - **🛍️ Service Management**: Service catalog, pricing, and category organization
 - **📧 Email Services**: Automated notifications and verification emails
@@ -135,19 +135,19 @@ GET  /api/auth/profile            # User profile retrieval
 PUT  /api/auth/profile            # User profile updates
 ```
 
-### 🏪 **Salon Management**
+### 🏪 **Shop Management**
 ```http
-GET    /api/salon                 # List user's salons
-POST   /api/salon                 # Create new salon
-GET    /api/salon/{id}            # Get salon details
-PUT    /api/salon/{id}            # Update salon information
-DELETE /api/salon/{id}            # Delete salon (soft delete)
-GET    /api/salon/{id}/stats      # Salon analytics and statistics
+GET    /api/shop                 # List user's shops
+POST   /api/shop                 # Create new shop
+GET    /api/shop/{id}            # Get shop details
+PUT    /api/shop/{id}            # Update shop information
+DELETE /api/shop/{id}            # Delete shop (soft delete)
+GET    /api/shop/{id}/stats      # Shop analytics and statistics
 ```
 
 ### 👨‍💼 **Staff Management**
 ```http
-GET    /api/staff                 # List salon staff
+GET    /api/staff                 # List shop staff
 POST   /api/staff                 # Add new staff member
 GET    /api/staff/{id}            # Get staff details
 PUT    /api/staff/{id}            # Update staff information
@@ -157,7 +157,7 @@ GET    /api/staff/{id}/schedule   # Staff scheduling
 
 ### 🛍️ **Service Management**
 ```http
-GET    /api/service               # List salon services
+GET    /api/service               # List shop services
 POST   /api/service               # Create new service
 GET    /api/service/{id}          # Get service details
 PUT    /api/service/{id}          # Update service information
@@ -175,7 +175,7 @@ Stibe.API/
 ├── appsettings.json             # Configuration settings
 ├── Controllers/                 # API endpoints
 │   ├── AuthController.cs        # Authentication endpoints
-│   ├── SalonController.cs       # Salon management
+│   ├── ShopController.cs       # Shop management
 │   ├── StaffController.cs       # Staff operations
 │   ├── ServiceController.cs     # Service management
 │   └── TestController.cs        # Health checks
@@ -247,7 +247,7 @@ This API is specifically designed to work with the **Stibe One Flutter applicati
 - **Consistent Response Format**: Standardized JSON responses
 - **Error Handling**: Detailed error messages for client handling
 - **Authentication Flow**: Complete JWT token management
-- **File Uploads**: Image handling for salons, staff, and services
+- **File Uploads**: Image handling for shops, staff, and services
 - **Real-time Ready**: WebSocket support preparation
 - **Offline Sync**: Data synchronization patterns
 
@@ -293,7 +293,7 @@ We welcome contributions that maintain our professional standards:
 
 ### **Current Version (1.0.0)**
 - ✅ Complete Authentication System
-- ✅ Salon Management APIs
+- ✅ Shop Management APIs
 - ✅ Staff Management
 - ✅ Service Management
 - ✅ Email Services
@@ -313,9 +313,9 @@ We welcome contributions that maintain our professional standards:
 
 **Built with ❤️ using ASP.NET Core 8.0**
 
-*Enterprise-grade backend for modern salon management*
+*Enterprise-grade backend for modern shop management*
 
-**Stibe.API - Powering Professional Salon Operations**
+**Stibe.API - Powering Professional Shop Operations**
 
 **📧 Contact**: [support@stibe.com](mailto:support@stibe.com)  
 **🌐 Website**: [https://stibe.com](https://stibe.com)  

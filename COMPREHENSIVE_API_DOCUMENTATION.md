@@ -1,6 +1,6 @@
 # 🏗️ Stibe.API - Comprehensive Technical Documentation
 
-> **Professional ASP.NET Core 8.0 API for Salon Management System**
+> **Professional ASP.NET Core 8.0 API for Shop Management System**
 
 **📅 Last Updated:** August 15, 2025  
 **🔄 Version:** 1.0.0  
@@ -29,12 +29,12 @@
 ## 🎯 Project Overview
 
 ### Application Summary
-**Stibe.API** is a comprehensive ASP.NET Core 8.0 RESTful API designed to power the Stibe One Flutter application. It provides robust backend services for professional salon management operations with enterprise-grade architecture and security.
+**Stibe.API** is a comprehensive ASP.NET Core 8.0 RESTful API designed to power the Stibe One Flutter application. It provides robust backend services for professional shop management operations with enterprise-grade architecture and security.
 
 ### ✨ Core Features
 - **🔐 JWT Authentication**: Secure user authentication and authorization
 - **👥 User Management**: Complete user registration and profile management
-- **🏪 Salon Management**: Multi-salon support with comprehensive business data
+- **🏪 Shop Management**: Multi-shop support with comprehensive business data
 - **👨‍💼 Staff Management**: Employee scheduling and management
 - **🛍️ Service Management**: Service catalog and pricing management
 - **📧 Email Services**: Automated email notifications and marketing
@@ -42,7 +42,7 @@
 - **🔒 Security First**: Comprehensive security configuration and validation
 
 ### 🎭 Application Identity
-- **Name**: Stibe.API - Professional Salon Backend
+- **Name**: Stibe.API - Professional Shop Backend
 - **Framework**: ASP.NET Core 8.0
 - **Database**: Entity Framework Core with MySQL support
 - **Target Environment**: Cloud-ready with Docker support
@@ -69,7 +69,7 @@ Stibe.API/
 │   └── JwtSettings.cs                 # JWT authentication configuration
 ├── Controllers/                        # API endpoints
 │   ├── AuthController.cs              # Authentication endpoints
-│   ├── SalonController.cs             # Salon management endpoints
+│   ├── ShopController.cs             # Shop management endpoints
 │   ├── ServiceCategoryController.cs   # Service category endpoints
 │   ├── ServiceController.cs           # Service management endpoints
 │   ├── StaffController.cs             # Staff management endpoints
@@ -114,7 +114,7 @@ Stibe.API/
     └── uploads/                   # File upload directories
         ├── product-images/        # Product image uploads
         ├── profile-images/        # User profile images
-        ├── salon-images/          # Salon photos
+        ├── shop-images/          # Shop photos
         └── service-images/        # Service gallery images
 ```
 
@@ -284,7 +284,7 @@ public class User : BaseEntity
     public DateTime? LastLoginAt { get; set; }
     
     // Navigation properties
-    public ICollection<UserSalon> UserSalons { get; set; } = new List<UserSalon>();
+    public ICollection<UserShop> UserShops { get; set; } = new List<UserShop>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 }
 
@@ -304,8 +304,8 @@ public class RefreshToken : BaseEntity
 
 ### 🏪 Business Entities
 ```csharp
-// Salon Entity
-public class Salon : BaseEntity
+// Shop Entity
+public class Shop : BaseEntity
 {
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
@@ -326,7 +326,7 @@ public class Salon : BaseEntity
     public int ReviewCount { get; set; } = 0;
     
     // Navigation properties
-    public ICollection<UserSalon> UserSalons { get; set; } = new List<UserSalon>();
+    public ICollection<UserShop> UserShops { get; set; } = new List<UserShop>();
     public ICollection<Staff> Staff { get; set; } = new List<Staff>();
     public ICollection<Service> Services { get; set; } = new List<Service>();
     public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
@@ -348,8 +348,8 @@ public class Staff : BaseEntity
     public string Specialties { get; set; } = string.Empty; // JSON array
     public string WorkingHours { get; set; } = string.Empty; // JSON object
     
-    public Guid SalonId { get; set; }
-    public Salon Salon { get; set; } = null!;
+    public Guid ShopId { get; set; }
+    public Shop Shop { get; set; } = null!;
     
     // Navigation properties
     public ICollection<StaffService> StaffServices { get; set; } = new List<StaffService>();
@@ -367,8 +367,8 @@ public class Service : BaseEntity
     public bool IsActive { get; set; } = true;
     public int SortOrder { get; set; }
     
-    public Guid SalonId { get; set; }
-    public Salon Salon { get; set; } = null!;
+    public Guid ShopId { get; set; }
+    public Shop Shop { get; set; } = null!;
     
     public Guid? CategoryId { get; set; }
     public ServiceCategory? Category { get; set; }
@@ -457,20 +457,20 @@ GET  /api/auth/profile            # Get user profile
 PUT  /api/auth/profile            # Update user profile
 ```
 
-#### 🏪 Salon Management Endpoints
+#### 🏪 Shop Management Endpoints
 ```http
-GET    /api/salon                 # Get all salons for authenticated user
-POST   /api/salon                 # Create new salon
-GET    /api/salon/{id}            # Get salon by ID
-PUT    /api/salon/{id}            # Update salon
-DELETE /api/salon/{id}            # Delete salon (soft delete)
-GET    /api/salon/{id}/stats      # Get salon statistics
-POST   /api/salon/{id}/upload     # Upload salon images
+GET    /api/shop                 # Get all shops for authenticated user
+POST   /api/shop                 # Create new shop
+GET    /api/shop/{id}            # Get shop by ID
+PUT    /api/shop/{id}            # Update shop
+DELETE /api/shop/{id}            # Delete shop (soft delete)
+GET    /api/shop/{id}/stats      # Get shop statistics
+POST   /api/shop/{id}/upload     # Upload shop images
 ```
 
 #### 👨‍💼 Staff Management Endpoints
 ```http
-GET    /api/staff                 # Get all staff for salon
+GET    /api/staff                 # Get all staff for shop
 POST   /api/staff                 # Add new staff member
 GET    /api/staff/{id}            # Get staff member by ID
 PUT    /api/staff/{id}            # Update staff member
@@ -481,7 +481,7 @@ PUT    /api/staff/{id}/schedule   # Update staff schedule
 
 #### 🛍️ Service Management Endpoints
 ```http
-GET    /api/service               # Get all services for salon
+GET    /api/service               # Get all services for shop
 POST   /api/service               # Create new service
 GET    /api/service/{id}          # Get service by ID
 PUT    /api/service/{id}          # Update service
@@ -596,7 +596,7 @@ public class ApplicationDbContext : DbContext
     // DbSets
     public DbSet<User> Users { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
-    public DbSet<Salon> Salons { get; set; }
+    public DbSet<Shop> Shops { get; set; }
     public DbSet<Staff> Staff { get; set; }
     public DbSet<Service> Services { get; set; }
     public DbSet<ServiceCategory> ServiceCategories { get; set; }
@@ -609,7 +609,7 @@ public class ApplicationDbContext : DbContext
 
         // Configure entities
         ConfigureUserEntity(modelBuilder);
-        ConfigureSalonEntity(modelBuilder);
+        ConfigureShopEntity(modelBuilder);
         ConfigureStaffEntity(modelBuilder);
         ConfigureServiceEntity(modelBuilder);
         ConfigureAppointmentEntity(modelBuilder);
@@ -660,36 +660,36 @@ dotnet ef database update
 
 ### 🏗️ Service Architecture
 ```csharp
-// Services/Interfaces/ISalonService.cs
-public interface ISalonService
+// Services/Interfaces/IShopService.cs
+public interface IShopService
 {
-    Task<IEnumerable<SalonDto>> GetSalonsAsync(Guid userId);
-    Task<SalonDto?> GetSalonByIdAsync(Guid id, Guid userId);
-    Task<SalonDto> CreateSalonAsync(CreateSalonRequest request, Guid userId);
-    Task<SalonDto?> UpdateSalonAsync(Guid id, UpdateSalonRequest request, Guid userId);
-    Task<bool> DeleteSalonAsync(Guid id, Guid userId);
-    Task<SalonStatsDto> GetSalonStatsAsync(Guid salonId, Guid userId);
+    Task<IEnumerable<ShopDto>> GetShopsAsync(Guid userId);
+    Task<ShopDto?> GetShopByIdAsync(Guid id, Guid userId);
+    Task<ShopDto> CreateShopAsync(CreateShopRequest request, Guid userId);
+    Task<ShopDto?> UpdateShopAsync(Guid id, UpdateShopRequest request, Guid userId);
+    Task<bool> DeleteShopAsync(Guid id, Guid userId);
+    Task<ShopStatsDto> GetShopStatsAsync(Guid shopId, Guid userId);
 }
 
-// Services/Implementations/SalonService.cs
-public class SalonService : ISalonService
+// Services/Implementations/ShopService.cs
+public class ShopService : IShopService
 {
     private readonly ApplicationDbContext _context;
-    private readonly ILogger<SalonService> _logger;
+    private readonly ILogger<ShopService> _logger;
 
-    public SalonService(ApplicationDbContext context, ILogger<SalonService> logger)
+    public ShopService(ApplicationDbContext context, ILogger<ShopService> logger)
     {
         _context = context;
         _logger = logger;
     }
 
-    public async Task<IEnumerable<SalonDto>> GetSalonsAsync(Guid userId)
+    public async Task<IEnumerable<ShopDto>> GetShopsAsync(Guid userId)
     {
         try
         {
-            var salons = await _context.Salons
-                .Where(s => s.UserSalons.Any(us => us.UserId == userId) && !s.IsDeleted)
-                .Select(s => new SalonDto
+            var shops = await _context.Shops
+                .Where(s => s.UserShops.Any(us => us.UserId == userId) && !s.IsDeleted)
+                .Select(s => new ShopDto
                 {
                     Id = s.Id,
                     Name = s.Name,
@@ -704,11 +704,11 @@ public class SalonService : ISalonService
                 })
                 .ToListAsync();
 
-            return salons;
+            return shops;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving salons for user {UserId}", userId);
+            _logger.LogError(ex, "Error retrieving shops for user {UserId}", userId);
             throw;
         }
     }
@@ -800,11 +800,11 @@ sequenceDiagram
     DB-->>A: User data
     A-->>F: JWT + Refresh Token
     
-    F->>A: GET /api/salon (with JWT)
+    F->>A: GET /api/shop (with JWT)
     A->>A: Validate JWT
-    A->>DB: Get user's salons
-    DB-->>A: Salon data
-    A-->>F: Salon list
+    A->>DB: Get user's shops
+    DB-->>A: Shop data
+    A-->>F: Shop list
 ```
 
 ### 📊 Data Synchronization
@@ -813,10 +813,10 @@ sequenceDiagram
 {
   "success": true,
   "data": {
-    "salons": [
+    "shops": [
       {
         "id": "uuid",
-        "name": "Premium Salon",
+        "name": "Premium Shop",
         "address": "123 Main St",
         "phoneNumber": "+1234567890",
         "isActive": true,
@@ -824,7 +824,7 @@ sequenceDiagram
       }
     ]
   },
-  "message": "Salons retrieved successfully",
+  "message": "Shops retrieved successfully",
   "timestamp": "2025-08-15T10:30:00Z"
 }
 ```
@@ -1038,28 +1038,28 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 }
 ```
 
-### 🏪 Salon Management Endpoints
+### 🏪 Shop Management Endpoints
 
-#### GET /api/salon
+#### GET /api/shop
 ```json
 // Response (200 OK)
 {
   "success": true,
   "data": [
     {
-      "id": "salon-uuid",
-      "name": "Premium Beauty Salon",
-      "description": "Full-service beauty salon",
+      "id": "shop-uuid",
+      "name": "Premium Beauty Shop",
+      "description": "Full-service beauty shop",
       "address": "123 Main Street",
       "city": "New York",
       "phoneNumber": "+1234567890",
-      "email": "contact@salon.com",
+      "email": "contact@shop.com",
       "isActive": true,
       "rating": 4.8,
       "createdAt": "2025-08-15T10:00:00Z"
     }
   ],
-  "message": "Salons retrieved successfully"
+  "message": "Shops retrieved successfully"
 }
 ```
 
@@ -1071,13 +1071,13 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
   "firstName": "Jane",
   "lastName": "Smith",
-  "email": "jane@salon.com",
+  "email": "jane@shop.com",
   "phoneNumber": "+1234567890",
   "position": "Senior Stylist",
   "hourlyRate": 35.00,
   "commissionRate": 0.15,
   "specialties": ["Hair Cutting", "Hair Coloring", "Styling"],
-  "salonId": "salon-uuid"
+  "shopId": "shop-uuid"
 }
 
 // Response (201 Created)
@@ -1087,7 +1087,7 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
     "id": "staff-uuid",
     "firstName": "Jane",
     "lastName": "Smith",
-    "email": "jane@salon.com",
+    "email": "jane@shop.com",
     "position": "Senior Stylist",
     "isActive": true,
     "createdAt": "2025-08-15T10:30:00Z"
@@ -1149,7 +1149,7 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 
 **🎯 Production Status**
 
-This API provides a complete foundation for professional salon management operations. The architecture is designed for scalability, security, and maintainability, making it ready for production deployment with proper configuration and hosting setup.
+This API provides a complete foundation for professional shop management operations. The architecture is designed for scalability, security, and maintainability, making it ready for production deployment with proper configuration and hosting setup.
 
 **Version**: 1.0.0  
 **Last Updated**: August 15, 2025  

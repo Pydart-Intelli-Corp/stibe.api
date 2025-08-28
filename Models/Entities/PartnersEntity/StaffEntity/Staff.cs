@@ -61,8 +61,8 @@ namespace stibe.api.Models.Entities.PartnersEntity.StaffEntity
         public int TotalReviews { get; set; } = 0;
         public int TotalServices { get; set; } = 0;
 
-        // Salon relationship
-        public int SalonId { get; set; }
+        // Shop relationship
+        public int ShopId { get; set; }
 
         // Additional info
         [StringLength(1000)]
@@ -75,8 +75,8 @@ namespace stibe.api.Models.Entities.PartnersEntity.StaffEntity
         public string InstagramHandle { get; set; } = string.Empty;
 
         // Navigation properties
-        [ForeignKey("SalonId")]
-        public virtual Salon Salon { get; set; } = null!;
+        [ForeignKey("ShopId")]
+        public virtual Shop Shop { get; set; } = null!;
 
         public virtual ICollection<Booking> AssignedBookings { get; set; } = new List<Booking>();
 

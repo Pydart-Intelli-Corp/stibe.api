@@ -15,15 +15,15 @@ namespace stibe.api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class SalonController : ControllerBase
+    public class ShopController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        private readonly ILogger<SalonController> _logger;
+        private readonly ILogger<ShopController> _logger;
         private readonly IWebHostEnvironment _environment;
         private readonly IFileService _fileService;
         private readonly IOtpService _otpService;
 
-        public SalonController(ApplicationDbContext context, ILogger<SalonController> logger, IWebHostEnvironment environment, IFileService fileService, IOtpService otpService)
+        public ShopController(ApplicationDbContext context, ILogger<ShopController> logger, IWebHostEnvironment environment, IFileService fileService, IOtpService otpService)
         {
             _context = context;
             _logger = logger;
@@ -31,19 +31,19 @@ namespace stibe.api.Controllers
             _fileService = fileService;
             _otpService = otpService;
         }        [HttpPost]
-        [Authorize(Roles = "SalonOwner")]
-        public async Task<ActionResult<ApiResponse<SalonResponseDto>>> CreateSalon([FromBody] CreateSalonRequestDto request)
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse<ShopResponseDto>>> CreateShop([FromBody] CreateShopRequestDto request)
         {
             try
             {
                 // Log the incoming request data for debugging
-                _logger.LogInformation($"🏢 CreateSalon called with request: Name={request?.Name}, City={request?.City}, State={request?.State}, Address={request?.Address}, ZipCode={request?.ZipCode}");
+                _logger.LogInformation($"🏢 CreateShop called with request: Name={request?.Name}, City={request?.City}, State={request?.State}, Address={request?.Address}, ZipCode={request?.ZipCode}");
                 
                 // Check if the request is null (model binding failed)
                 if (request == null)
                 {
-                    _logger.LogError("❌ CreateSalon request is null - model binding failed");
-                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid request data"));
+                    _logger.LogError("❌ CreateShop request is null - model binding failed");
+                    return BadRequest(ApiResponse<ShopResponseDto>.ErrorResponse("Invalid request data"));
                 }
                 
                 // Log validation state
@@ -51,41 +51,41 @@ namespace stibe.api.Controllers
                 {
                     _logger.LogError("❌ Model validation failed: {Errors}", string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
                     var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
-                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Validation failed", errors));
+                    return BadRequest(ApiResponse<ShopResponseDto>.ErrorResponse("Validation failed", errors));
                 }
                 
                 var currentUserId = GetCurrentUserId();
                 if (currentUserId == null)
                 {
-                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid token"));
+                    return Unauthorized(ApiResponse<ShopResponseDto>.ErrorResponse("Invalid token"));
                 }
 
                 // Validate time format
                 if (!TimeSpan.TryParse(request.OpeningTime, out var openingTime))
                 {
-                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid opening time format. Expected format: HH:mm:ss"));
+                    return BadRequest(ApiResponse<ShopResponseDto>.ErrorResponse("Invalid opening time format. Expected format: HH:mm:ss"));
                 }
 
                 if (!TimeSpan.TryParse(request.ClosingTime, out var closingTime))
                 {
-                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid closing time format. Expected format: HH:mm:ss"));
+                    return BadRequest(ApiResponse<ShopResponseDto>.ErrorResponse("Invalid closing time format. Expected format: HH:mm:ss"));
                 }
 
-                // Check if user already has a salon (if business rule applies)
-                var existingSalons = await _context.Salons
+                // Check if user already has a shop (if business rule applies)
+                var existingShops = await _context.Shops
                     .Where(s => s.OwnerId == currentUserId.Value && !s.IsDeleted)
                     .CountAsync();
                 
-                // Automatically set as default if this is the first salon
-                bool isDefault = existingSalons == 0;
+                // Automatically set as default if this is the first shop
+                bool isDefault = existingShops == 0;
 
-                // For now, allow multiple salons per owner
-                // if (existingSalons > 0)
+                // For now, allow multiple shops per owner
+                // if (existingShops > 0)
                 // {
-                //     return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("You already have a salon registered"));
+                //     return BadRequest(ApiResponse<ShopResponseDto>.ErrorResponse("You already have a shop registered"));
                 // }
 
-                var salon = new Salon
+                var shop = new Shop
                 {
                     Name = request.Name,
                     Description = request.Description,
@@ -118,74 +118,74 @@ namespace stibe.api.Controllers
                     UpdatedAt = DateTime.UtcNow
                 };
 
-                _context.Salons.Add(salon);
+                _context.Shops.Add(shop);
                 await _context.SaveChangesAsync();
 
-                var response = new SalonResponseDto
+                var response = new ShopResponseDto
                 {
-                    Id = salon.Id,
-                    Name = salon.Name,
-                    Description = salon.Description,
-                    Address = salon.Address,
-                    City = salon.City,
-                    State = salon.State,
-                    ZipCode = salon.ZipCode,
-                    PhoneNumber = salon.PhoneNumber,
-                    Email = salon.Email,
-                    ServiceType = salon.ServiceType,
-                    GenderServices = !string.IsNullOrEmpty(salon.GenderServices) 
-                        ? JsonSerializer.Deserialize<List<string>>(salon.GenderServices) 
+                    Id = shop.Id,
+                    Name = shop.Name,
+                    Description = shop.Description,
+                    Address = shop.Address,
+                    City = shop.City,
+                    State = shop.State,
+                    ZipCode = shop.ZipCode,
+                    PhoneNumber = shop.PhoneNumber,
+                    Email = shop.Email,
+                    ServiceType = shop.ServiceType,
+                    GenderServices = !string.IsNullOrEmpty(shop.GenderServices) 
+                        ? JsonSerializer.Deserialize<List<string>>(shop.GenderServices) 
                         : new List<string>(),
-                    Specializations = !string.IsNullOrEmpty(salon.Specializations) 
-                        ? JsonSerializer.Deserialize<List<string>>(salon.Specializations) 
+                    Specializations = !string.IsNullOrEmpty(shop.Specializations) 
+                        ? JsonSerializer.Deserialize<List<string>>(shop.Specializations) 
                         : new List<string>(),
                     // Bank Details
-                    BankAccountNumber = salon.BankAccountNumber,
-                    IFSCCode = salon.IFSCCode,
-                    BankName = salon.BankName,
-                    AccountHolderName = salon.AccountHolderName,
+                    BankAccountNumber = shop.BankAccountNumber,
+                    IFSCCode = shop.IFSCCode,
+                    BankName = shop.BankName,
+                    AccountHolderName = shop.AccountHolderName,
                     // Tax Details
-                    GSTNumber = salon.GSTNumber,
-                    PANNumber = salon.PANNumber,
-                    OpeningTime = salon.OpeningTime,
-                    ClosingTime = salon.ClosingTime,
-                    BusinessHours = salon.BusinessHours,
-                    Latitude = salon.Latitude,
-                    Longitude = salon.Longitude,
-                    IsActive = salon.IsActive,
-                    IsDefault = salon.IsDefault,
-                    OwnerId = salon.OwnerId,
-                    CreatedAt = salon.CreatedAt,
-                    UpdatedAt = salon.UpdatedAt,
-                    ProfilePictureUrl = salon.ProfilePictureUrl ?? string.Empty,
-                    ImageUrls = !string.IsNullOrEmpty(salon.ImageUrls) 
-                        ? salon.ImageUrls.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+                    GSTNumber = shop.GSTNumber,
+                    PANNumber = shop.PANNumber,
+                    OpeningTime = shop.OpeningTime,
+                    ClosingTime = shop.ClosingTime,
+                    BusinessHours = shop.BusinessHours,
+                    Latitude = shop.Latitude,
+                    Longitude = shop.Longitude,
+                    IsActive = shop.IsActive,
+                    IsDefault = shop.IsDefault,
+                    OwnerId = shop.OwnerId,
+                    CreatedAt = shop.CreatedAt,
+                    UpdatedAt = shop.UpdatedAt,
+                    ProfilePictureUrl = shop.ProfilePictureUrl ?? string.Empty,
+                    ImageUrls = !string.IsNullOrEmpty(shop.ImageUrls) 
+                        ? shop.ImageUrls.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
                         : new List<string>()
                 };
 
-                return Ok(ApiResponse<SalonResponseDto>.SuccessResponse(response, "Salon created successfully"));
+                return Ok(ApiResponse<ShopResponseDto>.SuccessResponse(response, "Shop created successfully"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating salon");
-                return StatusCode(500, ApiResponse<SalonResponseDto>.ErrorResponse("An error occurred while creating the salon"));
+                _logger.LogError(ex, "Error creating shop");
+                return StatusCode(500, ApiResponse<ShopResponseDto>.ErrorResponse("An error occurred while creating the shop"));
             }
         }
 
         [HttpPost("create-json")]
-        [Authorize(Roles = "SalonOwner")]
-        public async Task<ActionResult<ApiResponse<SalonResponseDto>>> CreateSalonJson([FromBody] CreateSalonJsonRequestDto request)
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse<ShopResponseDto>>> CreateShopJson([FromBody] CreateShopJsonRequestDto request)
         {
             try
             {
                 // Log the incoming request data for debugging
-                _logger.LogInformation($"🏢 CreateSalonJson called with request: Name={request?.Name}, City={request?.City}, State={request?.State}");
+                _logger.LogInformation($"🏢 CreateShopJson called with request: Name={request?.Name}, City={request?.City}, State={request?.State}");
                 
                 // Check if the request is null (model binding failed)
                 if (request == null)
                 {
-                    _logger.LogError("❌ CreateSalonJson request is null - model binding failed");
-                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid request data"));
+                    _logger.LogError("❌ CreateShopJson request is null - model binding failed");
+                    return BadRequest(ApiResponse<ShopResponseDto>.ErrorResponse("Invalid request data"));
                 }
                 
                 // Log validation state
@@ -193,24 +193,24 @@ namespace stibe.api.Controllers
                 {
                     _logger.LogError("❌ Model validation failed: {Errors}", string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
                     var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
-                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Validation failed", errors));
+                    return BadRequest(ApiResponse<ShopResponseDto>.ErrorResponse("Validation failed", errors));
                 }
                 
                 var currentUserId = GetCurrentUserId();
                 if (currentUserId == null)
                 {
-                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid token"));
+                    return Unauthorized(ApiResponse<ShopResponseDto>.ErrorResponse("Invalid token"));
                 }
 
                 // Validate time format
                 if (!TimeSpan.TryParse(request.OpeningTime, out var openingTime))
                 {
-                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid opening time format. Expected format: HH:mm:ss"));
+                    return BadRequest(ApiResponse<ShopResponseDto>.ErrorResponse("Invalid opening time format. Expected format: HH:mm:ss"));
                 }
 
                 if (!TimeSpan.TryParse(request.ClosingTime, out var closingTime))
                 {
-                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid closing time format. Expected format: HH:mm:ss"));
+                    return BadRequest(ApiResponse<ShopResponseDto>.ErrorResponse("Invalid closing time format. Expected format: HH:mm:ss"));
                 }
 
                 // Serialize business hours to JSON string if provided
@@ -227,7 +227,7 @@ namespace stibe.api.Controllers
                     }
                 }
 
-                var salon = new Salon
+                var shop = new Shop
                 {
                     Name = request.Name,
                     Description = request.Description,
@@ -270,79 +270,79 @@ namespace stibe.api.Controllers
                         : request.ImageUrls?.FirstOrDefault()
                 };
 
-                _context.Salons.Add(salon);
+                _context.Shops.Add(shop);
                 await _context.SaveChangesAsync();
 
-                var response = new SalonResponseDto
+                var response = new ShopResponseDto
                 {
-                    Id = salon.Id,
-                    Name = salon.Name,
-                    Description = salon.Description,
-                    Address = salon.Address,
-                    City = salon.City,
-                    State = salon.State,
-                    ZipCode = salon.ZipCode,
-                    PhoneNumber = salon.PhoneNumber,
-                    Email = salon.Email,
-                    ServiceType = salon.ServiceType,
-                    GenderServices = !string.IsNullOrEmpty(salon.GenderServices) 
-                        ? JsonSerializer.Deserialize<List<string>>(salon.GenderServices) 
+                    Id = shop.Id,
+                    Name = shop.Name,
+                    Description = shop.Description,
+                    Address = shop.Address,
+                    City = shop.City,
+                    State = shop.State,
+                    ZipCode = shop.ZipCode,
+                    PhoneNumber = shop.PhoneNumber,
+                    Email = shop.Email,
+                    ServiceType = shop.ServiceType,
+                    GenderServices = !string.IsNullOrEmpty(shop.GenderServices) 
+                        ? JsonSerializer.Deserialize<List<string>>(shop.GenderServices) 
                         : new List<string>(),
-                    Specializations = !string.IsNullOrEmpty(salon.Specializations) 
-                        ? JsonSerializer.Deserialize<List<string>>(salon.Specializations) 
+                    Specializations = !string.IsNullOrEmpty(shop.Specializations) 
+                        ? JsonSerializer.Deserialize<List<string>>(shop.Specializations) 
                         : new List<string>(),
                     // Bank Details
-                    BankAccountNumber = salon.BankAccountNumber,
-                    IFSCCode = salon.IFSCCode,
-                    BankName = salon.BankName,
-                    AccountHolderName = salon.AccountHolderName,
+                    BankAccountNumber = shop.BankAccountNumber,
+                    IFSCCode = shop.IFSCCode,
+                    BankName = shop.BankName,
+                    AccountHolderName = shop.AccountHolderName,
                     // Tax Details
-                    GSTNumber = salon.GSTNumber,
-                    PANNumber = salon.PANNumber,
-                    OpeningTime = salon.OpeningTime,
-                    ClosingTime = salon.ClosingTime,
-                    BusinessHours = salon.BusinessHours,
-                    Latitude = salon.Latitude,
-                    Longitude = salon.Longitude,
-                    IsActive = salon.IsActive,
-                    OwnerId = salon.OwnerId,
-                    CreatedAt = salon.CreatedAt,
-                    UpdatedAt = salon.UpdatedAt,
-                    ProfilePictureUrl = salon.ProfilePictureUrl ?? string.Empty,
-                    ImageUrls = !string.IsNullOrEmpty(salon.ImageUrls) 
-                        ? JsonSerializer.Deserialize<List<string>>(salon.ImageUrls) ?? new List<string>()
+                    GSTNumber = shop.GSTNumber,
+                    PANNumber = shop.PANNumber,
+                    OpeningTime = shop.OpeningTime,
+                    ClosingTime = shop.ClosingTime,
+                    BusinessHours = shop.BusinessHours,
+                    Latitude = shop.Latitude,
+                    Longitude = shop.Longitude,
+                    IsActive = shop.IsActive,
+                    OwnerId = shop.OwnerId,
+                    CreatedAt = shop.CreatedAt,
+                    UpdatedAt = shop.UpdatedAt,
+                    ProfilePictureUrl = shop.ProfilePictureUrl ?? string.Empty,
+                    ImageUrls = !string.IsNullOrEmpty(shop.ImageUrls) 
+                        ? JsonSerializer.Deserialize<List<string>>(shop.ImageUrls) ?? new List<string>()
                         : new List<string>()
                 };
 
-                return Ok(ApiResponse<SalonResponseDto>.SuccessResponse(response, "Salon created successfully"));
+                return Ok(ApiResponse<ShopResponseDto>.SuccessResponse(response, "Shop created successfully"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating salon via JSON");
-                return StatusCode(500, ApiResponse<SalonResponseDto>.ErrorResponse("An error occurred while creating the salon"));
+                _logger.LogError(ex, "Error creating shop via JSON");
+                return StatusCode(500, ApiResponse<ShopResponseDto>.ErrorResponse("An error occurred while creating the shop"));
             }
         }
 
         [HttpGet]
-        [Authorize(Roles = "SalonOwner")]
-        public async Task<ActionResult<ApiResponse<List<SalonResponseDto>>>> GetMySalons()
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse<List<ShopResponseDto>>>> GetMyShops()
         {
             try
             {
                 var currentUserId = GetCurrentUserId();
                 if (currentUserId == null)
                 {
-                    return Unauthorized(ApiResponse<List<SalonResponseDto>>.ErrorResponse("Invalid token"));
+                    return Unauthorized(ApiResponse<List<ShopResponseDto>>.ErrorResponse("Invalid token"));
                 }
 
-                // Auto-set default salon if only one exists
-                await AutoSetDefaultSalonIfNeeded(currentUserId.Value);
+                // Auto-set default shop if only one exists
+                await AutoSetDefaultShopIfNeeded(currentUserId.Value);
 
-                var salons = await _context.Salons
+                var shops = await _context.Shops
                     .Where(s => s.OwnerId == currentUserId.Value && !s.IsDeleted)
                     .ToListAsync();
 
-                var salonDtos = salons.Select(s => new SalonResponseDto
+                var shopDtos = shops.Select(s => new ShopResponseDto
                     {
                         Id = s.Id,
                         Name = s.Name,
@@ -385,18 +385,18 @@ namespace stibe.api.Controllers
                     })
                     .ToList();
 
-                return Ok(ApiResponse<List<SalonResponseDto>>.SuccessResponse(salonDtos, "Salons retrieved successfully"));
+                return Ok(ApiResponse<List<ShopResponseDto>>.SuccessResponse(shopDtos, "Shops retrieved successfully"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving salons");
-                return StatusCode(500, ApiResponse<List<SalonResponseDto>>.ErrorResponse("An error occurred while retrieving salons"));
+                _logger.LogError(ex, "Error retrieving shops");
+                return StatusCode(500, ApiResponse<List<ShopResponseDto>>.ErrorResponse("An error occurred while retrieving shops"));
             }
         }
 
         [HttpGet("{id}")]
-        [Authorize(Roles = "SalonOwner,Admin")]
-        public async Task<ActionResult<ApiResponse<SalonResponseDto>>> GetSalon(int id)
+        [Authorize(Roles = "ShopOwner,Admin")]
+        public async Task<ActionResult<ApiResponse<ShopResponseDto>>> GetShop(int id)
         {
             try
             {
@@ -405,77 +405,77 @@ namespace stibe.api.Controllers
                 
                 if (currentUserId == null)
                 {
-                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid token"));
+                    return Unauthorized(ApiResponse<ShopResponseDto>.ErrorResponse("Invalid token"));
                 }
 
-                var salon = await _context.Salons
+                var shop = await _context.Shops
                     .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted);
 
-                if (salon == null)
+                if (shop == null)
                 {
-                    return NotFound(ApiResponse<SalonResponseDto>.ErrorResponse("Salon not found"));
+                    return NotFound(ApiResponse<ShopResponseDto>.ErrorResponse("Shop not found"));
                 }
 
                 // Check ownership (only owner or admin can view)
-                if (userRole != "Admin" && salon.OwnerId != currentUserId.Value)
+                if (userRole != "Admin" && shop.OwnerId != currentUserId.Value)
                 {
-                    return Forbid("You can only view your own salons");
+                    return Forbid("You can only view your own shops");
                 }
 
-                var response = new SalonResponseDto
+                var response = new ShopResponseDto
                 {
-                    Id = salon.Id,
-                    Name = salon.Name,
-                    Description = salon.Description,
-                    Address = salon.Address,
-                    City = salon.City,
-                    State = salon.State,
-                    ZipCode = salon.ZipCode,
-                    PhoneNumber = salon.PhoneNumber,
-                    Email = salon.Email,
-                    ServiceType = salon.ServiceType,
-                    GenderServices = !string.IsNullOrEmpty(salon.GenderServices) 
-                        ? JsonSerializer.Deserialize<List<string>>(salon.GenderServices) ?? new List<string>()
+                    Id = shop.Id,
+                    Name = shop.Name,
+                    Description = shop.Description,
+                    Address = shop.Address,
+                    City = shop.City,
+                    State = shop.State,
+                    ZipCode = shop.ZipCode,
+                    PhoneNumber = shop.PhoneNumber,
+                    Email = shop.Email,
+                    ServiceType = shop.ServiceType,
+                    GenderServices = !string.IsNullOrEmpty(shop.GenderServices) 
+                        ? JsonSerializer.Deserialize<List<string>>(shop.GenderServices) ?? new List<string>()
                         : new List<string>(),
-                    Specializations = !string.IsNullOrEmpty(salon.Specializations) 
-                        ? JsonSerializer.Deserialize<List<string>>(salon.Specializations) ?? new List<string>()
+                    Specializations = !string.IsNullOrEmpty(shop.Specializations) 
+                        ? JsonSerializer.Deserialize<List<string>>(shop.Specializations) ?? new List<string>()
                         : new List<string>(),
                     // Bank Details
-                    BankAccountNumber = salon.BankAccountNumber,
-                    IFSCCode = salon.IFSCCode,
-                    BankName = salon.BankName,
-                    AccountHolderName = salon.AccountHolderName,
+                    BankAccountNumber = shop.BankAccountNumber,
+                    IFSCCode = shop.IFSCCode,
+                    BankName = shop.BankName,
+                    AccountHolderName = shop.AccountHolderName,
                     // Tax Details
-                    GSTNumber = salon.GSTNumber,
-                    PANNumber = salon.PANNumber,
-                    OpeningTime = salon.OpeningTime,
-                    ClosingTime = salon.ClosingTime,
-                    BusinessHours = salon.BusinessHours,
-                    Latitude = salon.Latitude,
-                    Longitude = salon.Longitude,
-                    IsActive = salon.IsActive,
-                    IsDefault = salon.IsDefault,
-                    OwnerId = salon.OwnerId,
-                    CreatedAt = salon.CreatedAt,
-                    UpdatedAt = salon.UpdatedAt,
-                    ProfilePictureUrl = salon.ProfilePictureUrl ?? string.Empty,
-                    ImageUrls = !string.IsNullOrEmpty(salon.ImageUrls) 
-                        ? JsonSerializer.Deserialize<List<string>>(salon.ImageUrls) ?? new List<string>()
+                    GSTNumber = shop.GSTNumber,
+                    PANNumber = shop.PANNumber,
+                    OpeningTime = shop.OpeningTime,
+                    ClosingTime = shop.ClosingTime,
+                    BusinessHours = shop.BusinessHours,
+                    Latitude = shop.Latitude,
+                    Longitude = shop.Longitude,
+                    IsActive = shop.IsActive,
+                    IsDefault = shop.IsDefault,
+                    OwnerId = shop.OwnerId,
+                    CreatedAt = shop.CreatedAt,
+                    UpdatedAt = shop.UpdatedAt,
+                    ProfilePictureUrl = shop.ProfilePictureUrl ?? string.Empty,
+                    ImageUrls = !string.IsNullOrEmpty(shop.ImageUrls) 
+                        ? JsonSerializer.Deserialize<List<string>>(shop.ImageUrls) ?? new List<string>()
                         : new List<string>()
                 };
 
-                return Ok(ApiResponse<SalonResponseDto>.SuccessResponse(response, "Salon retrieved successfully"));
+                return Ok(ApiResponse<ShopResponseDto>.SuccessResponse(response, "Shop retrieved successfully"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving salon");
-                return StatusCode(500, ApiResponse<SalonResponseDto>.ErrorResponse("An error occurred while retrieving the salon"));
+                _logger.LogError(ex, "Error retrieving shop");
+                return StatusCode(500, ApiResponse<ShopResponseDto>.ErrorResponse("An error occurred while retrieving the shop"));
             }
         }
 
         [HttpPost("upload-image")]
-        [Authorize(Roles = "SalonOwner")]
-        public async Task<ActionResult<ApiResponse<object>>> UploadSalonImage(IFormFile image)
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse<object>>> UploadShopImage(IFormFile image)
         {
             try
             {
@@ -505,7 +505,7 @@ namespace stibe.api.Controllers
                 }
 
                 // Create uploads directory if it doesn't exist
-                var uploadsDir = Path.Combine(_environment.WebRootPath, "uploads", "salon-images");
+                var uploadsDir = Path.Combine(_environment.WebRootPath, "uploads", "shop-images");
                 if (!Directory.Exists(uploadsDir))
                 {
                     Directory.CreateDirectory(uploadsDir);
@@ -524,22 +524,22 @@ namespace stibe.api.Controllers
                 // Generate the URL
                 var request = HttpContext.Request;
                 var baseUrl = $"{request.Scheme}://{request.Host}";
-                var imageUrl = $"{baseUrl}/uploads/salon-images/{fileName}";
+                var imageUrl = $"{baseUrl}/uploads/shop-images/{fileName}";
 
-                _logger.LogInformation($"✅ Salon image uploaded: {imageUrl}");
+                _logger.LogInformation($"✅ Shop image uploaded: {imageUrl}");
 
                 return Ok(ApiResponse<object>.SuccessResponse(new { imageUrl }, "Image uploaded successfully"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error uploading salon image");
-                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while uploading salon image"));
+                _logger.LogError(ex, "Error uploading shop image");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while uploading shop image"));
             }
         }
 
         [HttpGet("{id}/bank-details")]
-        [Authorize(Roles = "SalonOwner,Admin")]
-        public async Task<ActionResult<ApiResponse<SalonBankDetailsDto>>> GetSalonBankDetails(int id)
+        [Authorize(Roles = "ShopOwner,Admin")]
+        public async Task<ActionResult<ApiResponse<ShopBankDetailsDto>>> GetShopBankDetails(int id)
         {
             try
             {
@@ -548,127 +548,127 @@ namespace stibe.api.Controllers
                 
                 if (currentUserId == null)
                 {
-                    return Unauthorized(ApiResponse<SalonBankDetailsDto>.ErrorResponse("Invalid token"));
+                    return Unauthorized(ApiResponse<ShopBankDetailsDto>.ErrorResponse("Invalid token"));
                 }
 
-                var salon = await _context.Salons
+                var shop = await _context.Shops
                     .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted);
 
-                if (salon == null)
+                if (shop == null)
                 {
-                    return NotFound(ApiResponse<SalonBankDetailsDto>.ErrorResponse("Salon not found"));
+                    return NotFound(ApiResponse<ShopBankDetailsDto>.ErrorResponse("Shop not found"));
                 }
 
                 // Check ownership (only owner or admin can view bank details)
-                if (userRole != "Admin" && salon.OwnerId != currentUserId.Value)
+                if (userRole != "Admin" && shop.OwnerId != currentUserId.Value)
                 {
-                    return Forbid("You can only view your own salon's bank details");
+                    return Forbid("You can only view your own shop's bank details");
                 }
 
-                var bankDetails = new SalonBankDetailsDto
+                var bankDetails = new ShopBankDetailsDto
                 {
-                    SalonId = salon.Id,
-                    SalonName = salon.Name,
-                    BankAccountNumber = salon.BankAccountNumber,
-                    IFSCCode = salon.IFSCCode,
-                    BankName = salon.BankName,
-                    AccountHolderName = salon.AccountHolderName,
-                    GSTNumber = salon.GSTNumber,
-                    PANNumber = salon.PANNumber,
-                    IsActive = salon.IsActive,
-                    UpdatedAt = salon.UpdatedAt
+                    ShopId = shop.Id,
+                    ShopName = shop.Name,
+                    BankAccountNumber = shop.BankAccountNumber,
+                    IFSCCode = shop.IFSCCode,
+                    BankName = shop.BankName,
+                    AccountHolderName = shop.AccountHolderName,
+                    GSTNumber = shop.GSTNumber,
+                    PANNumber = shop.PANNumber,
+                    IsActive = shop.IsActive,
+                    UpdatedAt = shop.UpdatedAt
                 };
 
-                return Ok(ApiResponse<SalonBankDetailsDto>.SuccessResponse(bankDetails, "Bank details retrieved successfully"));
+                return Ok(ApiResponse<ShopBankDetailsDto>.SuccessResponse(bankDetails, "Bank details retrieved successfully"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving salon bank details");
-                return StatusCode(500, ApiResponse<SalonBankDetailsDto>.ErrorResponse("An error occurred while retrieving the salon bank details"));
+                _logger.LogError(ex, "Error retrieving shop bank details");
+                return StatusCode(500, ApiResponse<ShopBankDetailsDto>.ErrorResponse("An error occurred while retrieving the shop bank details"));
             }
         }
 
         [HttpPut("{id}/bank-details")]
-        [Authorize(Roles = "SalonOwner")]
-        public async Task<ActionResult<ApiResponse<SalonBankDetailsDto>>> UpdateSalonBankDetails(int id, [FromBody] UpdateSalonBankDetailsDto request)
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse<ShopBankDetailsDto>>> UpdateShopBankDetails(int id, [FromBody] UpdateShopBankDetailsDto request)
         {
             try
             {
-                _logger.LogInformation($"🏦 UpdateSalonBankDetails called for salon ID: {id}");
+                _logger.LogInformation($"🏦 UpdateShopBankDetails called for shop ID: {id}");
                 
                 if (request == null)
                 {
-                    return BadRequest(ApiResponse<SalonBankDetailsDto>.ErrorResponse("Invalid request data"));
+                    return BadRequest(ApiResponse<ShopBankDetailsDto>.ErrorResponse("Invalid request data"));
                 }
                 
                 if (!ModelState.IsValid)
                 {
                     var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
-                    return BadRequest(ApiResponse<SalonBankDetailsDto>.ErrorResponse("Validation failed", errors));
+                    return BadRequest(ApiResponse<ShopBankDetailsDto>.ErrorResponse("Validation failed", errors));
                 }
                 
                 var currentUserId = GetCurrentUserId();
                 if (currentUserId == null)
                 {
-                    return Unauthorized(ApiResponse<SalonBankDetailsDto>.ErrorResponse("User not authenticated"));
+                    return Unauthorized(ApiResponse<ShopBankDetailsDto>.ErrorResponse("User not authenticated"));
                 }
 
-                // Find the existing salon
-                var existingSalon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == id && s.OwnerId == currentUserId);
-                if (existingSalon == null)
+                // Find the existing shop
+                var existingShop = await _context.Shops.FirstOrDefaultAsync(s => s.Id == id && s.OwnerId == currentUserId);
+                if (existingShop == null)
                 {
-                    return NotFound(ApiResponse<SalonBankDetailsDto>.ErrorResponse("Salon not found or you don't have permission to update it"));
+                    return NotFound(ApiResponse<ShopBankDetailsDto>.ErrorResponse("Shop not found or you don't have permission to update it"));
                 }
 
                 // Update bank details
                 if (!string.IsNullOrEmpty(request.BankAccountNumber))
-                    existingSalon.BankAccountNumber = request.BankAccountNumber;
+                    existingShop.BankAccountNumber = request.BankAccountNumber;
                 if (!string.IsNullOrEmpty(request.IFSCCode))
-                    existingSalon.IFSCCode = request.IFSCCode;
+                    existingShop.IFSCCode = request.IFSCCode;
                 if (!string.IsNullOrEmpty(request.BankName))
-                    existingSalon.BankName = request.BankName;
+                    existingShop.BankName = request.BankName;
                 if (!string.IsNullOrEmpty(request.AccountHolderName))
-                    existingSalon.AccountHolderName = request.AccountHolderName;
+                    existingShop.AccountHolderName = request.AccountHolderName;
                 if (!string.IsNullOrEmpty(request.GSTNumber))
-                    existingSalon.GSTNumber = request.GSTNumber;
+                    existingShop.GSTNumber = request.GSTNumber;
                 if (!string.IsNullOrEmpty(request.PANNumber))
-                    existingSalon.PANNumber = request.PANNumber;
+                    existingShop.PANNumber = request.PANNumber;
                     
-                existingSalon.UpdatedAt = DateTime.UtcNow;
+                existingShop.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
 
-                var responseDto = new SalonBankDetailsDto
+                var responseDto = new ShopBankDetailsDto
                 {
-                    SalonId = existingSalon.Id,
-                    SalonName = existingSalon.Name,
-                    BankAccountNumber = existingSalon.BankAccountNumber,
-                    IFSCCode = existingSalon.IFSCCode,
-                    BankName = existingSalon.BankName,
-                    AccountHolderName = existingSalon.AccountHolderName,
-                    GSTNumber = existingSalon.GSTNumber,
-                    PANNumber = existingSalon.PANNumber,
-                    IsActive = existingSalon.IsActive,
-                    UpdatedAt = existingSalon.UpdatedAt
+                    ShopId = existingShop.Id,
+                    ShopName = existingShop.Name,
+                    BankAccountNumber = existingShop.BankAccountNumber,
+                    IFSCCode = existingShop.IFSCCode,
+                    BankName = existingShop.BankName,
+                    AccountHolderName = existingShop.AccountHolderName,
+                    GSTNumber = existingShop.GSTNumber,
+                    PANNumber = existingShop.PANNumber,
+                    IsActive = existingShop.IsActive,
+                    UpdatedAt = existingShop.UpdatedAt
                 };
 
-                _logger.LogInformation($"✅ Salon bank details updated successfully for salon ID: {existingSalon.Id}");
-                return Ok(ApiResponse<SalonBankDetailsDto>.SuccessResponse(responseDto, "Bank details updated successfully"));
+                _logger.LogInformation($"✅ Shop bank details updated successfully for shop ID: {existingShop.Id}");
+                return Ok(ApiResponse<ShopBankDetailsDto>.SuccessResponse(responseDto, "Bank details updated successfully"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating salon bank details");
-                return StatusCode(500, ApiResponse<SalonBankDetailsDto>.ErrorResponse("An error occurred while updating the salon bank details"));
+                _logger.LogError(ex, "Error updating shop bank details");
+                return StatusCode(500, ApiResponse<ShopBankDetailsDto>.ErrorResponse("An error occurred while updating the shop bank details"));
             }
         }
 
-        [HttpDelete("{salonId}/images")]
-        [Authorize(Roles = "SalonOwner")]
-        public async Task<ActionResult<ApiResponse<object>>> DeleteSalonImages(int salonId, [FromBody] List<string> imageUrls)
+        [HttpDelete("{shopId}/images")]
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteShopImages(int shopId, [FromBody] List<string> imageUrls)
         {
             try
             {
-                _logger.LogInformation($"🗑️ DeleteSalonImages called for salon ID: {salonId} with {imageUrls?.Count ?? 0} images");
+                _logger.LogInformation($"🗑️ DeleteShopImages called for shop ID: {shopId} with {imageUrls?.Count ?? 0} images");
                 
                 if (imageUrls == null || !imageUrls.Any())
                 {
@@ -681,25 +681,25 @@ namespace stibe.api.Controllers
                     return Unauthorized(ApiResponse<object>.ErrorResponse("User not authenticated"));
                 }
 
-                // Find the salon
-                var salon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == salonId && s.OwnerId == currentUserId);
-                if (salon == null)
+                // Find the shop
+                var shop = await _context.Shops.FirstOrDefaultAsync(s => s.Id == shopId && s.OwnerId == currentUserId);
+                if (shop == null)
                 {
-                    return NotFound(ApiResponse<object>.ErrorResponse("Salon not found or you don't have permission to modify it"));
+                    return NotFound(ApiResponse<object>.ErrorResponse("Shop not found or you don't have permission to modify it"));
                 }
 
-                // Get current image URLs from salon
-                var currentImageUrls = string.IsNullOrEmpty(salon.ImageUrls) 
+                // Get current image URLs from shop
+                var currentImageUrls = string.IsNullOrEmpty(shop.ImageUrls) 
                     ? new List<string>() 
-                    : JsonSerializer.Deserialize<List<string>>(salon.ImageUrls) ?? new List<string>();
+                    : JsonSerializer.Deserialize<List<string>>(shop.ImageUrls) ?? new List<string>();
 
-                // Remove the specified images from the salon's image list
+                // Remove the specified images from the shop's image list
                 var updatedImageUrls = currentImageUrls.Where(url => !imageUrls.Contains(url)).ToList();
                 
-                // Update the salon record
-                salon.ImageUrls = JsonSerializer.Serialize(updatedImageUrls);
-                salon.ProfilePictureUrl = updatedImageUrls.FirstOrDefault(); // Update profile picture to first remaining image
-                salon.UpdatedAt = DateTime.UtcNow;
+                // Update the shop record
+                shop.ImageUrls = JsonSerializer.Serialize(updatedImageUrls);
+                shop.ProfilePictureUrl = updatedImageUrls.FirstOrDefault(); // Update profile picture to first remaining image
+                shop.UpdatedAt = DateTime.UtcNow;
                 
                 await _context.SaveChangesAsync();
 
@@ -711,7 +711,7 @@ namespace stibe.api.Controllers
                 {
                     try
                     {
-                        await _fileService.DeleteFileAsync(imageUrl, "salon-images");
+                        await _fileService.DeleteFileAsync(imageUrl, "shop-images");
                         deletedImages.Add(imageUrl);
                         _logger.LogInformation($"✅ Successfully deleted image: {imageUrl}");
                     }
@@ -735,288 +735,288 @@ namespace stibe.api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting salon images");
+                _logger.LogError(ex, "Error deleting shop images");
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while deleting images"));
             }
         }
 
         [HttpPut("{id}/set-default")]
-        [Authorize(Roles = "SalonOwner")]
-        public async Task<ActionResult<ApiResponse<SalonResponseDto>>> SetDefaultSalon(int id)
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse<ShopResponseDto>>> SetDefaultShop(int id)
         {
             try
             {
                 var currentUserId = GetCurrentUserId();
                 if (currentUserId == null)
                 {
-                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("User not authenticated"));
+                    return Unauthorized(ApiResponse<ShopResponseDto>.ErrorResponse("User not authenticated"));
                 }
 
-                // Find the salon to set as default
-                var salon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == id && s.OwnerId == currentUserId && !s.IsDeleted);
-                if (salon == null)
+                // Find the shop to set as default
+                var shop = await _context.Shops.FirstOrDefaultAsync(s => s.Id == id && s.OwnerId == currentUserId && !s.IsDeleted);
+                if (shop == null)
                 {
-                    return NotFound(ApiResponse<SalonResponseDto>.ErrorResponse("Salon not found or you don't have permission to modify it"));
+                    return NotFound(ApiResponse<ShopResponseDto>.ErrorResponse("Shop not found or you don't have permission to modify it"));
                 }
 
-                // Remove default from all other salons of this owner
-                var otherSalons = await _context.Salons
+                // Remove default from all other shops of this owner
+                var otherShops = await _context.Shops
                     .Where(s => s.OwnerId == currentUserId.Value && s.Id != id && !s.IsDeleted)
                     .ToListAsync();
                 
-                foreach (var otherSalon in otherSalons)
+                foreach (var otherShop in otherShops)
                 {
-                    otherSalon.IsDefault = false;
+                    otherShop.IsDefault = false;
                 }
 
-                // Set this salon as default
-                salon.IsDefault = true;
-                salon.UpdatedAt = DateTime.UtcNow;
+                // Set this shop as default
+                shop.IsDefault = true;
+                shop.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
 
-                var response = new SalonResponseDto
+                var response = new ShopResponseDto
                 {
-                    Id = salon.Id,
-                    Name = salon.Name ?? "",
-                    Description = salon.Description ?? "",
-                    Address = salon.Address ?? "",
-                    City = salon.City ?? "",
-                    State = salon.State ?? "",
-                    ZipCode = salon.ZipCode ?? "",
-                    PhoneNumber = salon.PhoneNumber ?? "",
-                    Email = salon.Email ?? "",
-                    ServiceType = salon.ServiceType,
-                    GenderServices = !string.IsNullOrEmpty(salon.GenderServices) 
-                        ? JsonSerializer.Deserialize<List<string>>(salon.GenderServices) ?? new List<string>()
+                    Id = shop.Id,
+                    Name = shop.Name ?? "",
+                    Description = shop.Description ?? "",
+                    Address = shop.Address ?? "",
+                    City = shop.City ?? "",
+                    State = shop.State ?? "",
+                    ZipCode = shop.ZipCode ?? "",
+                    PhoneNumber = shop.PhoneNumber ?? "",
+                    Email = shop.Email ?? "",
+                    ServiceType = shop.ServiceType,
+                    GenderServices = !string.IsNullOrEmpty(shop.GenderServices) 
+                        ? JsonSerializer.Deserialize<List<string>>(shop.GenderServices) ?? new List<string>()
                         : new List<string>(),
-                    Specializations = !string.IsNullOrEmpty(salon.Specializations) 
-                        ? JsonSerializer.Deserialize<List<string>>(salon.Specializations) ?? new List<string>()
+                    Specializations = !string.IsNullOrEmpty(shop.Specializations) 
+                        ? JsonSerializer.Deserialize<List<string>>(shop.Specializations) ?? new List<string>()
                         : new List<string>(),
-                    BankAccountNumber = salon.BankAccountNumber,
-                    IFSCCode = salon.IFSCCode,
-                    BankName = salon.BankName,
-                    AccountHolderName = salon.AccountHolderName,
-                    GSTNumber = salon.GSTNumber,
-                    PANNumber = salon.PANNumber,
-                    OpeningTime = salon.OpeningTime,
-                    ClosingTime = salon.ClosingTime,
-                    BusinessHours = salon.BusinessHours,
-                    Latitude = salon.Latitude,
-                    Longitude = salon.Longitude,
-                    IsActive = salon.IsActive,
-                    IsDefault = salon.IsDefault,
-                    OwnerId = salon.OwnerId,
-                    CreatedAt = salon.CreatedAt,
-                    UpdatedAt = salon.UpdatedAt,
-                    ProfilePictureUrl = salon.ProfilePictureUrl ?? "",
-                    ImageUrls = string.IsNullOrEmpty(salon.ImageUrls) ? 
+                    BankAccountNumber = shop.BankAccountNumber,
+                    IFSCCode = shop.IFSCCode,
+                    BankName = shop.BankName,
+                    AccountHolderName = shop.AccountHolderName,
+                    GSTNumber = shop.GSTNumber,
+                    PANNumber = shop.PANNumber,
+                    OpeningTime = shop.OpeningTime,
+                    ClosingTime = shop.ClosingTime,
+                    BusinessHours = shop.BusinessHours,
+                    Latitude = shop.Latitude,
+                    Longitude = shop.Longitude,
+                    IsActive = shop.IsActive,
+                    IsDefault = shop.IsDefault,
+                    OwnerId = shop.OwnerId,
+                    CreatedAt = shop.CreatedAt,
+                    UpdatedAt = shop.UpdatedAt,
+                    ProfilePictureUrl = shop.ProfilePictureUrl ?? "",
+                    ImageUrls = string.IsNullOrEmpty(shop.ImageUrls) ? 
                         new List<string>() : 
-                        JsonSerializer.Deserialize<List<string>>(salon.ImageUrls) ?? new List<string>()
+                        JsonSerializer.Deserialize<List<string>>(shop.ImageUrls) ?? new List<string>()
                 };
 
-                return Ok(ApiResponse<SalonResponseDto>.SuccessResponse(response, "Default salon updated successfully"));
+                return Ok(ApiResponse<ShopResponseDto>.SuccessResponse(response, "Default shop updated successfully"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error setting default salon");
-                return StatusCode(500, ApiResponse<SalonResponseDto>.ErrorResponse("An error occurred while setting the default salon"));
+                _logger.LogError(ex, "Error setting default shop");
+                return StatusCode(500, ApiResponse<ShopResponseDto>.ErrorResponse("An error occurred while setting the default shop"));
             }
         }
 
         [HttpPost("change-status-with-otp")]
-        [Authorize(Roles = "SalonOwner")]
-        public async Task<ActionResult<ApiResponse<SalonResponseDto>>> ChangeSalonStatusWithOtp([FromBody] SalonStatusChangeRequestDto request)
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse<ShopResponseDto>>> ChangeShopStatusWithOtp([FromBody] ShopStatusChangeRequestDto request)
         {
             try
             {
                 var currentUserId = GetCurrentUserId();
                 if (currentUserId == null)
                 {
-                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("User not authenticated"));
+                    return Unauthorized(ApiResponse<ShopResponseDto>.ErrorResponse("User not authenticated"));
                 }
 
                 var currentUserEmail = GetCurrentUserEmail();
                 if (string.IsNullOrEmpty(currentUserEmail))
                 {
-                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("User email not found in token"));
+                    return Unauthorized(ApiResponse<ShopResponseDto>.ErrorResponse("User email not found in token"));
                 }
 
                 // Verify email matches current user's email (owner email)
                 if (!string.Equals(currentUserEmail, request.Email, StringComparison.OrdinalIgnoreCase))
                 {
-                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Email does not match the salon owner's registered email"));
+                    return BadRequest(ApiResponse<ShopResponseDto>.ErrorResponse("Email does not match the shop owner's registered email"));
                 }
 
                 // Verify OTP first
-                var otpResult = await _otpService.VerifyOtpAsync(request.Email, request.OtpCode, OtpEntity.PURPOSE_SALON_STATUS_CHANGE);
+                var otpResult = await _otpService.VerifyOtpAsync(request.Email, request.OtpCode, OtpEntity.PURPOSE_SHOP_STATUS_CHANGE);
                 if (!otpResult.Success)
                 {
-                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse($"OTP verification failed: {otpResult.Message}"));
+                    return BadRequest(ApiResponse<ShopResponseDto>.ErrorResponse($"OTP verification failed: {otpResult.Message}"));
                 }
 
-                // Find the salon
-                var salon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == request.SalonId && s.OwnerId == currentUserId && !s.IsDeleted);
-                if (salon == null)
+                // Find the shop
+                var shop = await _context.Shops.FirstOrDefaultAsync(s => s.Id == request.ShopId && s.OwnerId == currentUserId && !s.IsDeleted);
+                if (shop == null)
                 {
-                    return NotFound(ApiResponse<SalonResponseDto>.ErrorResponse("Salon not found or you don't have permission to modify it"));
+                    return NotFound(ApiResponse<ShopResponseDto>.ErrorResponse("Shop not found or you don't have permission to modify it"));
                 }
 
-                // Update salon status
-                salon.IsActive = request.IsActive;
-                salon.UpdatedAt = DateTime.UtcNow;
+                // Update shop status
+                shop.IsActive = request.IsActive;
+                shop.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
 
-                var response = new SalonResponseDto
+                var response = new ShopResponseDto
                 {
-                    Id = salon.Id,
-                    Name = salon.Name ?? "",
-                    Description = salon.Description ?? "",
-                    Address = salon.Address ?? "",
-                    City = salon.City ?? "",
-                    State = salon.State ?? "",
-                    ZipCode = salon.ZipCode ?? "",
-                    PhoneNumber = salon.PhoneNumber ?? "",
-                    Email = salon.Email ?? "",
-                    ServiceType = salon.ServiceType,
-                    GenderServices = !string.IsNullOrEmpty(salon.GenderServices) 
-                        ? JsonSerializer.Deserialize<List<string>>(salon.GenderServices) ?? new List<string>()
+                    Id = shop.Id,
+                    Name = shop.Name ?? "",
+                    Description = shop.Description ?? "",
+                    Address = shop.Address ?? "",
+                    City = shop.City ?? "",
+                    State = shop.State ?? "",
+                    ZipCode = shop.ZipCode ?? "",
+                    PhoneNumber = shop.PhoneNumber ?? "",
+                    Email = shop.Email ?? "",
+                    ServiceType = shop.ServiceType,
+                    GenderServices = !string.IsNullOrEmpty(shop.GenderServices) 
+                        ? JsonSerializer.Deserialize<List<string>>(shop.GenderServices) ?? new List<string>()
                         : new List<string>(),
-                    Specializations = !string.IsNullOrEmpty(salon.Specializations) 
-                        ? JsonSerializer.Deserialize<List<string>>(salon.Specializations) ?? new List<string>()
+                    Specializations = !string.IsNullOrEmpty(shop.Specializations) 
+                        ? JsonSerializer.Deserialize<List<string>>(shop.Specializations) ?? new List<string>()
                         : new List<string>(),
-                    BankAccountNumber = salon.BankAccountNumber,
-                    IFSCCode = salon.IFSCCode,
-                    BankName = salon.BankName,
-                    AccountHolderName = salon.AccountHolderName,
-                    GSTNumber = salon.GSTNumber,
-                    PANNumber = salon.PANNumber,
-                    OpeningTime = salon.OpeningTime,
-                    ClosingTime = salon.ClosingTime,
-                    BusinessHours = salon.BusinessHours,
-                    Latitude = salon.Latitude,
-                    Longitude = salon.Longitude,
-                    IsActive = salon.IsActive,
-                    IsDefault = salon.IsDefault,
-                    OwnerId = salon.OwnerId,
-                    CreatedAt = salon.CreatedAt,
-                    UpdatedAt = salon.UpdatedAt,
-                    ProfilePictureUrl = salon.ProfilePictureUrl ?? "",
-                    ImageUrls = string.IsNullOrEmpty(salon.ImageUrls) ? 
+                    BankAccountNumber = shop.BankAccountNumber,
+                    IFSCCode = shop.IFSCCode,
+                    BankName = shop.BankName,
+                    AccountHolderName = shop.AccountHolderName,
+                    GSTNumber = shop.GSTNumber,
+                    PANNumber = shop.PANNumber,
+                    OpeningTime = shop.OpeningTime,
+                    ClosingTime = shop.ClosingTime,
+                    BusinessHours = shop.BusinessHours,
+                    Latitude = shop.Latitude,
+                    Longitude = shop.Longitude,
+                    IsActive = shop.IsActive,
+                    IsDefault = shop.IsDefault,
+                    OwnerId = shop.OwnerId,
+                    CreatedAt = shop.CreatedAt,
+                    UpdatedAt = shop.UpdatedAt,
+                    ProfilePictureUrl = shop.ProfilePictureUrl ?? "",
+                    ImageUrls = string.IsNullOrEmpty(shop.ImageUrls) ? 
                         new List<string>() : 
-                        JsonSerializer.Deserialize<List<string>>(salon.ImageUrls) ?? new List<string>()
+                        JsonSerializer.Deserialize<List<string>>(shop.ImageUrls) ?? new List<string>()
                 };
 
-                return Ok(ApiResponse<SalonResponseDto>.SuccessResponse(response, $"Salon {(request.IsActive ? "activated" : "deactivated")} successfully"));
+                return Ok(ApiResponse<ShopResponseDto>.SuccessResponse(response, $"Shop {(request.IsActive ? "activated" : "deactivated")} successfully"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error changing salon status with OTP");
-                return StatusCode(500, ApiResponse<SalonResponseDto>.ErrorResponse("An error occurred while changing salon status"));
+                _logger.LogError(ex, "Error changing shop status with OTP");
+                return StatusCode(500, ApiResponse<ShopResponseDto>.ErrorResponse("An error occurred while changing shop status"));
             }
         }
 
         [HttpPost("set-default-with-otp")]
-        [Authorize(Roles = "SalonOwner")]
-        public async Task<ActionResult<ApiResponse<SalonResponseDto>>> SetDefaultSalonWithOtp([FromBody] SalonDefaultChangeRequestDto request)
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse<ShopResponseDto>>> SetDefaultShopWithOtp([FromBody] ShopDefaultChangeRequestDto request)
         {
             try
             {
                 var currentUserId = GetCurrentUserId();
                 if (currentUserId == null)
                 {
-                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("User not authenticated"));
+                    return Unauthorized(ApiResponse<ShopResponseDto>.ErrorResponse("User not authenticated"));
                 }
 
                 var currentUserEmail = GetCurrentUserEmail();
                 if (string.IsNullOrEmpty(currentUserEmail))
                 {
-                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("User email not found in token"));
+                    return Unauthorized(ApiResponse<ShopResponseDto>.ErrorResponse("User email not found in token"));
                 }
 
                 // Verify email matches current user's email (owner email)
                 if (!string.Equals(currentUserEmail, request.Email, StringComparison.OrdinalIgnoreCase))
                 {
-                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Email does not match the salon owner's registered email"));
+                    return BadRequest(ApiResponse<ShopResponseDto>.ErrorResponse("Email does not match the shop owner's registered email"));
                 }
 
                 // Verify OTP first
-                var otpResult = await _otpService.VerifyOtpAsync(request.Email, request.OtpCode, OtpEntity.PURPOSE_SALON_DEFAULT_CHANGE);
+                var otpResult = await _otpService.VerifyOtpAsync(request.Email, request.OtpCode, OtpEntity.PURPOSE_SHOP_DEFAULT_CHANGE);
                 if (!otpResult.Success)
                 {
-                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse($"OTP verification failed: {otpResult.Message}"));
+                    return BadRequest(ApiResponse<ShopResponseDto>.ErrorResponse($"OTP verification failed: {otpResult.Message}"));
                 }
 
-                // Find the salon
-                var salon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == request.SalonId && s.OwnerId == currentUserId && !s.IsDeleted);
-                if (salon == null)
+                // Find the shop
+                var shop = await _context.Shops.FirstOrDefaultAsync(s => s.Id == request.ShopId && s.OwnerId == currentUserId && !s.IsDeleted);
+                if (shop == null)
                 {
-                    return NotFound(ApiResponse<SalonResponseDto>.ErrorResponse("Salon not found or you don't have permission to modify it"));
+                    return NotFound(ApiResponse<ShopResponseDto>.ErrorResponse("Shop not found or you don't have permission to modify it"));
                 }
 
-                // Remove default from all other salons of this owner
-                var otherSalons = await _context.Salons
-                    .Where(s => s.OwnerId == currentUserId.Value && s.Id != request.SalonId && !s.IsDeleted)
+                // Remove default from all other shops of this owner
+                var otherShops = await _context.Shops
+                    .Where(s => s.OwnerId == currentUserId.Value && s.Id != request.ShopId && !s.IsDeleted)
                     .ToListAsync();
                 
-                foreach (var otherSalon in otherSalons)
+                foreach (var otherShop in otherShops)
                 {
-                    otherSalon.IsDefault = false;
+                    otherShop.IsDefault = false;
                 }
 
-                // Set this salon as default
-                salon.IsDefault = true;
-                salon.UpdatedAt = DateTime.UtcNow;
+                // Set this shop as default
+                shop.IsDefault = true;
+                shop.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
 
-                var response = new SalonResponseDto
+                var response = new ShopResponseDto
                 {
-                    Id = salon.Id,
-                    Name = salon.Name ?? "",
-                    Description = salon.Description ?? "",
-                    Address = salon.Address ?? "",
-                    City = salon.City ?? "",
-                    State = salon.State ?? "",
-                    ZipCode = salon.ZipCode ?? "",
-                    PhoneNumber = salon.PhoneNumber ?? "",
-                    Email = salon.Email ?? "",
-                    ServiceType = salon.ServiceType,
-                    GenderServices = !string.IsNullOrEmpty(salon.GenderServices) 
-                        ? JsonSerializer.Deserialize<List<string>>(salon.GenderServices) ?? new List<string>()
+                    Id = shop.Id,
+                    Name = shop.Name ?? "",
+                    Description = shop.Description ?? "",
+                    Address = shop.Address ?? "",
+                    City = shop.City ?? "",
+                    State = shop.State ?? "",
+                    ZipCode = shop.ZipCode ?? "",
+                    PhoneNumber = shop.PhoneNumber ?? "",
+                    Email = shop.Email ?? "",
+                    ServiceType = shop.ServiceType,
+                    GenderServices = !string.IsNullOrEmpty(shop.GenderServices) 
+                        ? JsonSerializer.Deserialize<List<string>>(shop.GenderServices) ?? new List<string>()
                         : new List<string>(),
-                    Specializations = !string.IsNullOrEmpty(salon.Specializations) 
-                        ? JsonSerializer.Deserialize<List<string>>(salon.Specializations) ?? new List<string>()
+                    Specializations = !string.IsNullOrEmpty(shop.Specializations) 
+                        ? JsonSerializer.Deserialize<List<string>>(shop.Specializations) ?? new List<string>()
                         : new List<string>(),
-                    BankAccountNumber = salon.BankAccountNumber,
-                    IFSCCode = salon.IFSCCode,
-                    BankName = salon.BankName,
-                    AccountHolderName = salon.AccountHolderName,
-                    GSTNumber = salon.GSTNumber,
-                    PANNumber = salon.PANNumber,
-                    OpeningTime = salon.OpeningTime,
-                    ClosingTime = salon.ClosingTime,
-                    BusinessHours = salon.BusinessHours,
-                    Latitude = salon.Latitude,
-                    Longitude = salon.Longitude,
-                    IsActive = salon.IsActive,
-                    IsDefault = salon.IsDefault,
-                    OwnerId = salon.OwnerId,
-                    CreatedAt = salon.CreatedAt,
-                    UpdatedAt = salon.UpdatedAt,
-                    ProfilePictureUrl = salon.ProfilePictureUrl ?? "",
-                    ImageUrls = string.IsNullOrEmpty(salon.ImageUrls) ? 
+                    BankAccountNumber = shop.BankAccountNumber,
+                    IFSCCode = shop.IFSCCode,
+                    BankName = shop.BankName,
+                    AccountHolderName = shop.AccountHolderName,
+                    GSTNumber = shop.GSTNumber,
+                    PANNumber = shop.PANNumber,
+                    OpeningTime = shop.OpeningTime,
+                    ClosingTime = shop.ClosingTime,
+                    BusinessHours = shop.BusinessHours,
+                    Latitude = shop.Latitude,
+                    Longitude = shop.Longitude,
+                    IsActive = shop.IsActive,
+                    IsDefault = shop.IsDefault,
+                    OwnerId = shop.OwnerId,
+                    CreatedAt = shop.CreatedAt,
+                    UpdatedAt = shop.UpdatedAt,
+                    ProfilePictureUrl = shop.ProfilePictureUrl ?? "",
+                    ImageUrls = string.IsNullOrEmpty(shop.ImageUrls) ? 
                         new List<string>() : 
-                        JsonSerializer.Deserialize<List<string>>(salon.ImageUrls) ?? new List<string>()
+                        JsonSerializer.Deserialize<List<string>>(shop.ImageUrls) ?? new List<string>()
                 };
 
-                return Ok(ApiResponse<SalonResponseDto>.SuccessResponse(response, "Default salon updated successfully"));
+                return Ok(ApiResponse<ShopResponseDto>.SuccessResponse(response, "Default shop updated successfully"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error setting default salon with OTP");
-                return StatusCode(500, ApiResponse<SalonResponseDto>.ErrorResponse("An error occurred while setting the default salon"));
+                _logger.LogError(ex, "Error setting default shop with OTP");
+                return StatusCode(500, ApiResponse<ShopResponseDto>.ErrorResponse("An error occurred while setting the default shop"));
             }
         }
 
@@ -1041,116 +1041,116 @@ namespace stibe.api.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "SalonOwner")]
-        public async Task<ActionResult<ApiResponse<SalonResponseDto>>> UpdateSalon(int id, [FromBody] UpdateSalonRequestDto request)
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse<ShopResponseDto>>> UpdateShop(int id, [FromBody] UpdateShopRequestDto request)
         {
             try
             {
-                _logger.LogInformation($"🏢 UpdateSalon called for salon ID: {id}");
+                _logger.LogInformation($"🏢 UpdateShop called for shop ID: {id}");
                 
                 if (request == null)
                 {
-                    _logger.LogError("❌ UpdateSalon request is null - model binding failed");
-                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Invalid request data"));
+                    _logger.LogError("❌ UpdateShop request is null - model binding failed");
+                    return BadRequest(ApiResponse<ShopResponseDto>.ErrorResponse("Invalid request data"));
                 }
                 
                 if (!ModelState.IsValid)
                 {
                     _logger.LogError("❌ Model validation failed: {Errors}", string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
                     var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
-                    return BadRequest(ApiResponse<SalonResponseDto>.ErrorResponse("Validation failed", errors));
+                    return BadRequest(ApiResponse<ShopResponseDto>.ErrorResponse("Validation failed", errors));
                 }
                 
                 var currentUserId = GetCurrentUserId();
                 if (currentUserId == null)
                 {
-                    return Unauthorized(ApiResponse<SalonResponseDto>.ErrorResponse("User not authenticated"));
+                    return Unauthorized(ApiResponse<ShopResponseDto>.ErrorResponse("User not authenticated"));
                 }
 
-                // Find the existing salon
-                var existingSalon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == id && s.OwnerId == currentUserId);
-                if (existingSalon == null)
+                // Find the existing shop
+                var existingShop = await _context.Shops.FirstOrDefaultAsync(s => s.Id == id && s.OwnerId == currentUserId);
+                if (existingShop == null)
                 {
-                    return NotFound(ApiResponse<SalonResponseDto>.ErrorResponse("Salon not found or you don't have permission to update it"));
+                    return NotFound(ApiResponse<ShopResponseDto>.ErrorResponse("Shop not found or you don't have permission to update it"));
                 }
 
-                // Update salon properties
+                // Update shop properties
                 if (!string.IsNullOrEmpty(request.Name))
-                    existingSalon.Name = request.Name;
+                    existingShop.Name = request.Name;
                 if (!string.IsNullOrEmpty(request.Description))
-                    existingSalon.Description = request.Description;
+                    existingShop.Description = request.Description;
                 if (!string.IsNullOrEmpty(request.Address))
-                    existingSalon.Address = request.Address;
+                    existingShop.Address = request.Address;
                 if (!string.IsNullOrEmpty(request.City))
-                    existingSalon.City = request.City;
+                    existingShop.City = request.City;
                 if (!string.IsNullOrEmpty(request.State))
-                    existingSalon.State = request.State;
+                    existingShop.State = request.State;
                 if (!string.IsNullOrEmpty(request.ZipCode))
-                    existingSalon.ZipCode = request.ZipCode;
+                    existingShop.ZipCode = request.ZipCode;
                 if (!string.IsNullOrEmpty(request.PhoneNumber))
-                    existingSalon.PhoneNumber = request.PhoneNumber;
+                    existingShop.PhoneNumber = request.PhoneNumber;
                 if (!string.IsNullOrEmpty(request.Email))
-                    existingSalon.Email = request.Email;
+                    existingShop.Email = request.Email;
                 if (!string.IsNullOrEmpty(request.ServiceType))
-                    existingSalon.ServiceType = request.ServiceType;
+                    existingShop.ServiceType = request.ServiceType;
                 if (request.GenderServices != null)
-                    existingSalon.GenderServices = request.GenderServices.Any() 
+                    existingShop.GenderServices = request.GenderServices.Any() 
                         ? JsonSerializer.Serialize(request.GenderServices) 
                         : null;
                 if (request.Specializations != null)
-                    existingSalon.Specializations = request.Specializations.Any() 
+                    existingShop.Specializations = request.Specializations.Any() 
                         ? JsonSerializer.Serialize(request.Specializations) 
                         : null;
                 // Update bank details
                 if (!string.IsNullOrEmpty(request.BankAccountNumber))
-                    existingSalon.BankAccountNumber = request.BankAccountNumber;
+                    existingShop.BankAccountNumber = request.BankAccountNumber;
                 if (!string.IsNullOrEmpty(request.IFSCCode))
-                    existingSalon.IFSCCode = request.IFSCCode;
+                    existingShop.IFSCCode = request.IFSCCode;
                 if (!string.IsNullOrEmpty(request.BankName))
-                    existingSalon.BankName = request.BankName;
+                    existingShop.BankName = request.BankName;
                 if (!string.IsNullOrEmpty(request.AccountHolderName))
-                    existingSalon.AccountHolderName = request.AccountHolderName;
+                    existingShop.AccountHolderName = request.AccountHolderName;
                 // Update tax details
                 if (!string.IsNullOrEmpty(request.GSTNumber))
-                    existingSalon.GSTNumber = request.GSTNumber;
+                    existingShop.GSTNumber = request.GSTNumber;
                 if (!string.IsNullOrEmpty(request.PANNumber))
-                    existingSalon.PANNumber = request.PANNumber;
+                    existingShop.PANNumber = request.PANNumber;
                 if (!string.IsNullOrEmpty(request.OpeningTime))
-                    existingSalon.OpeningTime = TimeSpan.Parse(request.OpeningTime);
+                    existingShop.OpeningTime = TimeSpan.Parse(request.OpeningTime);
                 if (!string.IsNullOrEmpty(request.ClosingTime))
-                    existingSalon.ClosingTime = TimeSpan.Parse(request.ClosingTime);
+                    existingShop.ClosingTime = TimeSpan.Parse(request.ClosingTime);
                 if (request.IsActive.HasValue)
-                    existingSalon.IsActive = request.IsActive.Value;
+                    existingShop.IsActive = request.IsActive.Value;
                 if (request.IsDefault.HasValue)
-                    existingSalon.IsDefault = request.IsDefault.Value;
+                    existingShop.IsDefault = request.IsDefault.Value;
                     
-                // Handle default salon business logic
+                // Handle default shop business logic
                 if (request.IsDefault.HasValue && request.IsDefault.Value)
                 {
-                    // If setting this salon as default, ensure no other salon is default for this owner
-                    var otherSalons = await _context.Salons
+                    // If setting this shop as default, ensure no other shop is default for this owner
+                    var otherShops = await _context.Shops
                         .Where(s => s.OwnerId == currentUserId.Value && s.Id != id && !s.IsDeleted)
                         .ToListAsync();
                     
-                    foreach (var salon in otherSalons)
+                    foreach (var shop in otherShops)
                     {
-                        salon.IsDefault = false;
+                        shop.IsDefault = false;
                     }
                 }
                     
-                existingSalon.UpdatedAt = DateTime.UtcNow;
+                existingShop.UpdatedAt = DateTime.UtcNow;
                 
                 // Update location if provided
                 if (request.Latitude.HasValue && request.Longitude.HasValue)
                 {
-                    existingSalon.Latitude = request.Latitude.Value;
-                    existingSalon.Longitude = request.Longitude.Value;
+                    existingShop.Latitude = request.Latitude.Value;
+                    existingShop.Longitude = request.Longitude.Value;
                 }
                 
                 // Update business hours if provided
                 if (request.BusinessHours != null)
                 {
-                    existingSalon.BusinessHours = JsonSerializer.Serialize(request.BusinessHours);
+                    existingShop.BusinessHours = JsonSerializer.Serialize(request.BusinessHours);
                 }
                 
                 // Update profile picture URL only when explicitly provided
@@ -1158,82 +1158,82 @@ namespace stibe.api.Controllers
                 {
                     if (!string.IsNullOrEmpty(request.ProfilePictureUrl))
                     {
-                        existingSalon.ProfilePictureUrl = request.ProfilePictureUrl;
+                        existingShop.ProfilePictureUrl = request.ProfilePictureUrl;
                     }
                     else if (request.ProfilePictureUrl == "")
                     {
                         // If ProfilePictureUrl is explicitly set to empty string, remove it
-                        existingSalon.ProfilePictureUrl = null;
+                        existingShop.ProfilePictureUrl = null;
                     }
                 }
                 
                 // Update image URLs only when explicitly provided
                 if (request.ImageUrls != null)
                 {
-                    existingSalon.ImageUrls = JsonSerializer.Serialize(request.ImageUrls);
+                    existingShop.ImageUrls = JsonSerializer.Serialize(request.ImageUrls);
                 }
 
                 await _context.SaveChangesAsync();
 
-                var responseDto = new SalonResponseDto
+                var responseDto = new ShopResponseDto
                 {
-                    Id = existingSalon.Id,
-                    Name = existingSalon.Name ?? "",
-                    Description = existingSalon.Description ?? "",
-                    Address = existingSalon.Address ?? "",
-                    City = existingSalon.City ?? "",
-                    State = existingSalon.State ?? "",
-                    ZipCode = existingSalon.ZipCode ?? "",
-                    PhoneNumber = existingSalon.PhoneNumber ?? "",
-                    Email = existingSalon.Email ?? "",
-                    ServiceType = existingSalon.ServiceType,
-                    GenderServices = !string.IsNullOrEmpty(existingSalon.GenderServices) 
-                        ? JsonSerializer.Deserialize<List<string>>(existingSalon.GenderServices) ?? new List<string>()
+                    Id = existingShop.Id,
+                    Name = existingShop.Name ?? "",
+                    Description = existingShop.Description ?? "",
+                    Address = existingShop.Address ?? "",
+                    City = existingShop.City ?? "",
+                    State = existingShop.State ?? "",
+                    ZipCode = existingShop.ZipCode ?? "",
+                    PhoneNumber = existingShop.PhoneNumber ?? "",
+                    Email = existingShop.Email ?? "",
+                    ServiceType = existingShop.ServiceType,
+                    GenderServices = !string.IsNullOrEmpty(existingShop.GenderServices) 
+                        ? JsonSerializer.Deserialize<List<string>>(existingShop.GenderServices) ?? new List<string>()
                         : new List<string>(),
-                    Specializations = !string.IsNullOrEmpty(existingSalon.Specializations) 
-                        ? JsonSerializer.Deserialize<List<string>>(existingSalon.Specializations) ?? new List<string>()
+                    Specializations = !string.IsNullOrEmpty(existingShop.Specializations) 
+                        ? JsonSerializer.Deserialize<List<string>>(existingShop.Specializations) ?? new List<string>()
                         : new List<string>(),
                     // Bank Details
-                    BankAccountNumber = existingSalon.BankAccountNumber,
-                    IFSCCode = existingSalon.IFSCCode,
-                    BankName = existingSalon.BankName,
-                    AccountHolderName = existingSalon.AccountHolderName,
+                    BankAccountNumber = existingShop.BankAccountNumber,
+                    IFSCCode = existingShop.IFSCCode,
+                    BankName = existingShop.BankName,
+                    AccountHolderName = existingShop.AccountHolderName,
                     // Tax Details
-                    GSTNumber = existingSalon.GSTNumber,
-                    PANNumber = existingSalon.PANNumber,
-                    OpeningTime = existingSalon.OpeningTime,
-                    ClosingTime = existingSalon.ClosingTime,
-                    BusinessHours = existingSalon.BusinessHours,
-                    Latitude = existingSalon.Latitude,
-                    Longitude = existingSalon.Longitude,
-                    IsActive = existingSalon.IsActive,
-                    IsDefault = existingSalon.IsDefault,
-                    OwnerId = existingSalon.OwnerId,
-                    CreatedAt = existingSalon.CreatedAt,
-                    UpdatedAt = existingSalon.UpdatedAt,
-                    ProfilePictureUrl = existingSalon.ProfilePictureUrl ?? "",
-                    ImageUrls = string.IsNullOrEmpty(existingSalon.ImageUrls) ? 
+                    GSTNumber = existingShop.GSTNumber,
+                    PANNumber = existingShop.PANNumber,
+                    OpeningTime = existingShop.OpeningTime,
+                    ClosingTime = existingShop.ClosingTime,
+                    BusinessHours = existingShop.BusinessHours,
+                    Latitude = existingShop.Latitude,
+                    Longitude = existingShop.Longitude,
+                    IsActive = existingShop.IsActive,
+                    IsDefault = existingShop.IsDefault,
+                    OwnerId = existingShop.OwnerId,
+                    CreatedAt = existingShop.CreatedAt,
+                    UpdatedAt = existingShop.UpdatedAt,
+                    ProfilePictureUrl = existingShop.ProfilePictureUrl ?? "",
+                    ImageUrls = string.IsNullOrEmpty(existingShop.ImageUrls) ? 
                         new List<string>() : 
-                        JsonSerializer.Deserialize<List<string>>(existingSalon.ImageUrls) ?? new List<string>()
+                        JsonSerializer.Deserialize<List<string>>(existingShop.ImageUrls) ?? new List<string>()
                 };
 
-                _logger.LogInformation($"✅ Salon updated successfully with ID: {existingSalon.Id}");
-                return Ok(ApiResponse<SalonResponseDto>.SuccessResponse(responseDto, "Salon updated successfully"));
+                _logger.LogInformation($"✅ Shop updated successfully with ID: {existingShop.Id}");
+                return Ok(ApiResponse<ShopResponseDto>.SuccessResponse(responseDto, "Shop updated successfully"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating salon");
-                return StatusCode(500, ApiResponse<SalonResponseDto>.ErrorResponse("An error occurred while updating the salon"));
+                _logger.LogError(ex, "Error updating shop");
+                return StatusCode(500, ApiResponse<ShopResponseDto>.ErrorResponse("An error occurred while updating the shop"));
             }
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "SalonOwner")]
-        public async Task<ActionResult<ApiResponse<object>>> DeleteSalon(int id)
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteShop(int id)
         {
             try
             {
-                _logger.LogInformation($"🗑️ DeleteSalon called for salon ID: {id}");
+                _logger.LogInformation($"🗑️ DeleteShop called for shop ID: {id}");
                 
                 var currentUserId = GetCurrentUserId();
                 if (currentUserId == null)
@@ -1241,33 +1241,33 @@ namespace stibe.api.Controllers
                     return Unauthorized(ApiResponse<object>.ErrorResponse("User not authenticated"));
                 }
 
-                // Find the existing salon
-                var existingSalon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == id && s.OwnerId == currentUserId);
-                if (existingSalon == null)
+                // Find the existing shop
+                var existingShop = await _context.Shops.FirstOrDefaultAsync(s => s.Id == id && s.OwnerId == currentUserId);
+                if (existingShop == null)
                 {
-                    return NotFound(ApiResponse<object>.ErrorResponse("Salon not found or you don't have permission to delete it"));
+                    return NotFound(ApiResponse<object>.ErrorResponse("Shop not found or you don't have permission to delete it"));
                 }
 
-                // Remove the salon from the database
-                _context.Salons.Remove(existingSalon);
+                // Remove the shop from the database
+                _context.Shops.Remove(existingShop);
                 await _context.SaveChangesAsync();
 
-                // Auto-set default salon if only one remains
-                await AutoSetDefaultSalonIfNeeded(currentUserId.Value);
+                // Auto-set default shop if only one remains
+                await AutoSetDefaultShopIfNeeded(currentUserId.Value);
 
-                _logger.LogInformation($"✅ Salon deleted successfully with ID: {id}");
-                return Ok(ApiResponse<object>.SuccessResponse(new { }, "Salon deleted successfully"));
+                _logger.LogInformation($"✅ Shop deleted successfully with ID: {id}");
+                return Ok(ApiResponse<object>.SuccessResponse(new { }, "Shop deleted successfully"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting salon");
-                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while deleting the salon"));
+                _logger.LogError(ex, "Error deleting shop");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while deleting the shop"));
             }
         }
 
         [HttpPost("delete-with-otp")]
-        [Authorize(Roles = "SalonOwner")]
-        public async Task<ActionResult<ApiResponse<object>>> DeleteSalonWithOtp([FromBody] SalonDeleteRequestDto request)
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteShopWithOtp([FromBody] ShopDeleteRequestDto request)
         {
             try
             {
@@ -1286,43 +1286,43 @@ namespace stibe.api.Controllers
                 // Verify email matches current user's email (owner email)
                 if (!string.Equals(currentUserEmail, request.Email, StringComparison.OrdinalIgnoreCase))
                 {
-                    return BadRequest(ApiResponse<object>.ErrorResponse("Email does not match the salon owner's registered email"));
+                    return BadRequest(ApiResponse<object>.ErrorResponse("Email does not match the shop owner's registered email"));
                 }
 
                 // Verify OTP first
-                var otpResult = await _otpService.VerifyOtpAsync(request.Email, request.OtpCode, OtpEntity.PURPOSE_SALON_DELETE);
+                var otpResult = await _otpService.VerifyOtpAsync(request.Email, request.OtpCode, OtpEntity.PURPOSE_SHOP_DELETE);
                 if (!otpResult.Success)
                 {
                     return BadRequest(ApiResponse<object>.ErrorResponse($"OTP verification failed: {otpResult.Message}"));
                 }
 
-                // Find the salon
-                var salon = await _context.Salons.FirstOrDefaultAsync(s => s.Id == request.SalonId && s.OwnerId == currentUserId && !s.IsDeleted);
-                if (salon == null)
+                // Find the shop
+                var shop = await _context.Shops.FirstOrDefaultAsync(s => s.Id == request.ShopId && s.OwnerId == currentUserId && !s.IsDeleted);
+                if (shop == null)
                 {
-                    return NotFound(ApiResponse<object>.ErrorResponse("Salon not found or you don't have permission to delete it"));
+                    return NotFound(ApiResponse<object>.ErrorResponse("Shop not found or you don't have permission to delete it"));
                 }
 
-                // Remove the salon from the database
-                _context.Salons.Remove(salon);
+                // Remove the shop from the database
+                _context.Shops.Remove(shop);
                 await _context.SaveChangesAsync();
 
-                // Auto-set default salon if only one remains
-                await AutoSetDefaultSalonIfNeeded(currentUserId.Value);
+                // Auto-set default shop if only one remains
+                await AutoSetDefaultShopIfNeeded(currentUserId.Value);
 
-                _logger.LogInformation($"✅ Salon deleted successfully with OTP verification. Salon ID: {request.SalonId}, Owner: {currentUserEmail}");
-                return Ok(ApiResponse<object>.SuccessResponse(new { SalonId = request.SalonId, SalonName = salon.Name }, "Salon deleted successfully"));
+                _logger.LogInformation($"✅ Shop deleted successfully with OTP verification. Shop ID: {request.ShopId}, Owner: {currentUserEmail}");
+                return Ok(ApiResponse<object>.SuccessResponse(new { ShopId = request.ShopId, ShopName = shop.Name }, "Shop deleted successfully"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting salon with OTP");
-                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while deleting the salon"));
+                _logger.LogError(ex, "Error deleting shop with OTP");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while deleting the shop"));
             }
         }
 
-        [HttpGet("check-salon-phone-status/{phone}")]
+        [HttpGet("check-shop-phone-status/{phone}")]
         [AllowAnonymous]
-        public async Task<ActionResult<ApiResponse<object>>> CheckSalonPhoneStatus(string phone)
+        public async Task<ActionResult<ApiResponse<object>>> CheckShopPhoneStatus(string phone)
         {
             try
             {
@@ -1334,41 +1334,41 @@ namespace stibe.api.Controllers
                 // Clean the phone number to handle different formats
                 var cleanPhone = Regex.Replace(phone, @"[^\d+]", "");
 
-                var salon = await _context.Salons
+                var shop = await _context.Shops
                     .Where(s => s.PhoneNumber == cleanPhone && !s.IsDeleted)
                     .Select(s => new { s.PhoneNumber, s.Name, s.City, s.State })
                     .FirstOrDefaultAsync();
 
-                if (salon == null)
+                if (shop == null)
                 {
                     return Ok(ApiResponse<object>.SuccessResponse(new { 
                         exists = false, 
                         status = "not_registered",
-                        message = "Phone number is available for salon registration"
-                    }, "Phone number not registered for any salon"));
+                        message = "Phone number is available for shop registration"
+                    }, "Phone number not registered for any shop"));
                 }
 
                 return Ok(ApiResponse<object>.SuccessResponse(new { 
                     exists = true, 
                     status = "registered",
-                    salon = new {
-                        phoneNumber = salon.PhoneNumber,
-                        name = salon.Name,
-                        location = $"{salon.City}, {salon.State}"
+                    shop = new {
+                        phoneNumber = shop.PhoneNumber,
+                        name = shop.Name,
+                        location = $"{shop.City}, {shop.State}"
                     },
-                    message = "Phone number is already registered for another salon"
-                }, "Phone number is already registered for a salon"));
+                    message = "Phone number is already registered for another shop"
+                }, "Phone number is already registered for a shop"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error checking salon phone number status");
+                _logger.LogError(ex, "Error checking shop phone number status");
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while checking phone number status"));
             }
         }
 
-        [HttpGet("check-salon-email-status/{email}")]
+        [HttpGet("check-shop-email-status/{email}")]
         [AllowAnonymous]
-        public async Task<ActionResult<ApiResponse<object>>> CheckSalonEmailStatus(string email)
+        public async Task<ActionResult<ApiResponse<object>>> CheckShopEmailStatus(string email)
         {
             try
             {
@@ -1383,41 +1383,41 @@ namespace stibe.api.Controllers
                     return BadRequest(ApiResponse<object>.ErrorResponse("Invalid email format"));
                 }
 
-                var salon = await _context.Salons
+                var shop = await _context.Shops
                     .Where(s => s.Email.ToLower() == email.ToLower() && !s.IsDeleted)
                     .Select(s => new { s.Email, s.Name, s.City, s.State })
                     .FirstOrDefaultAsync();
 
-                if (salon == null)
+                if (shop == null)
                 {
                     return Ok(ApiResponse<object>.SuccessResponse(new { 
                         exists = false, 
                         status = "not_registered",
-                        message = "Email address is available for salon registration"
-                    }, "Email address not registered for any salon"));
+                        message = "Email address is available for shop registration"
+                    }, "Email address not registered for any shop"));
                 }
 
                 return Ok(ApiResponse<object>.SuccessResponse(new { 
                     exists = true, 
                     status = "registered",
-                    salon = new {
-                        email = salon.Email,
-                        name = salon.Name,
-                        location = $"{salon.City}, {salon.State}"
+                    shop = new {
+                        email = shop.Email,
+                        name = shop.Name,
+                        location = $"{shop.City}, {shop.State}"
                     },
-                    message = "Email address is already registered for another salon"
-                }, "Email address is already registered for a salon"));
+                    message = "Email address is already registered for another shop"
+                }, "Email address is already registered for a shop"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error checking salon email address status");
+                _logger.LogError(ex, "Error checking shop email address status");
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while checking email address status"));
             }
         }
 
-        [HttpDelete("{salonId}/images/{imageUrl}")]
-        [Authorize(Roles = "SalonOwner,Admin")]
-        public async Task<ActionResult<ApiResponse<object>>> DeleteSalonImage(int salonId, string imageUrl)
+        [HttpDelete("{shopId}/images/{imageUrl}")]
+        [Authorize(Roles = "ShopOwner,Admin")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteShopImage(int shopId, string imageUrl)
         {
             try
             {
@@ -1432,49 +1432,49 @@ namespace stibe.api.Controllers
                 // URL decode the image URL parameter
                 imageUrl = Uri.UnescapeDataString(imageUrl);
                 
-                _logger.LogInformation($"🗑️ DeleteSalonImage called for salon ID: {salonId}, imageUrl: {imageUrl}");
+                _logger.LogInformation($"🗑️ DeleteShopImage called for shop ID: {shopId}, imageUrl: {imageUrl}");
 
-                var salon = await _context.Salons
-                    .FirstOrDefaultAsync(s => s.Id == salonId && !s.IsDeleted);
+                var shop = await _context.Shops
+                    .FirstOrDefaultAsync(s => s.Id == shopId && !s.IsDeleted);
 
-                if (salon == null)
+                if (shop == null)
                 {
-                    return NotFound(ApiResponse<object>.ErrorResponse("Salon not found"));
+                    return NotFound(ApiResponse<object>.ErrorResponse("Shop not found"));
                 }
 
                 // Check ownership (only owner or admin can delete images)
-                if (userRole != "Admin" && salon.OwnerId != currentUserId.Value)
+                if (userRole != "Admin" && shop.OwnerId != currentUserId.Value)
                 {
-                    return Forbid("You can only delete images from your own salon");
+                    return Forbid("You can only delete images from your own shop");
                 }
 
                 // Get current images
-                var currentImages = !string.IsNullOrEmpty(salon.ImageUrls) 
-                    ? JsonSerializer.Deserialize<List<string>>(salon.ImageUrls) ?? new List<string>()
+                var currentImages = !string.IsNullOrEmpty(shop.ImageUrls) 
+                    ? JsonSerializer.Deserialize<List<string>>(shop.ImageUrls) ?? new List<string>()
                     : new List<string>();
 
-                // Check if the image exists in the salon's image list
+                // Check if the image exists in the shop's image list
                 var imageToDelete = currentImages.FirstOrDefault(img => img == imageUrl);
                 if (imageToDelete == null)
                 {
-                    return NotFound(ApiResponse<object>.ErrorResponse("Image not found in salon's gallery"));
+                    return NotFound(ApiResponse<object>.ErrorResponse("Image not found in shop's gallery"));
                 }
 
                 // Remove image from the list
                 currentImages.Remove(imageToDelete);
 
-                // Update salon's image URLs
-                salon.ImageUrls = currentImages.Any() 
+                // Update shop's image URLs
+                shop.ImageUrls = currentImages.Any() 
                     ? JsonSerializer.Serialize(currentImages)
                     : null;
 
                 // If the deleted image was the profile picture, set a new one or clear it
-                if (salon.ProfilePictureUrl == imageUrl)
+                if (shop.ProfilePictureUrl == imageUrl)
                 {
-                    salon.ProfilePictureUrl = currentImages.FirstOrDefault();
+                    shop.ProfilePictureUrl = currentImages.FirstOrDefault();
                 }
 
-                salon.UpdatedAt = DateTime.UtcNow;
+                shop.UpdatedAt = DateTime.UtcNow;
 
                 // Save changes to database
                 await _context.SaveChangesAsync();
@@ -1485,7 +1485,7 @@ namespace stibe.api.Controllers
                     // Extract filename from URL
                     var uri = new Uri(imageUrl);
                     var fileName = Path.GetFileName(uri.LocalPath);
-                    var filePath = Path.Combine(_environment.WebRootPath, "uploads", "salon-images", fileName);
+                    var filePath = Path.Combine(_environment.WebRootPath, "uploads", "shop-images", fileName);
 
                     if (System.IO.File.Exists(filePath))
                     {
@@ -1503,18 +1503,18 @@ namespace stibe.api.Controllers
                     // Continue execution even if physical file deletion fails
                 }
 
-                _logger.LogInformation($"✅ Image deleted successfully from salon {salonId}");
+                _logger.LogInformation($"✅ Image deleted successfully from shop {shopId}");
 
                 return Ok(ApiResponse<object>.SuccessResponse(new 
                 { 
                     deletedImageUrl = imageUrl,
                     remainingImagesCount = currentImages.Count,
-                    newProfilePictureUrl = salon.ProfilePictureUrl
+                    newProfilePictureUrl = shop.ProfilePictureUrl
                 }, "Image deleted successfully"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error deleting salon image: {imageUrl}");
+                _logger.LogError(ex, $"Error deleting shop image: {imageUrl}");
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while deleting the image"));
             }
         }
@@ -1549,29 +1549,29 @@ namespace stibe.api.Controllers
         }
 
         /// <summary>
-        /// Automatically sets the default salon if there's only one salon left
+        /// Automatically sets the default shop if there's only one shop left
         /// </summary>
-        private async Task AutoSetDefaultSalonIfNeeded(int ownerId)
+        private async Task AutoSetDefaultShopIfNeeded(int ownerId)
         {
             try
             {
-                var userSalons = await _context.Salons
+                var userShops = await _context.Shops
                     .Where(s => s.OwnerId == ownerId && !s.IsDeleted)
                     .ToListAsync();
 
-                // If there's exactly one salon and it's not set as default, make it default
-                if (userSalons.Count == 1 && !userSalons[0].IsDefault)
+                // If there's exactly one shop and it's not set as default, make it default
+                if (userShops.Count == 1 && !userShops[0].IsDefault)
                 {
-                    userSalons[0].IsDefault = true;
-                    userSalons[0].UpdatedAt = DateTime.UtcNow;
+                    userShops[0].IsDefault = true;
+                    userShops[0].UpdatedAt = DateTime.UtcNow;
                     await _context.SaveChangesAsync();
                     
-                    _logger.LogInformation($"🎯 Auto-set salon '{userSalons[0].Name}' as default (only one salon remaining)");
+                    _logger.LogInformation($"🎯 Auto-set shop '{userShops[0].Name}' as default (only one shop remaining)");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error auto-setting default salon");
+                _logger.LogError(ex, "Error auto-setting default shop");
             }
         }
     }

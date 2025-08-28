@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace stibe.api.Models.Entities.PartnersEntity
 {
-    public class Salon : BaseEntity
+    public class Shop : BaseEntity
     {
         [Required]
         [StringLength(200)]
@@ -51,7 +51,7 @@ namespace stibe.api.Models.Entities.PartnersEntity
 
         // Category and Services properties
         [StringLength(50)]
-        public string? ServiceType { get; set; } // salon, beauty_parlour, spa, barbershop, nail_studio, unisex_salon
+        public string? ServiceType { get; set; } // shop, beauty_parlour, spa, barbershop, nail_studio, unisex_shop
 
         [StringLength(500)]
         public string? GenderServices { get; set; } // JSON array of gender services (men, women, kids, unisex)
@@ -83,7 +83,7 @@ namespace stibe.api.Models.Entities.PartnersEntity
         
         public bool IsDefault { get; set; } = false;
         
-        // Models/Entities/PartnersEntity/Salon.cs - Add these properties
+        // Models/Entities/PartnersEntity/Shop.cs - Add these properties
         [StringLength(500)]
         public string? ProfilePictureUrl { get; set; }
 

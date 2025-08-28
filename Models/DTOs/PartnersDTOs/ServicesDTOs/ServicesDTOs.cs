@@ -91,8 +91,8 @@ namespace stibe.api.Models.DTOs.PartnersDTOs.ServicesDTOs
         public decimal Price { get; set; }
         public int DurationInMinutes { get; set; }
         public bool IsActive { get; set; }
-        public int SalonId { get; set; }
-        public string SalonName { get; set; } = string.Empty;
+        public int ShopId { get; set; }
+        public string ShopName { get; set; } = string.Empty;
 
         // Enhanced properties matching Flutter app
         public string ImageUrl { get; set; } = string.Empty;
@@ -151,7 +151,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs.ServicesDTOs
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string IconUrl { get; set; } = string.Empty;
-        public int SalonId { get; set; }
+        public int ShopId { get; set; }
         public bool IsActive { get; set; }
         public int ServiceCount { get; set; }
         public DateTime CreatedAt { get; set; }

@@ -54,12 +54,12 @@ namespace stibe.api.Controllers
             return Ok(ApiResponse.SuccessResponse($"Hello Admin {userName}! This is an admin-only endpoint"));
         }
 
-        [HttpGet("salon-owner")]
-        [Authorize(Roles = "SalonOwner")]
-        public ActionResult<ApiResponse> SalonOwnerEndpoint()
+        [HttpGet("shop-owner")]
+        [Authorize(Roles = "ShopOwner")]
+        public ActionResult<ApiResponse> ShopOwnerEndpoint()
         {
             var userName = User.Identity?.Name ?? "Unknown";
-            return Ok(ApiResponse.SuccessResponse($"Hello Salon Owner {userName}! This is a salon owner endpoint"));
+            return Ok(ApiResponse.SuccessResponse($"Hello Shop Owner {userName}! This is a shop owner endpoint"));
         }
 
         [HttpGet("customer")]

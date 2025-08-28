@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace stibe.api.Models.DTOs.PartnersDTOs
 {
-    public class CreateSalonRequestDto
+    public class CreateShopRequestDto
     {
         [Required]
         [StringLength(200)]
@@ -46,7 +46,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
 
         // Category and Services properties
         [StringLength(50)]
-        public string? ServiceType { get; set; } // salon, beauty_parlour, spa, barbershop, nail_studio, unisex_salon
+        public string? ServiceType { get; set; } // shop, beauty_parlour, spa, barbershop, nail_studio, unisex_shop
 
         public List<string>? GenderServices { get; set; } // men, women, kids, unisex
 
@@ -77,11 +77,11 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public decimal? CurrentLongitude { get; set; }
         public bool UseCurrentLocation { get; set; }
         public IFormFile? ProfilePicture { get; set; }
-        public List<IFormFile>? SalonImages { get; set; }
+        public List<IFormFile>? ShopImages { get; set; }
     }
 
 
-    public class UpdateSalonRequestDto
+    public class UpdateShopRequestDto
     {
         [StringLength(200)]
         public string? Name { get; set; }
@@ -117,7 +117,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
 
         // Category and Services properties
         [StringLength(50)]
-        public string? ServiceType { get; set; } // salon, beauty_parlour, spa, barbershop, nail_studio, unisex_salon
+        public string? ServiceType { get; set; } // shop, beauty_parlour, spa, barbershop, nail_studio, unisex_shop
 
         public List<string>? GenderServices { get; set; } // men, women, kids, unisex
 
@@ -154,7 +154,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public string ProfilePictureUrl { get; set; } = string.Empty;
         public List<string> ImageUrls { get; set; } = new List<string>();
         public IFormFile? ProfilePictureFile { get; set; }
-        public List<IFormFile>? SalonImages { get; set; }
+        public List<IFormFile>? ShopImages { get; set; }
 
         public IFormFile? ProfilePicture { get; set; }
 
@@ -163,7 +163,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
     }
 
 
-    public class SalonResponseDto
+    public class ShopResponseDto
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
@@ -208,7 +208,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public List<string> ImageUrls { get; set; } = new List<string>();
     }
 
-    public class SalonSearchRequestDto
+    public class ShopSearchRequestDto
     {
         public string? Name { get; set; }
         public string? City { get; set; }
@@ -228,9 +228,9 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public List<string>? Specializations { get; set; }
     }
 
-    public class SalonListResponseDto
+    public class ShopListResponseDto
     {
-        public List<SalonResponseDto> Salons { get; set; } = new List<SalonResponseDto>();
+        public List<ShopResponseDto> Shops { get; set; } = new List<ShopResponseDto>();
         public int TotalCount { get; set; }
         public int Page { get; set; }
         public int PageSize { get; set; }
@@ -240,7 +240,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
     }
 
     // JSON-only version for mobile app (without file uploads)
-    public class CreateSalonJsonRequestDto
+    public class CreateShopJsonRequestDto
     {
         [Required]
         [StringLength(200)]
@@ -283,7 +283,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
 
         // Category and Services properties
         [StringLength(50)]
-        public string? ServiceType { get; set; } // salon, beauty_parlour, spa, barbershop, nail_studio, unisex_salon
+        public string? ServiceType { get; set; } // shop, beauty_parlour, spa, barbershop, nail_studio, unisex_shop
 
         public List<string>? GenderServices { get; set; } // men, women, kids, unisex
 
@@ -329,10 +329,10 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public string Close { get; set; } = "18:00";
     }
 
-    public class SalonBankDetailsDto
+    public class ShopBankDetailsDto
     {
-        public int SalonId { get; set; }
-        public string SalonName { get; set; } = string.Empty;
+        public int ShopId { get; set; }
+        public string ShopName { get; set; } = string.Empty;
         public string? BankAccountNumber { get; set; }
         public string? IFSCCode { get; set; }
         public string? BankName { get; set; }
@@ -343,7 +343,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public DateTime UpdatedAt { get; set; }
     }
 
-    public class UpdateSalonBankDetailsDto
+    public class UpdateShopBankDetailsDto
     {
         [StringLength(20)]
         public string? BankAccountNumber { get; set; }

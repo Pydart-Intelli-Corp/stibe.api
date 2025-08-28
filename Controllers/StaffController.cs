@@ -38,7 +38,7 @@ namespace stibe.api.Controllers
         }
 
         [HttpPost("register")]
-        [Authorize(Roles = "SalonOwner,Admin")]
+        [Authorize(Roles = "ShopOwner,Admin")]
         public async Task<ActionResult<ApiResponse<StaffResponseDto>>> RegisterStaff(StaffRegistrationRequestDto request)
         {
             try
@@ -49,16 +49,16 @@ namespace stibe.api.Controllers
                     return Unauthorized(ApiResponse<StaffResponseDto>.ErrorResponse("Invalid token"));
                 }
 
-                // Verify salon ownership (if not admin)
+                // Verify shop ownership (if not admin)
                 var currentUser = await _context.Users.FindAsync(currentUserId);
                 if (currentUser?.Role != "Admin")
                 {
-                    var salon = await _context.Salons
-                        .FirstOrDefaultAsync(s => s.Id == request.SalonId && s.OwnerId == currentUserId.Value);
+                    var shop = await _context.Shops
+                        .FirstOrDefaultAsync(s => s.Id == request.ShopId && s.OwnerId == currentUserId.Value);
 
-                    if (salon == null)
+                    if (shop == null)
                     {
-                        return Forbid("You can only register staff for your own salon");
+                        return Forbid("You can only register staff for your own shop");
                     }
                 }
 
@@ -97,7 +97,7 @@ namespace stibe.api.Controllers
                         PhoneNumber = request.PhoneNumber,
                         PasswordHash = _passwordService.HashPassword(request.Password),
                         Role = "Staff",
-                        SalonId = request.SalonId,
+                        ShopId = request.ShopId,
                         IsStaffActive = true,
                         StaffJoinDate = DateTime.UtcNow,
                         IsEmailVerified = false
@@ -125,7 +125,7 @@ namespace stibe.api.Controllers
                         HourlyRate = request.HourlyRate,
                         CommissionRate = request.CommissionRate,
                         EmploymentType = request.EmploymentType,
-                        SalonId = request.SalonId,
+                        ShopId = request.ShopId,
                         Certifications = request.Certifications,
                         Languages = request.Languages,
                         InstagramHandle = request.InstagramHandle,
@@ -137,14 +137,14 @@ namespace stibe.api.Controllers
 
                     await transaction.CommitAsync();
 
-                    // Get salon info for both email and response (MOVED OUTSIDE try-catch)
-                    var salonInfo = await _context.Salons.FindAsync(request.SalonId);
+                    // Get shop info for both email and response (MOVED OUTSIDE try-catch)
+                    var shopInfo = await _context.Shops.FindAsync(request.ShopId);
 
                     // Send welcome email (wrap in try-catch to prevent failure)
                     try
                     {
                         var welcomeMessage = $@"
-                    <h2>🎉 Welcome to {salonInfo?.Name ?? "the team"}!</h2>
+                    <h2>🎉 Welcome to {shopInfo?.Name ?? "the team"}!</h2>
                     <p>You've been registered as a <strong>{request.Role}</strong>.</p>
                     
                     <div style='background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;'>
@@ -196,8 +196,8 @@ namespace stibe.api.Controllers
                         AverageRating = staff.AverageRating,
                         TotalReviews = staff.TotalReviews,
                         TotalServices = staff.TotalServices,
-                        SalonId = staff.SalonId,
-                        SalonName = salonInfo?.Name ?? "Unknown Salon", // Now salonInfo is available here
+                        ShopId = staff.ShopId,
+                        ShopName = shopInfo?.Name ?? "Unknown Shop", // Now shopInfo is available here
                         Certifications = staff.Certifications,
                         Languages = staff.Languages,
                         InstagramHandle = staff.InstagramHandle,
@@ -206,7 +206,7 @@ namespace stibe.api.Controllers
                         UpdatedAt = staff.UpdatedAt
                     };
 
-                    _logger.LogInformation($"Staff member registered successfully: {request.Email} for salon {request.SalonId}");
+                    _logger.LogInformation($"Staff member registered successfully: {request.Email} for shop {request.ShopId}");
                     return Ok(ApiResponse<StaffResponseDto>.SuccessResponse(staffResponse,
                         "Staff member registered successfully! Welcome email sent with login details."));
                 }
@@ -231,7 +231,7 @@ namespace stibe.api.Controllers
             {
                 var user = await _context.Users
                     .Include(u => u.StaffProfile)
-                        .ThenInclude(s => s.Salon)
+                        .ThenInclude(s => s.Shop)
                     .FirstOrDefaultAsync(u => u.Email == request.Email && u.Role == "Staff" && !u.IsDeleted);
 
                 if (user == null || !_passwordService.VerifyPassword(request.Password, user.PasswordHash))
@@ -266,9 +266,9 @@ namespace stibe.api.Controllers
                     }
                 };
 
-                _logger.LogInformation($"Staff member logged in: {user.Email} at {user.StaffProfile?.Salon?.Name}");
+                _logger.LogInformation($"Staff member logged in: {user.Email} at {user.StaffProfile?.Shop?.Name}");
                 return Ok(ApiResponse<LoginResponseDto>.SuccessResponse(response,
-                    $"Welcome back! You're now logged in to {user.StaffProfile?.Salon?.Name ?? "your salon"}."));
+                    $"Welcome back! You're now logged in to {user.StaffProfile?.Shop?.Name ?? "your shop"}."));
             }
             catch (Exception ex)
             {
@@ -290,7 +290,7 @@ namespace stibe.api.Controllers
                 }
 
                 var staff = await _context.Staff
-                    .Include(s => s.Salon)
+                    .Include(s => s.Shop)
                     .Include(s => s.User)
                     .FirstOrDefaultAsync(s => s.UserId == currentUserId.Value);
 
@@ -458,13 +458,13 @@ namespace stibe.api.Controllers
                     return NotFound(ApiResponse<StaffSpecializationResponseDto>.ErrorResponse("Staff profile not found"));
                 }
 
-                // Check if service exists and belongs to the same salon
+                // Check if service exists and belongs to the same shop
                 var service = await _context.Services
-                    .FirstOrDefaultAsync(s => s.Id == request.ServiceId && s.SalonId == staff.SalonId);
+                    .FirstOrDefaultAsync(s => s.Id == request.ServiceId && s.ShopId == staff.ShopId);
 
                 if (service == null)
                 {
-                    return BadRequest(ApiResponse<StaffSpecializationResponseDto>.ErrorResponse("Service not found or not available in your salon"));
+                    return BadRequest(ApiResponse<StaffSpecializationResponseDto>.ErrorResponse("Service not found or not available in your shop"));
                 }
 
                 // Check if specialization already exists
@@ -510,10 +510,10 @@ namespace stibe.api.Controllers
             }
         }
 
-        [HttpGet("salon/{salonId}")]
-        [Authorize(Roles = "SalonOwner,Admin")]
-        public async Task<ActionResult<ApiResponse<StaffListResponseDto>>> GetSalonStaff(
-            int salonId,
+        [HttpGet("shop/{shopId}")]
+        [Authorize(Roles = "ShopOwner,Admin")]
+        public async Task<ActionResult<ApiResponse<StaffListResponseDto>>> GetShopStaff(
+            int shopId,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] bool includeInactive = false)
@@ -526,22 +526,22 @@ namespace stibe.api.Controllers
                     return Unauthorized(ApiResponse<StaffListResponseDto>.ErrorResponse("Invalid token"));
                 }
 
-                // Verify salon ownership (if not admin)
+                // Verify shop ownership (if not admin)
                 var currentUser = await _context.Users.FindAsync(currentUserId);
                 if (currentUser?.Role != "Admin")
                 {
-                    var salon = await _context.Salons
-                        .FirstOrDefaultAsync(s => s.Id == salonId && s.OwnerId == currentUserId.Value);
+                    var shop = await _context.Shops
+                        .FirstOrDefaultAsync(s => s.Id == shopId && s.OwnerId == currentUserId.Value);
 
-                    if (salon == null)
+                    if (shop == null)
                     {
-                        return Forbid("You can only view staff for your own salon");
+                        return Forbid("You can only view staff for your own shop");
                     }
                 }
 
                 var query = _context.Staff
-                    .Include(s => s.Salon)
-                    .Where(s => s.SalonId == salonId);
+                    .Include(s => s.Shop)
+                    .Where(s => s.ShopId == shopId);
 
                 if (!includeInactive)
                 {
@@ -577,7 +577,7 @@ namespace stibe.api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting salon staff");
+                _logger.LogError(ex, "Error getting shop staff");
                 return StatusCode(500, ApiResponse<StaffListResponseDto>.ErrorResponse("An error occurred"));
             }
         }
@@ -613,7 +613,7 @@ namespace stibe.api.Controllers
         private async Task<StaffProfileResponseDto?> GetStaffProfileAsync(int staffId)
         {
             var staff = await _context.Staff
-                .Include(s => s.Salon)
+                .Include(s => s.Shop)
                 .Include(s => s.User)
                 .Include(s => s.Specializations)
                     .ThenInclude(sp => sp.Service)
@@ -646,8 +646,8 @@ namespace stibe.api.Controllers
                 AverageRating = staff.AverageRating,
                 TotalReviews = staff.TotalReviews,
                 TotalServices = staff.TotalServices,
-                SalonId = staff.SalonId,
-                SalonName = staff.Salon.Name,
+                ShopId = staff.ShopId,
+                ShopName = staff.Shop.Name,
                 Certifications = staff.Certifications,
                 Languages = staff.Languages,
                 InstagramHandle = staff.InstagramHandle,
@@ -691,8 +691,8 @@ namespace stibe.api.Controllers
                 AverageRating = staff.AverageRating,
                 TotalReviews = staff.TotalReviews,
                 TotalServices = staff.TotalServices,
-                SalonId = staff.SalonId,
-                SalonName = staff.Salon.Name,
+                ShopId = staff.ShopId,
+                ShopName = staff.Shop.Name,
                 Certifications = staff.Certifications,
                 Languages = staff.Languages,
                 InstagramHandle = staff.InstagramHandle,
@@ -706,7 +706,7 @@ namespace stibe.api.Controllers
         private async Task<StaffProfileSummaryDto> GetStaffProfileSummaryAsync(int staffId)
         {
             var staff = await _context.Staff
-                .Include(s => s.Salon)
+                .Include(s => s.Shop)
                 .FirstOrDefaultAsync(s => s.Id == staffId);
 
             if (staff == null)
@@ -722,7 +722,7 @@ namespace stibe.api.Controllers
                 ExperienceYears = staff.ExperienceYears,
                 AverageRating = staff.AverageRating,
                 TotalReviews = staff.TotalReviews,
-                SalonName = staff.Salon.Name,
+                ShopName = staff.Shop.Name,
                 IsOnShift = false, // Will be implemented in Step 4C
                 ShiftStart = staff.StartTime,
                 ShiftEnd = staff.EndTime,
