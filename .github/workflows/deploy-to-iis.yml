@@ -3,7 +3,7 @@ name: Deploy to Remote IIS Website
 on:
   push:
     branches: [ master, main ]
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch: 
 
 env:
   DOTNET_VERSION: '8.0.x'
