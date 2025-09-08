@@ -87,5 +87,32 @@ namespace stibe.api.Controllers
 
             return Ok(ApiResponse.SuccessResponse(claims, "Current user claims"));
         }
+
+        [HttpGet("filesystem")]
+        public ActionResult<ApiResponse> FileSystemCheck()
+        {
+            try
+            {
+                var environment = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
+                
+                var info = new
+                {
+                    WebRootPath = environment.WebRootPath,
+                    ContentRootPath = environment.ContentRootPath,
+                    EnvironmentName = environment.EnvironmentName,
+                    WebRootExists = !string.IsNullOrEmpty(environment.WebRootPath) && Directory.Exists(environment.WebRootPath),
+                    ContentRootExists = Directory.Exists(environment.ContentRootPath),
+                    CurrentDirectory = Directory.GetCurrentDirectory(),
+                    UploadsPath = !string.IsNullOrEmpty(environment.WebRootPath) ? 
+                        Path.Combine(environment.WebRootPath, "uploads", "profile-images") : "WebRootPath is null"
+                };
+
+                return Ok(ApiResponse.SuccessResponse(info, "Filesystem check completed"));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse.ErrorResponse($"Filesystem check failed: {ex.Message}"));
+            }
+        }
     }
 }
