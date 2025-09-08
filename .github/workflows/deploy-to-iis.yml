@@ -204,12 +204,11 @@ jobs:
           
           while [ $attempt -le $max_attempts ]; do
             echo "  Attempt $attempt of $max_attempts..."
-            response=$(curl -s -o /dev/null -w "%{http_code}" "$url" --connect-timeout 10 --max-time 30 || echo "000")
+            response=$(curl -s -o /dev/null -w "%{http_code}" "$url" --connect-timeout 10 --max-time 30 2>/dev/null || echo "000")
             
             if [ "$response" != "000" ]; then
               echo "  ✅ Response: HTTP $response"
-              echo "$response"
-              return
+              return 0
             else
               echo "  ⚠️ No response (attempt $attempt)"
               if [ $attempt -lt $max_attempts ]; then
@@ -220,21 +219,37 @@ jobs:
           done
           
           echo "  ❌ Failed after $max_attempts attempts"
-          echo "000"
+          return 1
         }
         
         # Test health endpoint
-        health_response=$(test_endpoint "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}" "Health Check Endpoint")
+        echo ""
+        echo "🔍 Testing Health Check Endpoint..."
+        if test_endpoint "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}" "Health Check"; then
+          health_response=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}" 2>/dev/null || echo "000")
+          health_success=true
+        else
+          health_response="000"
+          health_success=false
+        fi
         
         # Test root API endpoint
-        root_response=$(test_endpoint "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/test/" "Root API Endpoint")
+        echo ""
+        echo "🔍 Testing Root API Endpoint..."
+        if test_endpoint "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/test/" "Root API"; then
+          root_response=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/test/" 2>/dev/null || echo "000")
+          root_success=true
+        else
+          root_response="000"
+          root_success=false
+        fi
         
         echo ""
         echo "📊 Deployment Results:"
         echo "======================"
         
         # Evaluate health check
-        if [ "$health_response" = "200" ]; then
+        if [ "$health_success" = true ] && [ "$health_response" = "200" ]; then
           echo "✅ Health Check: SUCCESS (HTTP $health_response)"
           health_status="✅ HEALTHY"
         elif [ "$health_response" = "404" ]; then
@@ -249,7 +264,7 @@ jobs:
         fi
         
         # Evaluate root endpoint
-        if [ "$root_response" = "200" ] || [ "$root_response" = "404" ] || [ "$root_response" = "302" ]; then
+        if [ "$root_success" = true ] && ([ "$root_response" = "200" ] || [ "$root_response" = "404" ] || [ "$root_response" = "302" ]); then
           echo "✅ Root Endpoint: ACCESSIBLE (HTTP $root_response)"
           root_status="✅ ACCESSIBLE"
         elif [ "$root_response" = "500" ]; then
@@ -265,21 +280,23 @@ jobs:
         echo "=================="
         echo "Server: ${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
         echo "Health Check: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}"
-        echo "Deploy Time: ${{ env.DEPLOY_TIME }}"
-        echo "Migration Status: ${{ env.MIGRATION_STATUS }}"
+        echo "Deploy Time: ${DEPLOY_TIME:-$(date +'%Y%m%d_%H%M%S')}"
+        echo "Migration Status: ${MIGRATION_STATUS:-'Unknown'}"
         echo "Health Status: $health_status"
         echo "Root Status: $root_status"
         
         # Set overall deployment status
-        if [ "$health_response" = "200" ]; then
+        if [ "$health_success" = true ] && [ "$health_response" = "200" ]; then
           echo ""
           echo "🎉 DEPLOYMENT SUCCESSFUL!"
           echo "Your API is live and accessible at: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
+          echo "Health endpoint is working correctly: $health_response"
           exit 0
-        elif [ "$root_response" = "200" ] || [ "$root_response" = "404" ]; then
+        elif [ "$root_success" = true ] && ([ "$root_response" = "200" ] || [ "$root_response" = "404" ]); then
           echo ""
           echo "⚠️ DEPLOYMENT PARTIALLY SUCCESSFUL"
-          echo "Application is deployed but health endpoint may not be configured."
+          echo "Application is deployed and responding (HTTP $root_response)"
+          echo "Health endpoint may not be configured or accessible"
           echo "Manual verification recommended: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
           exit 0
         else
