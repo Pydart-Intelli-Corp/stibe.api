@@ -43,6 +43,18 @@ jobs:
       run: dotnet test --no-restore --verbosity normal --logger trx --results-directory "TestResults"
       continue-on-error: true
       
+    - name: Install Entity Framework Tools
+      run: dotnet tool install --global dotnet-ef
+      
+    - name: Update database with migrations
+      run: |
+        echo "🗄️ Updating database with latest migrations..."
+        dotnet ef database update --verbose
+      env:
+        # Use production connection string from secrets or environment
+        ConnectionStrings__DefaultConnection: ${{ secrets.DATABASE_CONNECTION_STRING }}
+      continue-on-error: false
+      
     - name: Publish application
       run: dotnet publish --configuration Release --output ./publish --no-restore
       

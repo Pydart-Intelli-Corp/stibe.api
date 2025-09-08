@@ -110,7 +110,13 @@ This guide covers deploying the Stibe.API to IIS servers using multiple strategi
    - Ensure all DLL files, web.config, and appsettings.json are uploaded
    - Exclude development files (appsettings.Development.json, .pdb files)
 
-4. **Verify Deployment:**
+4. **Update Database (Manual):**
+   - Open terminal in project directory
+   - Install EF tools: `dotnet tool install --global dotnet-ef`
+   - Update database: `dotnet ef database update`
+   - Ensure connection string in appsettings.json points to production database
+
+5. **Verify Deployment:**
    - Wait 30 seconds for IIS to process new files
    - Visit: http://202.164.153.160:85/api/test/health
    - Should return successful health check response
@@ -251,6 +257,13 @@ The repository includes a complete GitHub Actions workflow at `.github/workflows
    - Add these secrets:
      - `FTP_USERNAME`: test
      - `FTP_PASSWORD`: Access$404
+     - `DATABASE_CONNECTION_STRING`: Your production database connection string
+
+**Database Connection String Format:**
+```
+Server=your-db-server;Database=StibeDB;Uid=username;Pwd=password;
+```
+For MySQL, or adjust accordingly for SQL Server or other database providers.
 
 **Deployment Process:**
 1. **Build Phase:**
@@ -259,6 +272,8 @@ The repository includes a complete GitHub Actions workflow at `.github/workflows
    - Cache NuGet packages for performance
    - Restore dependencies and build in Release mode
    - Run tests (continues even if tests fail)
+   - Install Entity Framework tools globally
+   - Update database with latest migrations
    - Publish application to ./publish directory
 
 2. **Deploy Phase:**
@@ -299,8 +314,10 @@ The repository includes a complete GitHub Actions workflow at `.github/workflows
 
 2. **Setup Dependencies:**
    - Restore NuGet packages: `dotnet restore`
-   - Update database: `dotnet ef database update`
+   - Install EF Core tools: `dotnet tool install --global dotnet-ef`
    - Configure connection strings in appsettings.Development.json
+   - Update database: `dotnet ef database update`
+   - Verify database connection and tables are created
 
 3. **Run Development Server:**
    - Start with: `dotnet run --environment Development`
@@ -362,9 +379,18 @@ The repository includes a complete GitHub Actions workflow at `.github/workflows
 
 **5. GitHub Actions Deployment Failures:**
 - Verify FTP_USERNAME and FTP_PASSWORD secrets are set correctly
+- Check DATABASE_CONNECTION_STRING secret is properly configured
+- Ensure database server is accessible from GitHub Actions runners
 - Check Actions tab for detailed error logs
 - Confirm FTP server allows connections during deployment time
 - Review workflow logs for specific failure points
+
+**6. Database Migration Issues:**
+- Verify database connection string is correct in secrets
+- Ensure database server allows external connections
+- Check that database user has appropriate permissions (CREATE, ALTER, DROP tables)
+- Review Entity Framework migration files for conflicts
+- Confirm target database exists and is accessible
 
 ### Diagnostic Steps
 
@@ -386,6 +412,13 @@ The repository includes a complete GitHub Actions workflow at `.github/workflows
 - Verify appsettings.json has correct configuration
 - Confirm all DLL files are present in /test/ directory
 - Check that appsettings.Development.json is NOT deployed (excluded by workflow)
+
+**Database Connectivity Verification:**
+- Test database connection from server: `telnet database-server 3306` (MySQL) or `telnet database-server 1433` (SQL Server)
+- Verify database tables exist and are up to date
+- Check Entity Framework migration history: `SELECT * FROM __EFMigrationsHistory`
+- Confirm database user permissions allow CREATE, ALTER, DROP operations
+- Review connection string format and credentials
 
 ---
 
