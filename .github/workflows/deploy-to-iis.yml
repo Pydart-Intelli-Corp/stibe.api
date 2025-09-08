@@ -47,12 +47,10 @@ jobs:
       run: dotnet tool install --global dotnet-ef
       
     - name: Update database with migrations
+      if: ${{ secrets.DATABASE_CONNECTION_STRING != '' }}
       run: |
         echo "🗄️ Updating database with latest migrations..."
-        dotnet ef database update --verbose
-      env:
-        # Use production connection string from secrets or environment
-        ConnectionStrings__DefaultConnection: ${{ secrets.DATABASE_CONNECTION_STRING }}
+        dotnet ef database update --verbose --connection "${{ secrets.DATABASE_CONNECTION_STRING }}"
       continue-on-error: false
       
     - name: Publish application

@@ -122,11 +122,26 @@ This guide covers deploying the Stibe.API to IIS servers using multiple strategi
    - Should return successful health check response
    - Test additional endpoints as needed
 
-**🤖 Automated Deployment (GitHub Actions):**
-- Push code to master branch triggers automatic deployment
-- Uses existing `.github/workflows/deploy-to-iis.yml`
-- Includes automated testing and health checks
-- Provides comprehensive deployment reports
+### Database Management Options
+
+**Option A: Automatic Migration (Recommended for Development)**
+- Set `DATABASE_CONNECTION_STRING` secret in GitHub repository
+- Database will be automatically updated during each deployment
+- Requires database server to be accessible from GitHub Actions runners
+- Best for development and staging environments
+
+**Option B: Manual Migration (Recommended for Production)**
+- Do NOT set `DATABASE_CONNECTION_STRING` secret
+- Deploy application files only
+- Run database migrations manually on server after deployment
+- Better control and security for production environments
+- Use: `dotnet ef database update` on the server
+
+**Database Security Considerations:**
+- GitHub Actions runs from public cloud runners
+- Database server must be accessible from GitHub's IP ranges
+- Consider using VPN or database proxy for sensitive production databases
+- Manual migration provides better security isolation
 
 ### 🤖 **Option 2: GitHub Self-Hosted Runner**
 
@@ -257,13 +272,13 @@ The repository includes a complete GitHub Actions workflow at `.github/workflows
    - Add these secrets:
      - `FTP_USERNAME`: test
      - `FTP_PASSWORD`: Access$404
-     - `DATABASE_CONNECTION_STRING`: Your production database connection string
+     - `DATABASE_CONNECTION_STRING`: (Optional) Your production database connection string
 
-**Database Connection String Format:**
-```
-Server=your-db-server;Database=StibeDB;Uid=username;Pwd=password;
-```
-For MySQL, or adjust accordingly for SQL Server or other database providers.
+**Database Connection String (Optional):**
+- **When to use**: Only if you want automatic database migrations during deployment
+- **Format for MySQL**: `Server=your-db-server;Database=StibeDB;Uid=username;Pwd=password;`
+- **Format for SQL Server**: `Server=your-db-server;Database=StibeDB;Integrated Security=true;` or with credentials
+- **If not provided**: Database migration step will be skipped, and you'll need to run migrations manually
 
 **Deployment Process:**
 1. **Build Phase:**
@@ -273,7 +288,7 @@ For MySQL, or adjust accordingly for SQL Server or other database providers.
    - Restore dependencies and build in Release mode
    - Run tests (continues even if tests fail)
    - Install Entity Framework tools globally
-   - Update database with latest migrations
+   - Update database with latest migrations (if connection string provided)
    - Publish application to ./publish directory
 
 2. **Deploy Phase:**
@@ -387,10 +402,11 @@ For MySQL, or adjust accordingly for SQL Server or other database providers.
 
 **6. Database Migration Issues:**
 - Verify database connection string is correct in secrets
-- Ensure database server allows external connections
+- Ensure database server allows external connections from GitHub runners
 - Check that database user has appropriate permissions (CREATE, ALTER, DROP tables)
 - Review Entity Framework migration files for conflicts
 - Confirm target database exists and is accessible
+- **Alternative**: Skip automatic migrations by not setting DATABASE_CONNECTION_STRING secret, then run migrations manually after deployment
 
 ### Diagnostic Steps
 
