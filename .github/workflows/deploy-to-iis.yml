@@ -64,17 +64,17 @@ jobs:
     - name: Restore dependencies
       run: |
         echo "🔄 Restoring NuGet packages..."
-        dotnet restore --verbosity normal
+        dotnet restore stibe.api.csproj --verbosity normal
       
     - name: Build application
       run: |
         echo "🔨 Building application in ${{ env.BUILD_CONFIGURATION }} mode..."
-        dotnet build --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore --verbosity normal
+        dotnet build stibe.api.csproj --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore --verbosity normal
       
     - name: Run tests (if any)
       run: |
         echo "🧪 Running tests..."
-        dotnet test --no-restore --no-build --configuration ${{ env.BUILD_CONFIGURATION }} --verbosity normal --logger trx --results-directory "TestResults"
+        dotnet test stibe.api.csproj --no-restore --no-build --configuration ${{ env.BUILD_CONFIGURATION }} --verbosity normal --logger trx --results-directory "TestResults"
       continue-on-error: true
       
     - name: Install Entity Framework Tools
@@ -85,7 +85,7 @@ jobs:
         echo "🗄️ Updating database with latest migrations..."
         if [ -n "$DATABASE_CONNECTION_STRING" ]; then
           echo "Database connection string provided, running migrations..."
-          dotnet ef database update --verbose --connection "$DATABASE_CONNECTION_STRING"
+          dotnet ef database update --verbose --connection "$DATABASE_CONNECTION_STRING" --project stibe.api.csproj
           echo "MIGRATION_STATUS=✅ COMPLETED" >> $GITHUB_ENV
           echo "MIGRATION_MESSAGE=Database updated with latest migrations" >> $GITHUB_ENV
         else
@@ -101,12 +101,12 @@ jobs:
     - name: Publish application
       run: |
         echo "📦 Publishing application for deployment..."
-        dotnet publish --configuration ${{ env.BUILD_CONFIGURATION }} \
+        dotnet publish stibe.api.csproj \
+          --configuration ${{ env.BUILD_CONFIGURATION }} \
           --output ${{ env.PUBLISH_OUTPUT }} \
           --no-restore \
           --no-build \
           --self-contained false \
-          --runtime win-x64 \
           --verbosity normal
         
         echo "📁 Verifying published files..."
