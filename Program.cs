@@ -15,8 +15,6 @@ using stibe.api.Services.Implementations.SecurityServices;
 using stibe.api.Services.Implementations.PartnerServices.StaffServices;
 using stibe.api.Services.Implementations.FileService;
 using Microsoft.Extensions.FileProviders;
-using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.Server.IIS;
 using Serilog;
 
 // Configure Serilog early
@@ -44,19 +42,6 @@ builder.Host.UseSerilog();
 
 // Add services to the container.
 builder.Services.AddControllers();
-
-// Configure request size limits for file uploads
-builder.Services.Configure<IISServerOptions>(options =>
-{
-    options.MaxRequestBodySize = 52428800; // 50MB
-});
-
-builder.Services.Configure<FormOptions>(options =>
-{
-    options.ValueLengthLimit = int.MaxValue;
-    options.MultipartBodyLengthLimit = 52428800; // 50MB
-    options.MultipartHeadersLengthLimit = int.MaxValue;
-});
 
 // Configure Entity Framework with MySQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -219,78 +204,15 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-// Configure file upload directories with proper error handling
-try
-{
-    var environment = app.Services.GetRequiredService<IWebHostEnvironment>();
-    var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    
-    // Ensure WebRootPath is set
-    if (string.IsNullOrEmpty(environment.WebRootPath))
-    {
-        var contentRoot = environment.ContentRootPath;
-        environment.WebRootPath = Path.Combine(contentRoot, "wwwroot");
-        logger.LogInformation("WebRootPath set to: {WebRootPath}", environment.WebRootPath);
-    }
-    
-    var wwwrootPath = environment.WebRootPath;
-    var uploadsPath = Path.Combine(wwwrootPath, "uploads");
-    var profileImagesPath = Path.Combine(uploadsPath, "profile-images");
-    
-    // Create directories with error handling
-    if (!Directory.Exists(wwwrootPath))
-    {
-        Directory.CreateDirectory(wwwrootPath);
-        logger.LogInformation("Created wwwroot directory: {Path}", wwwrootPath);
-    }
-    
-    if (!Directory.Exists(uploadsPath))
-    {
-        Directory.CreateDirectory(uploadsPath);
-        logger.LogInformation("Created uploads directory: {Path}", uploadsPath);
-    }
-    
-    if (!Directory.Exists(profileImagesPath))
-    {
-        Directory.CreateDirectory(profileImagesPath);
-        logger.LogInformation("Created profile-images directory: {Path}", profileImagesPath);
-    }
-    
-    // Test write permissions
-    var testFile = Path.Combine(profileImagesPath, "test.txt");
-    try
-    {
-        await File.WriteAllTextAsync(testFile, "test");
-        File.Delete(testFile);
-        logger.LogInformation("✅ Write permissions verified for uploads directory");
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "❌ No write permissions for uploads directory: {Path}", profileImagesPath);
-    }
-    
-    logger.LogInformation("File upload configuration completed successfully");
-}
-catch (Exception ex)
-{
-    var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "Failed to configure file upload directories");
-}
-
-// Configure static files
+var wwwrootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+var uploadsPath = Path.Combine(wwwrootPath, "uploads");
+Directory.CreateDirectory(wwwrootPath);
+Directory.CreateDirectory(uploadsPath);
 app.UseStaticFiles(); // Default static files
-
-// Add explicit static file configuration for uploads
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(Path.Combine(app.Environment.WebRootPath ?? Directory.GetCurrentDirectory(), "wwwroot", "uploads")),
-    RequestPath = "/uploads",
-    OnPrepareResponse = ctx =>
-    {
-        // Add cache headers for uploaded images
-        ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=86400"); // 1 day
-    }
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads"
 });
 app.MapGet("/", context => {
     context.Response.Redirect("/index.html");

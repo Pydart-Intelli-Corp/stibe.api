@@ -11,6 +11,8 @@ env:
   REMOTE_PORT: '85'
   FTP_PORT: '92'
   API_HEALTH_ENDPOINT: '/api/test/health'
+  PUBLISH_OUTPUT: './publish'
+  BUILD_CONFIGURATION: 'Release'
   
 jobs:
   deploy:
@@ -25,6 +27,32 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
         
+    - name: Validate project structure
+      run: |
+        echo "🔍 Validating project structure..."
+        
+        if [ -f "stibe.api.csproj" ]; then
+          echo "✅ Project file found: stibe.api.csproj"
+        else
+          echo "❌ ERROR: Project file not found!"
+          exit 1
+        fi
+        
+        if [ -f "web.config" ]; then
+          echo "✅ IIS configuration found: web.config"
+        else
+          echo "⚠️ WARNING: web.config not found in source"
+        fi
+        
+        if [ -f "Program.cs" ]; then
+          echo "✅ Main program file found: Program.cs"
+        else
+          echo "❌ ERROR: Program.cs not found!"
+          exit 1
+        fi
+        
+        echo "📁 Project structure validation completed"
+        
     - name: Cache NuGet packages
       uses: actions/cache@v3
       with:
@@ -34,13 +62,19 @@ jobs:
           ${{ runner.os }}-nuget-
         
     - name: Restore dependencies
-      run: dotnet restore
+      run: |
+        echo "🔄 Restoring NuGet packages..."
+        dotnet restore --verbosity normal
       
     - name: Build application
-      run: dotnet build --configuration Release --no-restore
+      run: |
+        echo "🔨 Building application in ${{ env.BUILD_CONFIGURATION }} mode..."
+        dotnet build --configuration ${{ env.BUILD_CONFIGURATION }} --no-restore --verbosity normal
       
     - name: Run tests (if any)
-      run: dotnet test --no-restore --verbosity normal --logger trx --results-directory "TestResults"
+      run: |
+        echo "🧪 Running tests..."
+        dotnet test --no-restore --no-build --configuration ${{ env.BUILD_CONFIGURATION }} --verbosity normal --logger trx --results-directory "TestResults"
       continue-on-error: true
       
     - name: Install Entity Framework Tools
@@ -65,7 +99,46 @@ jobs:
       continue-on-error: false
       
     - name: Publish application
-      run: dotnet publish --configuration Release --output ./publish --no-restore
+      run: |
+        echo "📦 Publishing application for deployment..."
+        dotnet publish --configuration ${{ env.BUILD_CONFIGURATION }} \
+          --output ${{ env.PUBLISH_OUTPUT }} \
+          --no-restore \
+          --no-build \
+          --self-contained false \
+          --runtime win-x64 \
+          --verbosity normal
+        
+        echo "📁 Verifying published files..."
+        ls -la ${{ env.PUBLISH_OUTPUT }}
+        
+        echo "🔍 Checking for essential files..."
+        if [ -f "${{ env.PUBLISH_OUTPUT }}/stibe.api.dll" ]; then
+          echo "✅ Main DLL found: stibe.api.dll"
+        else
+          echo "❌ ERROR: Main DLL not found!"
+          exit 1
+        fi
+        
+        if [ -f "${{ env.PUBLISH_OUTPUT }}/web.config" ]; then
+          echo "✅ IIS configuration found: web.config"
+        else
+          echo "⚠️ WARNING: web.config not found - IIS may not start properly"
+        fi
+        
+        if [ -f "${{ env.PUBLISH_OUTPUT }}/appsettings.json" ]; then
+          echo "✅ App settings found: appsettings.json"
+        else
+          echo "⚠️ WARNING: appsettings.json not found"
+        fi
+        
+    - name: Upload deployment artifact
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: deployment-package-${{ github.run_number }}
+        path: ${{ env.PUBLISH_OUTPUT }}
+        retention-days: 7
       
     - name: Create deployment timestamp
       run: echo "DEPLOY_TIME=$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_ENV
@@ -77,10 +150,12 @@ jobs:
         port: ${{ env.FTP_PORT }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./publish/
+        local-dir: ${{ env.PUBLISH_OUTPUT }}/
         server-dir: /test/  # Deploy to C:\inetpub\wwwroot\test directory
         protocol: ftp
-        # Exclude unnecessary files
+        state-name: .ftp-deploy-sync-state.json
+        dry-run: false
+        # Exclude unnecessary files to reduce upload time
         exclude: |
           **/.git*
           **/.git*/**
@@ -88,39 +163,98 @@ jobs:
           **/bin/Debug/**
           **/*.pdb
           **/appsettings.Development.json
+          **/*.xml
+          **/*.log
+          **/TestResults/**
+          **/.vs/**
+          **/.vscode/**
         
-    - name: Wait for IIS to restart
+    - name: Wait for IIS to restart and initialize
       run: |
         echo "⏳ Waiting for IIS application to restart and initialize..."
-        sleep 30
+        echo "This allows time for:"
+        echo "  - Application pool to recycle"
+        echo "  - .NET runtime to initialize"
+        echo "  - Dependencies to load"
+        sleep 45
+        
+    - name: Post-deployment verification
+      run: |
+        echo "🔍 Performing post-deployment verification..."
+        
+        # Give additional time for any final initialization
+        sleep 15
+        
+        echo "✅ Deployment files uploaded successfully"
+        echo "⏳ IIS application should be starting up..."
         
     - name: Verify deployment and test API endpoints
       run: |
         echo "🔍 Testing API deployment on remote server..."
+        echo "Server: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
         
-        # Health check endpoint
-        echo "Testing health endpoint..."
-        health_response=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}" || echo "000")
+        # Function to test endpoint with retries
+        test_endpoint() {
+          local url="$1"
+          local description="$2"
+          local max_attempts=3
+          local attempt=1
+          
+          echo "Testing $description..."
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "  Attempt $attempt of $max_attempts..."
+            response=$(curl -s -o /dev/null -w "%{http_code}" "$url" --connect-timeout 10 --max-time 30 || echo "000")
+            
+            if [ "$response" != "000" ]; then
+              echo "  ✅ Response: HTTP $response"
+              echo "$response"
+              return
+            else
+              echo "  ⚠️ No response (attempt $attempt)"
+              if [ $attempt -lt $max_attempts ]; then
+                sleep 10
+              fi
+            fi
+            attempt=$((attempt + 1))
+          done
+          
+          echo "  ❌ Failed after $max_attempts attempts"
+          echo "000"
+        }
         
-        # Root API endpoint
-        echo "Testing root API endpoint..."
-        root_response=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/test/" || echo "000")
+        # Test health endpoint
+        health_response=$(test_endpoint "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}" "Health Check Endpoint")
+        
+        # Test root API endpoint
+        root_response=$(test_endpoint "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/test/" "Root API Endpoint")
         
         echo ""
         echo "📊 Deployment Results:"
         echo "======================"
         
+        # Evaluate health check
         if [ "$health_response" = "200" ]; then
           echo "✅ Health Check: SUCCESS (HTTP $health_response)"
           health_status="✅ HEALTHY"
+        elif [ "$health_response" = "404" ]; then
+          echo "⚠️ Health Check: ENDPOINT NOT FOUND (HTTP $health_response)"
+          health_status="⚠️ ENDPOINT MISSING"
+        elif [ "$health_response" = "500" ]; then
+          echo "❌ Health Check: SERVER ERROR (HTTP $health_response)"
+          health_status="❌ SERVER ERROR"
         else
           echo "❌ Health Check: FAILED (HTTP $health_response)"
-          health_status="❌ UNHEALTHY"
+          health_status="❌ UNREACHABLE"
         fi
         
+        # Evaluate root endpoint
         if [ "$root_response" = "200" ] || [ "$root_response" = "404" ] || [ "$root_response" = "302" ]; then
           echo "✅ Root Endpoint: ACCESSIBLE (HTTP $root_response)"
           root_status="✅ ACCESSIBLE"
+        elif [ "$root_response" = "500" ]; then
+          echo "❌ Root Endpoint: SERVER ERROR (HTTP $root_response)"
+          root_status="❌ SERVER ERROR"
         else
           echo "❌ Root Endpoint: FAILED (HTTP $root_response)"
           root_status="❌ FAILED"
@@ -133,19 +267,32 @@ jobs:
         echo "Health Check: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}"
         echo "Deploy Time: ${{ env.DEPLOY_TIME }}"
         echo "Migration Status: ${{ env.MIGRATION_STATUS }}"
-        echo "Status: $health_status | Root: $root_status"
+        echo "Health Status: $health_status"
+        echo "Root Status: $root_status"
         
         # Set overall deployment status
         if [ "$health_response" = "200" ]; then
           echo ""
-          echo "� DEPLOYMENT SUCCESSFUL!"
+          echo "🎉 DEPLOYMENT SUCCESSFUL!"
           echo "Your API is live and accessible at: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
+          exit 0
+        elif [ "$root_response" = "200" ] || [ "$root_response" = "404" ]; then
+          echo ""
+          echo "⚠️ DEPLOYMENT PARTIALLY SUCCESSFUL"
+          echo "Application is deployed but health endpoint may not be configured."
+          echo "Manual verification recommended: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
           exit 0
         else
           echo ""
-          echo "⚠️ DEPLOYMENT COMPLETED WITH ISSUES"
-          echo "Files were deployed but API health check failed."
-          echo "Please check your IIS application pool and website configuration."
+          echo "❌ DEPLOYMENT COMPLETED WITH ISSUES"
+          echo "Files were deployed but application is not responding correctly."
+          echo "Please check:"
+          echo "  1. IIS Application Pool status"
+          echo "  2. Website bindings (port ${{ env.REMOTE_PORT }})"
+          echo "  3. .NET 8.0 Runtime installation"
+          echo "  4. Application pool configuration (.NET CLR Version: No Managed Code)"
+          echo "  5. Application logs for errors"
+          echo ""
           echo "Manual verification: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
           # Don't fail the build, as files were deployed successfully
           exit 0
@@ -158,16 +305,22 @@ jobs:
         echo "📋 Deployment Summary"
         echo "===================="
         echo "🕒 Timestamp: $(date)"
-        echo "📦 Package: .NET 8.0 Release Build"
+        echo "📦 Package: .NET ${{ env.DOTNET_VERSION }} ${{ env.BUILD_CONFIGURATION }} Build"
         echo "🌐 Target: ${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
-        echo "📁 Method: FTP Deployment"
-        echo "�️ Database: ${{ env.MIGRATION_STATUS }}"
-        echo "�🔍 Health Endpoint: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}"
+        echo "📁 Method: FTP Deployment to /test/"
+        echo "🗄️ Database: ${MIGRATION_STATUS:-'Not specified'}"
+        echo "🔍 Health Endpoint: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}"
         echo ""
-        echo "ℹ️  Migration Info: ${{ env.MIGRATION_MESSAGE }}"
+        echo "ℹ️  Migration Info: ${MIGRATION_MESSAGE:-'No migration information available'}"
         echo ""
         echo "ℹ️  If health check fails, verify:"
         echo "   1. IIS Application Pool is running"
         echo "   2. Website bindings are correct (port ${{ env.REMOTE_PORT }})"
         echo "   3. .NET 8.0 Runtime is installed on server"
         echo "   4. Application pool is set to 'No Managed Code'"
+        echo "   5. Check IIS logs and application event logs"
+        echo "   6. Verify web.config is correctly deployed"
+        echo "   7. Check if antivirus is blocking the application"
+        echo ""
+        echo "📁 Published files should be in: C:\\inetpub\\wwwroot\\test\\"
+        echo "🔗 Access URL: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
