@@ -110,8 +110,18 @@ Update `appsettings.json` with your settings:
 - **Services & Business Logic** - Service layer architecture and implementations
 - **Configuration System** - Environment setup and feature flags
 - **Database & Migrations** - Entity Framework setup and database management
-- **Deployment Guide** - Production setup, Docker, and hosting instructions
 - **Testing & Quality** - Unit testing, integration testing, and best practices
+
+### 🚀 **Deployment & Setup**
+**[docs/DEPLOYMENT_GUIDE.md](./docs/DEPLOYMENT_GUIDE.md)** - Comprehensive deployment guide covering:
+- **Multiple Deployment Strategies** - FTP, GitHub Actions, Self-hosted runners, Web Deploy
+- **IIS Configuration** - Complete server setup and configuration
+- **Security Configuration** - Production security best practices
+- **Troubleshooting** - Common issues and diagnostic procedures
+- **Local Development** - Development environment setup
+
+### 🔧 **Specialized Documentation**
+**[OTP_SERVICE_DOCUMENTATION.md](./OTP_SERVICE_DOCUMENTATION.md)** - OTP service implementation and usage guide
 
 ### 📊 **Documentation Quality**
 - **Complete Coverage**: Every controller, service, and entity documented
@@ -282,8 +292,10 @@ We welcome contributions that maintain our professional standards:
 
 ## 📞 **Support & Resources**
 
-- **📚 Complete Documentation**: [COMPREHENSIVE_API_DOCUMENTATION.md](./COMPREHENSIVE_API_DOCUMENTATION.md)
-- **🔧 API Testing**: Swagger UI at `/swagger` endpoint
+- **📚 Complete Technical Documentation**: [COMPREHENSIVE_API_DOCUMENTATION.md](./COMPREHENSIVE_API_DOCUMENTATION.md)
+- **� Deployment & Setup Guide**: [docs/DEPLOYMENT_GUIDE.md](./docs/DEPLOYMENT_GUIDE.md)
+- **�🔧 OTP Service Guide**: [OTP_SERVICE_DOCUMENTATION.md](./OTP_SERVICE_DOCUMENTATION.md)
+- **🔬 API Testing**: Swagger UI at `/swagger` endpoint
 - **🐛 Issues**: GitHub Issues for bug reports
 - **💼 Enterprise Support**: Available for production deployments
 
