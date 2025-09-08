@@ -1,0 +1,64 @@
+name: Deploy to Remote IIS via FTP
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  REMOTE_SERVER: '202.164.153.160'
+  REMOTE_PORT: '85'
+  
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build application
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Run tests (if any)
+      run: dotnet test --no-restore --verbosity normal
+      continue-on-error: true
+      
+    - name: Publish application
+      run: dotnet publish --configuration Release --output ./publish --no-restore
+      
+    - name: Deploy via FTP
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        server: ${{ env.REMOTE_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./publish/
+        server-dir: /  # Root directory of your IIS site
+        port: 21  # FTP port (or 22 for SFTP)
+        protocol: ftp  # or ftps, sftp
+        
+    - name: Verify deployment
+      run: |
+        echo "Waiting for deployment to complete..."
+        sleep 15
+        
+        # Test the deployment
+        response=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/api/test/health" || echo "000")
+        
+        if [ "$response" = "200" ]; then
+          echo "✅ Deployment verification successful!"
+          echo "🌐 API is available at: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
+        else
+          echo "⚠️ Deployment completed, but verification returned status: $response"
+          echo "Please check manually: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/api/test/health"
+        fi

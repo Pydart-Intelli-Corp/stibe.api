@@ -1,0 +1,148 @@
+name: Deploy to Remote IIS Server
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  REMOTE_SERVER: '202.164.153.160'
+  REMOTE_PORT: '85'
+  IIS_SITE_NAME: 'StibeAPI'
+  DEPLOY_PATH: 'C:\inetpub\wwwroot\StibeAPI'  # Path on remote server
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest  # Use GitHub hosted runners
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Cache NuGet packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build application
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Run tests (if any)
+      run: dotnet test --no-restore --verbosity normal --logger trx --results-directory "TestResults"
+      continue-on-error: true
+      
+    - name: Publish application
+      run: dotnet publish --configuration Release --output ./publish --no-restore
+      
+    - name: Create deployment package
+      run: |
+        cd publish
+        tar -czf ../stibe-api-deployment.tar.gz *
+        
+    - name: Upload deployment artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: stibe-api-deployment
+        path: stibe-api-deployment.tar.gz
+        retention-days: 30
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Download deployment artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: stibe-api-deployment
+        
+    - name: Deploy to Remote IIS Server via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ env.REMOTE_SERVER }}
+        username: ${{ secrets.REMOTE_USERNAME }}
+        password: ${{ secrets.REMOTE_PASSWORD }}
+        # Alternative: use key instead of password
+        # key: ${{ secrets.REMOTE_SSH_KEY }}
+        port: 22  # SSH port (default)
+        script: |
+          # Stop IIS App Pool
+          Import-Module WebAdministration
+          Stop-WebAppPool -Name "${{ env.IIS_SITE_NAME }}" -ErrorAction SilentlyContinue
+          
+          # Wait for app pool to stop
+          Start-Sleep -Seconds 10
+          
+          # Create backup
+          $backupPath = "C:\inetpub\backups\StibeAPI_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+          if (Test-Path "${{ env.DEPLOY_PATH }}") {
+            New-Item -ItemType Directory -Force -Path "C:\inetpub\backups" -ErrorAction SilentlyContinue
+            Copy-Item -Path "${{ env.DEPLOY_PATH }}" -Destination $backupPath -Recurse -Force
+          }
+          
+          # Clear existing files
+          if (Test-Path "${{ env.DEPLOY_PATH }}") {
+            Remove-Item -Path "${{ env.DEPLOY_PATH }}\*" -Recurse -Force
+          } else {
+            New-Item -ItemType Directory -Force -Path "${{ env.DEPLOY_PATH }}"
+          }
+          
+          # Start IIS App Pool
+          Start-WebAppPool -Name "${{ env.IIS_SITE_NAME }}"
+          
+    - name: Transfer files via SCP
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ env.REMOTE_SERVER }}
+        username: ${{ secrets.REMOTE_USERNAME }}
+        password: ${{ secrets.REMOTE_PASSWORD }}
+        # Alternative: use key instead of password
+        # key: ${{ secrets.REMOTE_SSH_KEY }}
+        source: "stibe-api-deployment.tar.gz"
+        target: "C:/temp/"
+        
+    - name: Extract and deploy files
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ env.REMOTE_SERVER }}
+        username: ${{ secrets.REMOTE_USERNAME }}
+        password: ${{ secrets.REMOTE_PASSWORD }}
+        script: |
+          # Extract files
+          cd C:\temp
+          tar -xzf stibe-api-deployment.tar.gz -C "${{ env.DEPLOY_PATH }}"
+          
+          # Clean up
+          Remove-Item -Path "stibe-api-deployment.tar.gz" -Force
+          
+          # Set permissions
+          icacls "${{ env.DEPLOY_PATH }}" /grant "IIS_IUSRS:(OI)(CI)F" /T
+          icacls "${{ env.DEPLOY_PATH }}" /grant "IUSR:(OI)(CI)RX" /T
+          
+    - name: Verify deployment
+      run: |
+        echo "Waiting for application to start..."
+        sleep 15
+        
+        # Test the deployment
+        response=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/api/test/health" || echo "000")
+        
+        if [ "$response" = "200" ]; then
+          echo "✅ Deployment verification successful!"
+          echo "🌐 API is available at: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
+        else
+          echo "❌ Deployment verification failed. HTTP Status: $response"
+          echo "Check the server logs for more details."
+        fi

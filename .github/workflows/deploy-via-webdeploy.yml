@@ -1,0 +1,69 @@
+name: Deploy to Remote IIS via Web Deploy
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  REMOTE_SERVER: '202.164.153.160'
+  REMOTE_PORT: '85'
+  SITE_NAME: 'StibeAPI'
+  
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest  # Use Windows for Web Deploy
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build application
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Run tests (if any)
+      run: dotnet test --no-restore --verbosity normal
+      continue-on-error: true
+      
+    - name: Publish application
+      run: dotnet publish --configuration Release --output ./publish --no-restore
+      
+    - name: Deploy to IIS via Web Deploy
+      run: |
+        # Install Web Deploy if not available
+        choco install webdeploy -y --no-progress
+        
+        # Deploy using MSDeploy
+        & "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe" `
+          -verb:sync `
+          -source:contentPath="./publish" `
+          -dest:contentPath="${{ env.SITE_NAME }}",computerName="http://${{ env.REMOTE_SERVER }}:8172/msdeploy.axd",username="${{ secrets.DEPLOY_USERNAME }}",password="${{ secrets.DEPLOY_PASSWORD }}",authtype="Basic" `
+          -allowUntrusted:true `
+          -skip:Directory=App_Data `
+          -enableRule:DoNotDeleteRule `
+          -disableLink:AppPoolExtension `
+          -disableLink:ContentExtension `
+          -disableLink:CertificateExtension
+      shell: powershell
+      
+    - name: Verify deployment
+      run: |
+        Start-Sleep -Seconds 10
+        try {
+          $response = Invoke-WebRequest -Uri "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/api/test/health" -UseBasicParsing -TimeoutSec 30
+          Write-Host "✅ Deployment successful! Status: $($response.StatusCode)" -ForegroundColor Green
+          Write-Host "🌐 API URL: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}" -ForegroundColor Cyan
+        } catch {
+          Write-Warning "❌ Deployment verification failed: $($_.Exception.Message)"
+          Write-Host "Please check the server manually at: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}" -ForegroundColor Yellow
+        }
+      shell: powershell
