@@ -25,6 +25,10 @@ Log.Logger = new LoggerConfiguration()
         retainedFileCountLimit: 7,
         shared: true,
         flushToDiskInterval: TimeSpan.FromSeconds(1))
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
+    .MinimumLevel.Override("System.Net.Http.HttpClient", Serilog.Events.LogEventLevel.Warning)
     .CreateLogger();
 
 try
@@ -215,6 +219,117 @@ app.MapGet("/", context => {
     return Task.CompletedTask;
 });
 app.UseCors("AllowAll");
+
+// Add clean endpoint logging middleware
+app.Use(async (context, next) =>
+{
+    var requestTime = DateTime.UtcNow;
+    var requestId = Guid.NewGuid().ToString("N")[..8];
+    
+    // Only log API endpoints (ignore static files, swagger, etc.)
+    var path = context.Request.Path.Value ?? "";
+    var isApiEndpoint = path.StartsWith("/api/");
+    
+    if (isApiEndpoint)
+    {
+        var method = context.Request.Method;
+        var queryString = context.Request.QueryString.HasValue ? context.Request.QueryString.Value : "";
+        
+        // Determine operation type
+        var operationType = method.ToUpperInvariant() switch
+        {
+            "GET" => "📥 PULL",
+            "POST" => "📤 PUSH", 
+            "PUT" => "📤 PUSH",
+            "PATCH" => "📤 PUSH",
+            "DELETE" => "🗑️ DELETE",
+            _ => "📡 REQUEST"
+        };
+        
+        // Log clean request
+        Log.Information("🚀 [{RequestId}] {OperationType} {Method} {Path}{QueryString}", 
+            requestId, operationType, method, path, queryString);
+    }
+    
+    // Execute the request
+    var originalBodyStream = context.Response.Body;
+    using var responseBody = new MemoryStream();
+    context.Response.Body = responseBody;
+    
+    try
+    {
+        await next(context);
+        
+        if (isApiEndpoint)
+        {
+            // Log clean response with body content
+            var responseTime = DateTime.UtcNow;
+            var duration = (responseTime - requestTime).TotalMilliseconds;
+            var statusCode = context.Response.StatusCode;
+            
+            var statusIcon = statusCode switch
+            {
+                >= 200 and < 300 => "✅",
+                >= 300 and < 400 => "🔄",
+                >= 400 and < 500 => "⚠️",
+                >= 500 => "❌",
+                _ => "❓"
+            };
+            
+            var operationType = context.Request.Method.ToUpperInvariant() switch
+            {
+                "GET" => "📥 PULL",
+                "POST" => "📤 PUSH", 
+                "PUT" => "📤 PUSH",
+                "PATCH" => "📤 PUSH",
+                "DELETE" => "🗑️ DELETE",
+                _ => "📡 REQUEST"
+            };
+            
+            // Capture response body
+            string responseBodyContent = "";
+            responseBody.Seek(0, SeekOrigin.Begin);
+            using (var reader = new StreamReader(responseBody, leaveOpen: true))
+            {
+                responseBodyContent = await reader.ReadToEndAsync();
+            }
+            responseBody.Seek(0, SeekOrigin.Begin);
+            
+            // Log response with body content
+            if (!string.IsNullOrEmpty(responseBodyContent))
+            {
+                Log.Information("{StatusIcon} [{RequestId}] {OperationType} {StatusCode} | {Duration:F0}ms | Response: {ResponseBody}", 
+                    statusIcon, requestId, operationType, statusCode, duration, responseBodyContent);
+            }
+            else
+            {
+                Log.Information("{StatusIcon} [{RequestId}] {OperationType} {StatusCode} | {Duration:F0}ms", 
+                    statusIcon, requestId, operationType, statusCode, duration);
+            }
+        }
+        
+        // Copy response back to original stream
+        responseBody.Seek(0, SeekOrigin.Begin);
+        await responseBody.CopyToAsync(originalBodyStream);
+    }
+    catch (Exception ex)
+    {
+        if (isApiEndpoint)
+        {
+            var responseTime = DateTime.UtcNow;
+            var duration = (responseTime - requestTime).TotalMilliseconds;
+            
+            Log.Error("💥 [{RequestId}] EXCEPTION: {ExceptionMessage} | {Duration:F0}ms", 
+                requestId, ex.Message, duration);
+        }
+        
+        throw;
+    }
+    finally
+    {
+        context.Response.Body = originalBodyStream;
+    }
+});
 
 app.UseAuthentication();
 app.UseAuthorization();

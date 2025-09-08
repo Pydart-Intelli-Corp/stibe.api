@@ -7,46 +7,61 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f8f9fa;
         }
         .header {
-            background: linear-gradient(135deg, #4A86E8 0%, #6fa8f5 100%);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
             color: white;
             padding: 20px 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .control-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .btn-custom {
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-weight: 500;
+            margin: 2px;
+            transition: all 0.3s ease;
+        }
+        .btn-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         .log-container {
-            background-color: #1e1e1e;
-            border: 1px solid #3e3e42;
-            border-radius: 8px;
-            height: 500px;
+            background: #1e1e1e;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 600px;
             overflow-y: auto;
-            padding: 15px;
-            font-family: 'Courier New', monospace;
+            font-family: 'Consolas', 'Monaco', monospace;
             font-size: 13px;
             line-height: 1.4;
-            color: #d4d4d4;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
         .log-line {
-            margin-bottom: 3px;
+            color: #ffffff;
+            margin: 2px 0;
+            padding: 4px 8px;
+            border-radius: 4px;
             word-wrap: break-word;
-            padding: 2px 0;
         }
         .log-error {
             color: #ff6b6b;
             background-color: rgba(255, 107, 107, 0.1);
-            padding: 2px 4px;
-            border-radius: 3px;
         }
         .log-warning {
             color: #ffd93d;
             background-color: rgba(255, 217, 61, 0.1);
-            padding: 2px 4px;
-            border-radius: 3px;
-        }
-        .log-info {
-            color: #74c0fc;
         }
         .log-success {
             color: #69db7c;
@@ -56,6 +71,15 @@
             background-color: rgba(218, 119, 242, 0.1);
             padding: 2px 4px;
             border-radius: 3px;
+        }
+        .live-indicator {
+            animation: pulse 2s infinite;
+            color: #dc3545;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
         .status-badge {
             padding: 4px 12px;
@@ -80,33 +104,18 @@
             margin-bottom: 20px;
         }
         .stats-value {
-            font-size: 28px;
+            font-size: 2rem;
             font-weight: bold;
-            color: #4A86E8;
+            color: #495057;
         }
         .stats-label {
             color: #6c757d;
-            font-size: 14px;
+            font-size: 0.9rem;
             margin-top: 5px;
         }
-        .control-panel {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-        }
-        .btn-custom {
-            margin: 2px;
-            border-radius: 6px;
-        }
-        .auto-refresh-active {
-            background-color: #dc3545 !important;
-            border-color: #dc3545 !important;
-        }
         .timestamp {
-            color: #868e96;
-            font-size: 11px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.8);
         }
     </style>
 </head>
@@ -116,7 +125,7 @@
             <div class="row align-items-center">
                 <div class="col-md-8">
                     <h1 class="mb-0">🔍 Stibe API - Live Logs Monitor</h1>
-                    <p class="mb-0">Real-time monitoring for http://202.164.153.160:85</p>
+                    <p class="mb-0" id="serverUrl">Real-time monitoring for this server</p>
                 </div>
                 <div class="col-md-4 text-end">
                     <div class="timestamp" id="serverTime">Loading...</div>
@@ -143,27 +152,30 @@
             </div>
             <div class="col-md-3">
                 <div class="stats-card">
-                    <div class="stats-value" id="uploadLogs">0</div>
-                    <div class="stats-label">Upload Logs</div>
+                    <div class="stats-value" id="pushCount">0</div>
+                    <div class="stats-label">📤 Push Ops</div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stats-card">
-                    <div class="stats-value" id="lastUpdate">Never</div>
-                    <div class="stats-label">Last Update</div>
+                    <div class="stats-value" id="pullCount">0</div>
+                    <div class="stats-label">📥 Pull Ops</div>
                 </div>
             </div>
         </div>
 
         <!-- Control Panel -->
         <div class="control-panel">
-            <div class="row align-items-center">
+            <div class="row align-items-center mb-3">
                 <div class="col-md-8">
-                    <button class="btn btn-primary btn-custom" onclick="refreshLogs()">🔄 Refresh Logs</button>
-                    <button class="btn btn-info btn-custom" onclick="getProfileLogs()">🖼️ Profile Upload Logs</button>
-                    <button class="btn btn-secondary btn-custom" onclick="getSystemInfo()">ℹ️ System Info</button>
-                    <button class="btn btn-warning btn-custom" onclick="clearLogs()">🗑️ Clear Display</button>
-                    <button class="btn btn-success btn-custom" onclick="toggleAutoRefresh()" id="autoRefreshBtn">▶️ Auto-Refresh</button>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-primary btn-custom" onclick="refreshLogs()">🔄 All Logs</button>
+                        <button class="btn btn-outline-primary btn-custom" onclick="getLastLog()">📄 Last Log</button>
+                        <button class="btn btn-success btn-custom" onclick="getPushLogs()">📤 Push Operations</button>
+                        <button class="btn btn-info btn-custom" onclick="getPullLogs()">📥 Pull Operations</button>
+                        <button class="btn btn-warning btn-custom" onclick="getProfileLogs()">🖼️ Profile Uploads</button>
+                        <button class="btn btn-danger btn-custom" onclick="toggleLiveStream()" id="liveStreamBtn">📡 Start Live Stream</button>
+                    </div>
                 </div>
                 <div class="col-md-4">
                     <select id="logLines" class="form-select">
@@ -174,14 +186,26 @@
                     </select>
                 </div>
             </div>
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-secondary btn-custom" onclick="getSystemInfo()">ℹ️ System Info</button>
+                        <button class="btn btn-dark btn-custom" onclick="clearLogs()">🗑️ Clear Display</button>
+                        <button class="btn btn-outline-success btn-custom" onclick="toggleAutoRefresh()" id="autoRefreshBtn">▶️ Auto-Refresh</button>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <input type="text" id="logFilter" class="form-control" placeholder="Filter logs..." onkeyup="handleFilterInput(event)">
+                </div>
+            </div>
         </div>
 
         <!-- Log Display -->
         <div class="log-container" id="logContainer">
             <div class="log-line log-info">🚀 Stibe API Log Monitor Ready</div>
-            <div class="log-line log-info">📡 Server: http://202.164.153.160:85</div>
+            <div class="log-line log-info">📡 Server: Dynamic URL Detection</div>
             <div class="log-line log-info">⏰ Initialized at: <span id="initTime"></span></div>
-            <div class="log-line log-warning">👆 Click "Refresh Logs" to load recent logs</div>
+            <div class="log-line log-warning">👆 Click "🔄 All Logs" or "📄 Last Log" to load recent logs</div>
         </div>
 
         <!-- Footer -->
@@ -198,11 +222,13 @@
     <script>
         let autoRefreshInterval = null;
         let isAutoRefreshing = false;
+        let eventSource = null;
+        let isLiveStreaming = false;
         let totalLogCount = 0;
         let errorLogCount = 0;
-        let uploadLogCount = 0;
 
-        const API_BASE = 'http://202.164.153.160:85/api';
+        // Dynamic API URL detection
+        const API_BASE = `${window.location.protocol}//${window.location.host}/api`;
 
         document.getElementById('initTime').textContent = new Date().toLocaleString();
         updateServerTime();
@@ -233,26 +259,24 @@
             const lines = document.querySelectorAll('.log-line');
             totalLogCount = lines.length;
             errorLogCount = document.querySelectorAll('.log-error').length;
-            uploadLogCount = document.querySelectorAll('.log-upload').length;
+            
+            // Count push and pull operations from log text
+            let pushCount = 0;
+            let pullCount = 0;
+            
+            lines.forEach(line => {
+                const text = line.textContent;
+                if (text.includes('📤 PUSH') || text.includes('POST') || text.includes('PUT') || text.includes('PATCH')) {
+                    pushCount++;
+                } else if (text.includes('📥 PULL') || text.includes('GET')) {
+                    pullCount++;
+                }
+            });
 
             document.getElementById('totalLogs').textContent = totalLogCount;
             document.getElementById('errorCount').textContent = errorLogCount;
-            document.getElementById('uploadLogs').textContent = uploadLogCount;
-            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
-        }
-
-        function formatLogLine(logText) {
-            if (logText.toLowerCase().includes('error') || logText.toLowerCase().includes('exception')) {
-                return { text: logText, type: 'error' };
-            } else if (logText.toLowerCase().includes('warning') || logText.toLowerCase().includes('warn')) {
-                return { text: logText, type: 'warning' };
-            } else if (logText.toLowerCase().includes('profile') && logText.toLowerCase().includes('image')) {
-                return { text: logText, type: 'upload' };
-            } else if (logText.toLowerCase().includes('success') || logText.includes('✅')) {
-                return { text: logText, type: 'success' };
-            } else {
-                return { text: logText, type: 'info' };
-            }
+            document.getElementById('pushCount').textContent = pushCount;
+            document.getElementById('pullCount').textContent = pullCount;
         }
 
         async function refreshLogs() {
@@ -267,15 +291,130 @@
                 if (data.logs && data.logs.length > 0) {
                     addLogLine(`📄 Loaded ${data.logs.length} lines from ${data.logFile}`, 'success');
                     data.logs.forEach(log => {
-                        const formatted = formatLogLine(log);
-                        addLogLine(formatted.text, formatted.type);
+                        if (log.includes('❌') || log.includes('ERROR')) {
+                            addLogLine(log, 'error');
+                        } else if (log.includes('📤 PUSH')) {
+                            addLogLine(log, 'success');
+                        } else if (log.includes('📥 PULL')) {
+                            addLogLine(log, 'info');
+                        } else if (log.includes('🔐') && log.includes('auth')) {
+                            addLogLine(log, 'warning');
+                        } else if (log.includes('🖼️') && log.includes('profile')) {
+                            addLogLine(log, 'upload');
+                        } else {
+                            addLogLine(log, 'info');
+                        }
                     });
                 } else {
-                    addLogLine('⚠️ No logs found', 'warning');
+                    addLogLine('ℹ️ No recent logs found', 'warning');
                 }
             } catch (error) {
                 setConnectionStatus(false);
                 addLogLine(`❌ Error fetching logs: ${error.message}`, 'error');
+            }
+        }
+
+        async function getLastLog() {
+            try {
+                setConnectionStatus(true);
+                addLogLine('📄 Fetching the second-to-last log entry and response...', 'info');
+                
+                const response = await fetch(`${API_BASE}/logs/recent?lines=10`);
+                const data = await response.json();
+                
+                if (data.logs && data.logs.length >= 2) {
+                    // Clear the log display first
+                    const container = document.getElementById('logContainer');
+                    container.innerHTML = '';
+                    
+                    addLogLine(`📄 Second-to-last log entry from ${data.logFile}:`, 'success');
+                    addLogLine('═'.repeat(80), 'info');
+                    
+                    // Find the second-to-last request and its response
+                    const logs = data.logs;
+                    let requestLog = null;
+                    let responseLog = null;
+                    
+                    // Look for the second-to-last request (with 🚀 icon)
+                    const requestLogs = logs.filter(log => log.includes('🚀'));
+                    if (requestLogs.length >= 2) {
+                        // Get second-to-last request
+                        requestLog = requestLogs[requestLogs.length - 2];
+                        
+                        // Extract request ID from the second-to-last request
+                        const requestIdMatch = requestLog.match(/\[([a-f0-9]{8})\]/);
+                        if (requestIdMatch) {
+                            const requestId = requestIdMatch[1];
+                            
+                            // Find corresponding response with same request ID
+                            responseLog = logs.find(log => 
+                                log.includes(`[${requestId}]`) && 
+                                (log.includes('✅') || log.includes('❌') || log.includes('⚠️'))
+                            );
+                        }
+                    }
+                    
+                    if (requestLog) {
+                        // Display the request
+                        addLogLine('🚀 REQUEST:', 'info');
+                        if (requestLog.includes('📤 PUSH')) {
+                            addLogLine(requestLog, 'success');
+                        } else if (requestLog.includes('📥 PULL')) {
+                            addLogLine(requestLog, 'info');
+                        } else {
+                            addLogLine(requestLog, 'info');
+                        }
+                        
+                        addLogLine('', 'info'); // Empty line for spacing
+                        
+                        if (responseLog) {
+                            // Display the response
+                            addLogLine('📤 RESPONSE:', 'info');
+                            if (responseLog.includes('✅')) {
+                                addLogLine(responseLog, 'success');
+                            } else if (responseLog.includes('❌')) {
+                                addLogLine(responseLog, 'error');
+                            } else if (responseLog.includes('⚠️')) {
+                                addLogLine(responseLog, 'warning');
+                            } else {
+                                addLogLine(responseLog, 'info');
+                            }
+                        } else {
+                            addLogLine('❓ No corresponding response found', 'warning');
+                        }
+                    } else {
+                        addLogLine('❓ No second-to-last request found', 'warning');
+                    }
+                    
+                    addLogLine('═'.repeat(80), 'info');
+                    addLogLine(`⏰ Retrieved at: ${new Date().toLocaleString()}`, 'info');
+                } else if (data.logs && data.logs.length === 1) {
+                    // Clear the log display first
+                    const container = document.getElementById('logContainer');
+                    container.innerHTML = '';
+                    
+                    addLogLine('⚠️ Only one log entry found. Showing the last (and only) entry:', 'warning');
+                    addLogLine('═'.repeat(80), 'info');
+                    
+                    const lastLog = data.logs[0];
+                    if (lastLog.includes('❌') || lastLog.includes('ERROR')) {
+                        addLogLine(lastLog, 'error');
+                    } else if (lastLog.includes('📤 PUSH')) {
+                        addLogLine(lastLog, 'success');
+                    } else if (lastLog.includes('📥 PULL')) {
+                        addLogLine(lastLog, 'info');
+                    } else {
+                        addLogLine(lastLog, 'info');
+                    }
+                    
+                    addLogLine('═'.repeat(80), 'info');
+                    addLogLine(`⏰ Retrieved at: ${new Date().toLocaleString()}`, 'info');
+                } else {
+                    addLogLine('ℹ️ No recent logs found', 'warning');
+                }
+            } catch (error) {
+                setConnectionStatus(false);
+                addLogLine(`❌ Error fetching last log: ${error.message}`, 'error');
             }
         }
 
@@ -314,15 +453,8 @@
                 addLogLine(`📁 Content Root: ${data.contentRootPath}`, 'info');
                 addLogLine(`🌐 Web Root: ${data.webRootPath || 'Not set'}`, 'info');
                 addLogLine(`📊 Process ID: ${data.processInfo.processId}`, 'info');
-                addLogLine(`💾 Working Set: ${Math.round(data.processInfo.workingSet / 1024 / 1024)} MB`, 'info');
-                
-                if (data.diskSpace && Array.isArray(data.diskSpace)) {
-                    data.diskSpace.forEach(drive => {
-                        addLogLine(`💽 Drive ${drive.name}: ${drive.freeSpaceGB} GB free of ${drive.totalSizeGB} GB`, 'info');
-                    });
-                }
-                
-                addLogLine(`📂 Directories - Logs: ${data.directories.logs ? '✅' : '❌'}, WWWRoot: ${data.directories.wwwroot ? '✅' : '❌'}, Uploads: ${data.directories.uploads ? '✅' : '❌'}`, 'info');
+                addLogLine(`💾 Memory: ${data.processInfo.workingSetMB} MB`, 'info');
+                addLogLine(`🔧 Thread Count: ${data.processInfo.threadCount}`, 'info');
                 
             } catch (error) {
                 setConnectionStatus(false);
@@ -335,7 +467,6 @@
             container.innerHTML = '<div class="log-line log-info">🧹 Logs cleared</div>';
             totalLogCount = 0;
             errorLogCount = 0;
-            uploadLogCount = 0;
             updateStats();
         }
 
@@ -345,21 +476,203 @@
             if (isAutoRefreshing) {
                 clearInterval(autoRefreshInterval);
                 btn.textContent = '▶️ Auto-Refresh';
-                btn.className = 'btn btn-success btn-custom';
+                btn.className = 'btn btn-outline-success btn-custom';
                 isAutoRefreshing = false;
                 addLogLine('⏹️ Auto-refresh stopped', 'warning');
             } else {
                 autoRefreshInterval = setInterval(refreshLogs, 5000);
                 btn.textContent = '⏸️ Stop Auto-Refresh';
-                btn.className = 'btn btn-danger btn-custom auto-refresh-active';
+                btn.className = 'btn btn-success btn-custom';
                 isAutoRefreshing = true;
                 addLogLine('🔄 Auto-refresh started (every 5 seconds)', 'success');
                 refreshLogs(); // Initial load
             }
         }
 
+        function toggleLiveStream() {
+            const btn = document.getElementById('liveStreamBtn');
+            
+            if (isLiveStreaming) {
+                stopLiveStream();
+                btn.textContent = '📡 Start Live Stream';
+                btn.className = 'btn btn-danger btn-custom';
+                isLiveStreaming = false;
+                addLogLine('⏹️ Live stream stopped', 'warning');
+            } else {
+                startLiveStream();
+                btn.textContent = '⏸️ Stop Live Stream';
+                btn.className = 'btn btn-success btn-custom';
+                isLiveStreaming = true;
+                addLogLine('🔴 Live stream started - logs will appear in real-time', 'success');
+            }
+        }
+
+        function startLiveStream() {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            eventSource = new EventSource(`${API_BASE}/logs/live-stream`);
+            
+            eventSource.addEventListener('connected', function(event) {
+                addLogLine('✅ Live stream connected successfully', 'success');
+                setConnectionStatus(true);
+            });
+
+            eventSource.addEventListener('log', function(event) {
+                const logData = event.data;
+                if (logData && logData.trim()) {
+                    // Categorize the log and add with appropriate styling
+                    if (logData.includes('❌') || logData.includes('ERROR')) {
+                        addLogLine(logData, 'error');
+                    } else if (logData.includes('📤 PUSH')) {
+                        addLogLine(logData, 'success');
+                    } else if (logData.includes('📥 PULL')) {
+                        addLogLine(logData, 'info');
+                    } else if (logData.includes('🔐') && logData.includes('auth')) {
+                        addLogLine(logData, 'warning');
+                    } else if (logData.includes('🖼️') && logData.includes('profile')) {
+                        addLogLine(logData, 'upload');
+                    } else {
+                        addLogLine(logData, 'info');
+                    }
+                }
+            });
+
+            eventSource.addEventListener('heartbeat', function(event) {
+                // Update connection status silently
+                setConnectionStatus(true);
+            });
+
+            eventSource.addEventListener('error', function(event) {
+                addLogLine('❌ Live stream connection error', 'error');
+                setConnectionStatus(false);
+                
+                if (isLiveStreaming) {
+                    addLogLine('🔄 Attempting to reconnect in 5 seconds...', 'warning');
+                    setTimeout(() => {
+                        if (isLiveStreaming) {
+                            startLiveStream();
+                        }
+                    }, 5000);
+                }
+            });
+
+            eventSource.onerror = function(event) {
+                addLogLine('❌ Live stream disconnected', 'error');
+                setConnectionStatus(false);
+            };
+        }
+
+        function stopLiveStream() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+        }
+
+        async function getPushLogs() {
+            try {
+                setConnectionStatus(true);
+                const lines = document.getElementById('logLines').value;
+                addLogLine(`📤 Fetching push operations (${lines} lines)...`, 'info');
+                
+                const response = await fetch(`${API_BASE}/logs/push-operations?lines=${lines}`);
+                const data = await response.json();
+                
+                addLogLine(`📋 ${data.message}`, 'success');
+                if (data.logs && data.logs.length > 0) {
+                    data.logs.forEach(log => {
+                        addLogLine(log, 'success');
+                    });
+                } else {
+                    addLogLine('ℹ️ No push operations found', 'info');
+                }
+            } catch (error) {
+                setConnectionStatus(false);
+                addLogLine(`❌ Error fetching push logs: ${error.message}`, 'error');
+            }
+        }
+
+        async function getPullLogs() {
+            try {
+                setConnectionStatus(true);
+                const lines = document.getElementById('logLines').value;
+                addLogLine(`📥 Fetching pull operations (${lines} lines)...`, 'info');
+                
+                const response = await fetch(`${API_BASE}/logs/pull-operations?lines=${lines}`);
+                const data = await response.json();
+                
+                addLogLine(`📋 ${data.message}`, 'success');
+                if (data.logs && data.logs.length > 0) {
+                    data.logs.forEach(log => {
+                        addLogLine(log, 'info');
+                    });
+                } else {
+                    addLogLine('ℹ️ No pull operations found', 'info');
+                }
+            } catch (error) {
+                setConnectionStatus(false);
+                addLogLine(`❌ Error fetching pull logs: ${error.message}`, 'error');
+            }
+        }
+
+        function handleFilterInput(event) {
+            if (event.key === 'Enter') {
+                const filter = event.target.value.trim();
+                if (filter) {
+                    getAllOperationLogs(filter);
+                } else {
+                    refreshLogs();
+                }
+            }
+        }
+
+        async function getAllOperationLogs(filter = null) {
+            try {
+                setConnectionStatus(true);
+                const lines = document.getElementById('logLines').value;
+                const filterText = filter ? ` with filter "${filter}"` : '';
+                addLogLine(`📊 Fetching all operations (${lines} lines)${filterText}...`, 'info');
+                
+                const url = filter ? 
+                    `${API_BASE}/logs/all-operations?lines=${lines}&filter=${encodeURIComponent(filter)}` :
+                    `${API_BASE}/logs/all-operations?lines=${lines}`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.stats) {
+                    addLogLine(`📊 Stats: ${data.stats.total} total, 📤 ${data.stats.pushOperations} push, 📥 ${data.stats.pullOperations} pull, ❌ ${data.stats.errors} errors`, 'info');
+                }
+                
+                addLogLine(`📋 ${data.message}`, 'success');
+                if (data.logs && data.logs.length > 0) {
+                    data.logs.forEach(log => {
+                        if (log.includes('❌') || log.includes('ERROR')) {
+                            addLogLine(log, 'error');
+                        } else if (log.includes('📤 PUSH')) {
+                            addLogLine(log, 'success');
+                        } else if (log.includes('📥 PULL')) {
+                            addLogLine(log, 'info');
+                        } else {
+                            addLogLine(log, 'info');
+                        }
+                    });
+                } else {
+                    addLogLine('ℹ️ No operation logs found', 'info');
+                }
+            } catch (error) {
+                setConnectionStatus(false);
+                addLogLine(`❌ Error fetching operation logs: ${error.message}`, 'error');
+            }
+        }
+
         // Test API connection on load
         setTimeout(async () => {
+            // Set server URL in header
+            document.getElementById('serverUrl').textContent = `Real-time monitoring for ${window.location.protocol}//${window.location.host}`;
+            
             try {
                 const response = await fetch(`${API_BASE}/logs/system-info`);
                 if (response.ok) {
@@ -373,6 +686,11 @@
                 setConnectionStatus(false);
             }
         }, 1000);
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            stopLiveStream();
+        });
     </script>
 </body>
 </html>
