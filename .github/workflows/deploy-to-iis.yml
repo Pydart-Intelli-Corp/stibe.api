@@ -188,132 +188,175 @@ jobs:
         echo "✅ Deployment files uploaded successfully"
         echo "⏳ IIS application should be starting up..."
         
-    - name: Verify deployment and test API endpoints
+    - name: Comprehensive API Endpoint Testing
       run: |
-        echo "🔍 Testing API deployment on remote server..."
+        echo "🔍 Testing All API Endpoints After Deployment"
+        echo "=============================================="
         echo "Server: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
+        echo ""
         
-        # Function to test endpoint with retries
-        test_endpoint() {
-          local url="$1"
-          local description="$2"
-          local max_attempts=3
-          local attempt=1
+        # Base URL for testing
+        BASE_URL="http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
+        
+        # Function to test endpoint with detailed response
+        test_api_endpoint() {
+          local method="$1"
+          local endpoint="$2"
+          local description="$3"
+          local expected_auth="$4"  # "public", "auth", "admin", etc.
           
-          echo "Testing $description..."
+          echo "🔗 Testing: $description"
+          echo "   Method: $method"
+          echo "   URL: $BASE_URL$endpoint"
           
-          while [ $attempt -le $max_attempts ]; do
-            echo "  Attempt $attempt of $max_attempts..."
-            response=$(curl -s -o /dev/null -w "%{http_code}" "$url" --connect-timeout 10 --max-time 30 2>/dev/null || echo "000")
-            
-            if [ "$response" != "000" ]; then
-              echo "  ✅ Response: HTTP $response"
-              return 0
-            else
-              echo "  ⚠️ No response (attempt $attempt)"
-              if [ $attempt -lt $max_attempts ]; then
-                sleep 10
-              fi
-            fi
-            attempt=$((attempt + 1))
-          done
+          # Make the request and capture both status and response
+          if [ "$method" = "GET" ]; then
+            response=$(curl -s -w "\n%{http_code}" "$BASE_URL$endpoint" --connect-timeout 10 --max-time 15 2>/dev/null || echo -e "\nERROR")
+          else
+            response=$(curl -s -w "\n%{http_code}" -X "$method" "$BASE_URL$endpoint" --connect-timeout 10 --max-time 15 2>/dev/null || echo -e "\nERROR")
+          fi
           
-          echo "  ❌ Failed after $max_attempts attempts"
-          return 1
+          # Extract status code (last line) and body (everything else)
+          status_code=$(echo "$response" | tail -1)
+          response_body=$(echo "$response" | head -n -1)
+          
+          # Evaluate response
+          if [ "$status_code" = "ERROR" ]; then
+            echo "   ❌ Status: Connection Failed"
+            echo "   📝 Response: Unable to connect"
+          elif [ "$status_code" = "200" ]; then
+            echo "   ✅ Status: HTTP $status_code (Success)"
+            echo "   📝 Response: $(echo "$response_body" | head -c 100)..."
+          elif [ "$status_code" = "401" ] && [ "$expected_auth" != "public" ]; then
+            echo "   ✅ Status: HTTP $status_code (Unauthorized - Expected for protected endpoint)"
+            echo "   📝 Response: Authentication required"
+          elif [ "$status_code" = "404" ]; then
+            echo "   ⚠️  Status: HTTP $status_code (Not Found)"
+            echo "   📝 Response: Endpoint not found or not deployed"
+          elif [ "$status_code" = "500" ]; then
+            echo "   ❌ Status: HTTP $status_code (Server Error)"
+            echo "   📝 Response: $(echo "$response_body" | head -c 100)..."
+          else
+            echo "   ⚠️  Status: HTTP $status_code"
+            echo "   📝 Response: $(echo "$response_body" | head -c 100)..."
+          fi
+          echo ""
+          
+          return $([ "$status_code" = "200" ] || ([ "$status_code" = "401" ] && [ "$expected_auth" != "public" ]))
         }
         
-        # Test health endpoint
+        # Track test results
+        total_tests=0
+        successful_tests=0
+        
+        echo "🧪 PUBLIC ENDPOINTS"
+        echo "==================="
+        
+        # Test Controller - Public endpoints
+        test_api_endpoint "GET" "/api/test/health" "Health Check Endpoint" "public"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        test_api_endpoint "GET" "/api/test/test-email" "Email Test Endpoint" "public"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        echo "🔐 AUTHENTICATION ENDPOINTS"
+        echo "==========================="
+        
+        # Auth Controller endpoints
+        test_api_endpoint "GET" "/api/auth/check-email/test@example.com" "Check Email Availability" "public"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        test_api_endpoint "GET" "/api/auth/check-phone/1234567890" "Check Phone Availability" "public"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        echo "🔒 PROTECTED ENDPOINTS (Expecting 401 Unauthorized)"
+        echo "==================================================="
+        
+        # Test Controller - Protected endpoints
+        test_api_endpoint "GET" "/api/test/protected" "Protected Test Endpoint" "auth"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        test_api_endpoint "GET" "/api/test/admin-only" "Admin Only Endpoint" "admin"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        test_api_endpoint "GET" "/api/test/shop-owner" "Shop Owner Endpoint" "shop-owner"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        test_api_endpoint "GET" "/api/test/customer" "Customer Endpoint" "customer"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        test_api_endpoint "GET" "/api/test/debug-claims" "Debug Claims Endpoint" "auth"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        echo "🏪 BUSINESS ENDPOINTS"
+        echo "===================="
+        
+        # Staff Controller
+        test_api_endpoint "GET" "/api/staff/dashboard" "Staff Dashboard" "auth"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        test_api_endpoint "GET" "/api/staff/profile" "Staff Profile" "auth"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        # Salon Controller
+        test_api_endpoint "GET" "/api/salon" "Get All Salons" "public"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        # OTP Controller
+        test_api_endpoint "GET" "/api/otp/status" "OTP Service Status" "public"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        echo "📊 LOGS & MONITORING"
+        echo "==================="
+        
+        # Logs Controller
+        test_api_endpoint "GET" "/api/logs/recent?lines=5" "Recent Logs" "public"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        test_api_endpoint "GET" "/api/logs/errors?lines=3" "Recent Errors" "public"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        echo "📋 ENDPOINT TESTING SUMMARY"
+        echo "==========================="
+        echo "Total Endpoints Tested: $total_tests"
+        echo "Successful Responses: $successful_tests"
+        echo "Failed/Unreachable: $((total_tests - successful_tests))"
         echo ""
-        echo "🔍 Testing Health Check Endpoint..."
-        if test_endpoint "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}" "Health Check"; then
-          health_response=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}" 2>/dev/null || echo "000")
-          health_success=true
-        else
-          health_response="000"
-          health_success=false
-        fi
         
-        # Test root API endpoint
-        echo ""
-        echo "🔍 Testing Root API Endpoint..."
-        if test_endpoint "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/test/" "Root API"; then
-          root_response=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/test/" 2>/dev/null || echo "000")
-          root_success=true
-        else
-          root_response="000"
-          root_success=false
+        # Calculate success rate
+        if [ $total_tests -gt 0 ]; then
+          success_rate=$((successful_tests * 100 / total_tests))
+          echo "Success Rate: $success_rate%"
+          
+          if [ $success_rate -ge 80 ]; then
+            echo "🎉 EXCELLENT: API endpoints are responding well!"
+          elif [ $success_rate -ge 60 ]; then
+            echo "⚠️ GOOD: Most API endpoints are working, some may need attention"
+          else
+            echo "❌ POOR: Many endpoints are not responding correctly"
+          fi
         fi
         
         echo ""
-        echo "📊 Deployment Results:"
-        echo "======================"
-        
-        # Evaluate health check
-        if [ "$health_success" = true ] && [ "$health_response" = "200" ]; then
-          echo "✅ Health Check: SUCCESS (HTTP $health_response)"
-          health_status="✅ HEALTHY"
-        elif [ "$health_response" = "404" ]; then
-          echo "⚠️ Health Check: ENDPOINT NOT FOUND (HTTP $health_response)"
-          health_status="⚠️ ENDPOINT MISSING"
-        elif [ "$health_response" = "500" ]; then
-          echo "❌ Health Check: SERVER ERROR (HTTP $health_response)"
-          health_status="❌ SERVER ERROR"
-        else
-          echo "❌ Health Check: FAILED (HTTP $health_response)"
-          health_status="❌ UNREACHABLE"
-        fi
-        
-        # Evaluate root endpoint
-        if [ "$root_success" = true ] && ([ "$root_response" = "200" ] || [ "$root_response" = "404" ] || [ "$root_response" = "302" ]); then
-          echo "✅ Root Endpoint: ACCESSIBLE (HTTP $root_response)"
-          root_status="✅ ACCESSIBLE"
-        elif [ "$root_response" = "500" ]; then
-          echo "❌ Root Endpoint: SERVER ERROR (HTTP $root_response)"
-          root_status="❌ SERVER ERROR"
-        else
-          echo "❌ Root Endpoint: FAILED (HTTP $root_response)"
-          root_status="❌ FAILED"
-        fi
-        
-        echo ""
-        echo "🌐 API Information:"
-        echo "=================="
-        echo "Server: ${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
-        echo "Health Check: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}"
-        echo "Deploy Time: ${DEPLOY_TIME:-$(date +'%Y%m%d_%H%M%S')}"
-        echo "Migration Status: ${MIGRATION_STATUS:-'Unknown'}"
-        echo "Health Status: $health_status"
-        echo "Root Status: $root_status"
-        
-        # Set overall deployment status
-        if [ "$health_success" = true ] && [ "$health_response" = "200" ]; then
-          echo ""
-          echo "🎉 DEPLOYMENT SUCCESSFUL!"
-          echo "Your API is live and accessible at: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
-          echo "Health endpoint is working correctly: $health_response"
-          exit 0
-        elif [ "$root_success" = true ] && ([ "$root_response" = "200" ] || [ "$root_response" = "404" ]); then
-          echo ""
-          echo "⚠️ DEPLOYMENT PARTIALLY SUCCESSFUL"
-          echo "Application is deployed and responding (HTTP $root_response)"
-          echo "Health endpoint may not be configured or accessible"
-          echo "Manual verification recommended: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
-          exit 0
-        else
-          echo ""
-          echo "❌ DEPLOYMENT COMPLETED WITH ISSUES"
-          echo "Files were deployed but application is not responding correctly."
-          echo "Please check:"
-          echo "  1. IIS Application Pool status"
-          echo "  2. Website bindings (port ${{ env.REMOTE_PORT }})"
-          echo "  3. .NET 8.0 Runtime installation"
-          echo "  4. Application pool configuration (.NET CLR Version: No Managed Code)"
-          echo "  5. Application logs for errors"
-          echo ""
-          echo "Manual verification: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
-          # Don't fail the build, as files were deployed successfully
-          exit 0
-        fi
+        echo "🔗 Quick Access URLs:"
+        echo "Health Check: $BASE_URL/api/test/health"
+        echo "API Documentation: $BASE_URL/swagger (if enabled)"
+        echo "Recent Logs: $BASE_URL/api/logs/recent?lines=10"
         
     - name: Deployment Summary
       if: always()
