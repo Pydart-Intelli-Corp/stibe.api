@@ -429,6 +429,7 @@ namespace stibe.api.Controllers
                 // Keep track of file position
                 long lastPosition = 0;
                 var fileInfo = new FileInfo(logFiles);
+                var lastHeartbeat = DateTime.UtcNow;
                 
                 // Start from end of file for live streaming
                 lastPosition = fileInfo.Length;
@@ -461,10 +462,14 @@ namespace stibe.api.Controllers
                             lastPosition = fileInfo.Length;
                         }
                         
-                        // Send heartbeat every 10 seconds
-                        await Response.WriteAsync("event: heartbeat\n");
-                        await Response.WriteAsync($"data: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC\n\n");
-                        await Response.Body.FlushAsync();
+                        // Send heartbeat every 30 seconds
+                        if (DateTime.UtcNow.Subtract(lastHeartbeat).TotalSeconds >= 30)
+                        {
+                            await Response.WriteAsync("event: heartbeat\n");
+                            await Response.WriteAsync($"data: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC\n\n");
+                            await Response.Body.FlushAsync();
+                            lastHeartbeat = DateTime.UtcNow;
+                        }
                         
                         // Wait for 2 seconds before checking for new logs
                         await Task.Delay(2000, cancellationToken);
@@ -478,12 +483,24 @@ namespace stibe.api.Controllers
                     }
                 }
             }
+            catch (OperationCanceledException)
+            {
+                // Client disconnected - this is normal, don't log as error
+                _logger.LogInformation("Live log stream client disconnected");
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in live log stream");
-                await Response.WriteAsync("event: error\n");
-                await Response.WriteAsync($"data: Stream error: {ex.Message}\n\n");
-                await Response.Body.FlushAsync();
+                try
+                {
+                    await Response.WriteAsync("event: error\n");
+                    await Response.WriteAsync($"data: Stream error: {ex.Message}\n\n");
+                    await Response.Body.FlushAsync();
+                }
+                catch
+                {
+                    // Response stream might be closed, ignore
+                }
             }
 
             return new EmptyResult();
