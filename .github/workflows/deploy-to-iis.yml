@@ -47,10 +47,17 @@ jobs:
       run: dotnet tool install --global dotnet-ef
       
     - name: Update database with migrations
-      if: ${{ secrets.DATABASE_CONNECTION_STRING != '' }}
       run: |
         echo "🗄️ Updating database with latest migrations..."
-        dotnet ef database update --verbose --connection "${{ secrets.DATABASE_CONNECTION_STRING }}"
+        if [ -n "$DATABASE_CONNECTION_STRING" ]; then
+          echo "Database connection string provided, running migrations..."
+          dotnet ef database update --verbose --connection "$DATABASE_CONNECTION_STRING"
+        else
+          echo "No database connection string provided, skipping migrations."
+          echo "You will need to run 'dotnet ef database update' manually on the server."
+        fi
+      env:
+        DATABASE_CONNECTION_STRING: ${{ secrets.DATABASE_CONNECTION_STRING }}
       continue-on-error: false
       
     - name: Publish application

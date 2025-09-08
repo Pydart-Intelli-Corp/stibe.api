@@ -108,6 +108,7 @@ This guide covers deploying the Stibe.API to IIS servers using multiple strategi
    - Navigate to the publish folder on local machine
    - Upload all files and folders to /test/ directory on remote server
    - Ensure all DLL files, web.config, and appsettings.json are uploaded
+   - **Important**: Include DigiCertGlobalRootCA.crt.pem file for Azure MySQL SSL connection
    - Exclude development files (appsettings.Development.json, .pdb files)
 
 4. **Update Database (Manual):**
@@ -276,9 +277,15 @@ The repository includes a complete GitHub Actions workflow at `.github/workflows
 
 **Database Connection String (Optional):**
 - **When to use**: Only if you want automatic database migrations during deployment
-- **Format for MySQL**: `Server=your-db-server;Database=StibeDB;Uid=username;Pwd=password;`
+- **Current Production Format**: 
+  ```
+  Server=psrazuredb.mysql.database.azure.com;Port=3306;UserID=psrcloud;Password=Access@LRC2404;Database=Stibe_db;SslMode=Required;SslCa=DigiCertGlobalRootCA.crt.pem
+  ```
+- **Format for other MySQL**: `Server=your-db-server;Port=3306;UserID=username;Password=password;Database=your_database;`
 - **Format for SQL Server**: `Server=your-db-server;Database=StibeDB;Integrated Security=true;` or with credentials
 - **If not provided**: Database migration step will be skipped, and you'll need to run migrations manually
+
+**Note**: The connection string above uses Azure Database for MySQL with SSL required. Make sure the SSL certificate file `DigiCertGlobalRootCA.crt.pem` is included in your deployment.
 
 **Deployment Process:**
 1. **Build Phase:**
@@ -430,10 +437,12 @@ The repository includes a complete GitHub Actions workflow at `.github/workflows
 - Check that appsettings.Development.json is NOT deployed (excluded by workflow)
 
 **Database Connectivity Verification:**
-- Test database connection from server: `telnet database-server 3306` (MySQL) or `telnet database-server 1433` (SQL Server)
+- Test Azure MySQL connection: `telnet psrazuredb.mysql.database.azure.com 3306`
 - Verify database tables exist and are up to date
 - Check Entity Framework migration history: `SELECT * FROM __EFMigrationsHistory`
 - Confirm database user permissions allow CREATE, ALTER, DROP operations
+- Verify SSL certificate file (DigiCertGlobalRootCA.crt.pem) is present
+- Check Azure MySQL firewall rules allow GitHub Actions IP ranges
 - Review connection string format and credentials
 
 ---
