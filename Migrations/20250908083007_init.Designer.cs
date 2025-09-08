@@ -12,7 +12,7 @@ using stibe.api.Data;
 namespace stibe.api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250828053907_init")]
+    [Migration("20250908083007_init")]
     partial class init
     {
         /// <inheritdoc />
