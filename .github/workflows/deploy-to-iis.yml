@@ -3,29 +3,13 @@ name: Deploy to Remote IIS Website
 on:
   push:
     branches: [ master, main ]
-  workflow_dispatch: # All        echo "Health Check: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/test${{ env.API_HEALTH_ENDPOINT }}"
-        echo "Deploy Time: ${{ env.DEPLOY_TIME }}"
-        echo "Status: $health_status | Root: $root_status"
-        
-        # Set overall deployment status
-        if [ "$health_response" = "200" ]; then
-          echo ""
-          echo "🎉 DEPLOYMENT SUCCESSFUL!"
-          echo "Your API is live and accessible at: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/test"
-          exit 0
-        else
-          echo ""
-          echo "⚠️ DEPLOYMENT COMPLETED WITH ISSUES"
-          echo "Files were deployed but API health check failed."
-          echo "Please check your IIS application pool and website configuration."
-          echo "Manual verification: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/test"
-          # Don't fail the build, as files were deployed successfully
-          exit 0
-        fi
+  workflow_dispatch: # Allow manual trigger
+
 env:
   DOTNET_VERSION: '8.0.x'
   REMOTE_SERVER: '202.164.153.160'
   REMOTE_PORT: '85'
+  FTP_PORT: '92'
   API_HEALTH_ENDPOINT: '/api/test/health'
   
 jobs:
@@ -69,11 +53,11 @@ jobs:
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
         server: ${{ env.REMOTE_SERVER }}
+        port: ${{ env.FTP_PORT }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./publish/
         server-dir: /test/  # Deploy to C:\inetpub\wwwroot\test directory
-        port: 21  # Standard FTP port
         protocol: ftp
         # Exclude unnecessary files
         exclude: |
