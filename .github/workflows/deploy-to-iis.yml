@@ -52,9 +52,13 @@ jobs:
         if [ -n "$DATABASE_CONNECTION_STRING" ]; then
           echo "Database connection string provided, running migrations..."
           dotnet ef database update --verbose --connection "$DATABASE_CONNECTION_STRING"
+          echo "MIGRATION_STATUS=✅ COMPLETED" >> $GITHUB_ENV
+          echo "MIGRATION_MESSAGE=Database updated with latest migrations" >> $GITHUB_ENV
         else
           echo "No database connection string provided, skipping migrations."
           echo "You will need to run 'dotnet ef database update' manually on the server."
+          echo "MIGRATION_STATUS=⏭️ SKIPPED" >> $GITHUB_ENV
+          echo "MIGRATION_MESSAGE=Manual migration required - no connection string provided" >> $GITHUB_ENV
         fi
       env:
         DATABASE_CONNECTION_STRING: ${{ secrets.DATABASE_CONNECTION_STRING }}
@@ -128,6 +132,7 @@ jobs:
         echo "Server: ${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
         echo "Health Check: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}"
         echo "Deploy Time: ${{ env.DEPLOY_TIME }}"
+        echo "Migration Status: ${{ env.MIGRATION_STATUS }}"
         echo "Status: $health_status | Root: $root_status"
         
         # Set overall deployment status
@@ -156,7 +161,10 @@ jobs:
         echo "📦 Package: .NET 8.0 Release Build"
         echo "🌐 Target: ${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
         echo "📁 Method: FTP Deployment"
-        echo "🔍 Health Endpoint: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}"
+        echo "�️ Database: ${{ env.MIGRATION_STATUS }}"
+        echo "�🔍 Health Endpoint: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}"
+        echo ""
+        echo "ℹ️  Migration Info: ${{ env.MIGRATION_MESSAGE }}"
         echo ""
         echo "ℹ️  If health check fails, verify:"
         echo "   1. IIS Application Pool is running"

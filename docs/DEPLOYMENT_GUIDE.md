@@ -307,7 +307,8 @@ The repository includes a complete GitHub Actions workflow at `.github/workflows
 3. **Verification Phase:**
    - Test health endpoint: http://202.164.153.160:85/api/test/health
    - Test root endpoint accessibility
-   - Provide comprehensive deployment report
+   - Display migration status (completed or skipped)
+   - Provide comprehensive deployment report with database information
    - Continue even if health check fails (files still deployed)
 
 **Manual Trigger:**
