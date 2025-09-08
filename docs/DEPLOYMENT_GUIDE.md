@@ -82,7 +82,7 @@ This guide covers deploying the Stibe.API to IIS servers using multiple strategi
 - **Username**: test
 - **Password**: Access$404
 - **Target Directory**: /test/ (maps to C:\inetpub\wwwroot\test)
-- **Health Check URL**: http://202.164.153.160:85/test/api/test/health
+- **Health Check URL**: http://202.164.153.160:85/api/test/health
 
 **📋 Requirements:**
 - FTP client (FileZilla, WinSCP, or command line)
@@ -112,7 +112,7 @@ This guide covers deploying the Stibe.API to IIS servers using multiple strategi
 
 4. **Verify Deployment:**
    - Wait 30 seconds for IIS to process new files
-   - Visit: http://202.164.153.160:85/test/api/test/health
+   - Visit: http://202.164.153.160:85/api/test/health
    - Should return successful health check response
    - Test additional endpoints as needed
 
@@ -268,7 +268,7 @@ The repository includes a complete GitHub Actions workflow at `.github/workflows
    - Wait 30 seconds for IIS application restart
 
 3. **Verification Phase:**
-   - Test health endpoint: http://202.164.153.160:85/test/api/test/health
+   - Test health endpoint: http://202.164.153.160:85/api/test/health
    - Test root endpoint accessibility
    - Provide comprehensive deployment report
    - Continue even if health check fails (files still deployed)
@@ -354,7 +354,7 @@ The repository includes a complete GitHub Actions workflow at `.github/workflows
 - Check database connection string in appsettings.json
 
 **4. API Not Responding:**
-- Test health endpoint: http://202.164.153.160:85/test/api/test/health
+- Test health endpoint: http://202.164.153.160:85/api/test/health
 - Test root endpoint: http://202.164.153.160:85/test/
 - Check if application pool is running
 - Verify port 85 is not blocked by firewall
@@ -369,7 +369,7 @@ The repository includes a complete GitHub Actions workflow at `.github/workflows
 ### Diagnostic Steps
 
 **Health Check Verification:**
-- Primary endpoint: http://202.164.153.160:85/test/api/test/health
+- Primary endpoint: http://202.164.153.160:85/api/test/health
 - Should return 200 OK with health status
 - If failing, check IIS logs and application pool status
 - GitHub Actions automatically tests this endpoint after deployment
@@ -475,7 +475,7 @@ The repository includes a complete GitHub Actions workflow at `.github/workflows
 ### Support Information
 
 **Quick Reference:**
-- **Health Check**: http://202.164.153.160:85/test/api/test/health
+- **Health Check**: http://202.164.153.160:85/api/test/health
 - **Root API**: http://202.164.153.160:85/test/
 - **FTP Access**: 202.164.153.160:92 (test / Access$404)
 - **Target Directory**: /test/ (maps to C:\inetpub\wwwroot\test)

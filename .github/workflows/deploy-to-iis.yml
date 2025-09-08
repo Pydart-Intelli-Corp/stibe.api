@@ -79,7 +79,7 @@ jobs:
         
         # Health check endpoint
         echo "Testing health endpoint..."
-        health_response=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/test${{ env.API_HEALTH_ENDPOINT }}" || echo "000")
+        health_response=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}" || echo "000")
         
         # Root API endpoint
         echo "Testing root API endpoint..."
@@ -139,7 +139,7 @@ jobs:
         echo "📦 Package: .NET 8.0 Release Build"
         echo "🌐 Target: ${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}"
         echo "📁 Method: FTP Deployment"
-        echo "🔍 Health Endpoint: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}/test${{ env.API_HEALTH_ENDPOINT }}"
+        echo "🔍 Health Endpoint: http://${{ env.REMOTE_SERVER }}:${{ env.REMOTE_PORT }}${{ env.API_HEALTH_ENDPOINT }}"
         echo ""
         echo "ℹ️  If health check fails, verify:"
         echo "   1. IIS Application Pool is running"
