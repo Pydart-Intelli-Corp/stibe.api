@@ -15,8 +15,26 @@ using stibe.api.Services.Implementations.SecurityServices;
 using stibe.api.Services.Implementations.PartnerServices.StaffServices;
 using stibe.api.Services.Implementations.FileService;
 using Microsoft.Extensions.FileProviders;
+using Serilog;
+
+// Configure Serilog early
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .WriteTo.File("logs/stibe-api-.log", 
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 7,
+        shared: true,
+        flushToDiskInterval: TimeSpan.FromSeconds(1))
+    .CreateLogger();
+
+try
+{
+    Log.Information("Starting Stibe API...");
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Use Serilog
+builder.Host.UseSerilog();
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -104,14 +122,8 @@ else
     builder.Services.AddScoped<IEmailService, MockEmailService>();
 }
 
-// Configure logging before building the app
-if (builder.Environment.IsDevelopment())
-{
-    builder.Logging.ClearProviders();
-    builder.Logging.AddConsole();
-    builder.Logging.AddDebug();
-    builder.Logging.SetMinimumLevel(LogLevel.Debug);
-}
+// Configure logging with Serilog (already configured above)
+// Serilog will handle all logging automatically
 
 // ⭐ Updated Swagger Configuration with JWT Support
 builder.Services.AddSwaggerGen(c =>
@@ -210,3 +222,14 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+    Log.Information("Stibe API started successfully");
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Stibe API terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

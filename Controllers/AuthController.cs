@@ -1362,55 +1362,111 @@ namespace stibe.api.Controllers
         {
             try
             {
+                _logger.LogInformation("=== PROFILE IMAGE UPLOAD STARTED ===");
+                _logger.LogInformation("Request Content-Type: {ContentType}", Request.ContentType);
+                _logger.LogInformation("Request Content-Length: {ContentLength}", Request.ContentLength);
+                
                 var userId = GetCurrentUserId();
                 if (userId == null)
                 {
+                    _logger.LogWarning("Profile image upload failed: Invalid token");
                     return Unauthorized(ApiResponse<ProfileImageDto>.ErrorResponse("Invalid token"));
                 }
+
+                _logger.LogInformation("Profile image upload for user ID: {UserId}", userId);
 
                 var user = await _context.Users.FindAsync(userId);
                 if (user == null)
                 {
+                    _logger.LogWarning("Profile image upload failed: User not found for ID {UserId}", userId);
                     return NotFound(ApiResponse<ProfileImageDto>.ErrorResponse("User not found"));
                 }
 
+                _logger.LogInformation("User found: {UserEmail}", user.Email);
+
                 if (profileImage == null || profileImage.Length == 0)
                 {
+                    _logger.LogWarning("Profile image upload failed: No image file provided");
                     return BadRequest(ApiResponse<ProfileImageDto>.ErrorResponse("No image file provided"));
                 }
+
+                _logger.LogInformation("Image file details - Name: {FileName}, Size: {FileSize} bytes, ContentType: {ContentType}", 
+                    profileImage.FileName, profileImage.Length, profileImage.ContentType);
 
                 // Check file type
                 var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
                 var fileExtension = Path.GetExtension(profileImage.FileName).ToLowerInvariant();
+                
+                _logger.LogInformation("File extension: {FileExtension}", fileExtension);
+                
                 if (!allowedExtensions.Contains(fileExtension))
                 {
+                    _logger.LogWarning("Profile image upload failed: Invalid file type {FileExtension}", fileExtension);
                     return BadRequest(ApiResponse<ProfileImageDto>.ErrorResponse("Invalid file type. Only JPG, JPEG, and PNG files are allowed."));
+                }
+
+                // Check WebRootPath
+                _logger.LogInformation("WebRootPath: {WebRootPath}", _environment.WebRootPath);
+                
+                if (string.IsNullOrEmpty(_environment.WebRootPath))
+                {
+                    _logger.LogError("WebRootPath is null or empty!");
+                    return StatusCode(500, ApiResponse<ProfileImageDto>.ErrorResponse("Server configuration error: WebRootPath not set"));
                 }
 
                 // Create uploads directory if it doesn't exist
                 var uploadsDir = Path.Combine(_environment.WebRootPath, "uploads", "profile-images");
+                _logger.LogInformation("Uploads directory path: {UploadsDir}", uploadsDir);
+                
                 if (!Directory.Exists(uploadsDir))
                 {
+                    _logger.LogInformation("Creating uploads directory: {UploadsDir}", uploadsDir);
                     Directory.CreateDirectory(uploadsDir);
+                    _logger.LogInformation("Uploads directory created successfully");
+                }
+                else
+                {
+                    _logger.LogInformation("Uploads directory already exists");
                 }
 
                 // Generate a unique file name
                 var fileName = $"{userId}_{Guid.NewGuid()}{fileExtension}";
                 var filePath = Path.Combine(uploadsDir, fileName);
+                
+                _logger.LogInformation("Generated file name: {FileName}", fileName);
+                _logger.LogInformation("Full file path: {FilePath}", filePath);
 
                 // Save the file
+                _logger.LogInformation("Starting file save operation...");
                 using (var fileStream = new FileStream(filePath, FileMode.Create))
                 {
                     await profileImage.CopyToAsync(fileStream);
                 }
+                _logger.LogInformation("File saved successfully to: {FilePath}", filePath);
+
+                // Verify file was created
+                if (!System.IO.File.Exists(filePath))
+                {
+                    _logger.LogError("File was not created at path: {FilePath}", filePath);
+                    return StatusCode(500, ApiResponse<ProfileImageDto>.ErrorResponse("Failed to save file"));
+                }
+
+                var fileInfo = new FileInfo(filePath);
+                _logger.LogInformation("Saved file size: {FileSize} bytes", fileInfo.Length);
 
                 // Generate URL for the file
                 var baseUrl = $"{Request.Scheme}://{Request.Host}";
                 var imageUrl = $"{baseUrl}/uploads/profile-images/{fileName}";
+                
+                _logger.LogInformation("Generated image URL: {ImageUrl}", imageUrl);
 
                 // Update user profile image in database
+                _logger.LogInformation("Updating user profile image in database...");
                 user.ProfilePictureUrl = imageUrl;
                 await _context.SaveChangesAsync();
+                _logger.LogInformation("Database updated successfully");
+
+                _logger.LogInformation("=== PROFILE IMAGE UPLOAD COMPLETED SUCCESSFULLY ===");
 
                 return Ok(ApiResponse<ProfileImageDto>.SuccessResponse(new ProfileImageDto
                 {
@@ -1419,7 +1475,8 @@ namespace stibe.api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error uploading profile image");
+                _logger.LogError(ex, "=== PROFILE IMAGE UPLOAD ERROR === {ErrorMessage}", ex.Message);
+                _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
                 return StatusCode(500, ApiResponse<ProfileImageDto>.ErrorResponse("An error occurred while uploading profile image"));
             }
         }
