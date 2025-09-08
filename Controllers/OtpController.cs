@@ -37,7 +37,7 @@ namespace stibe.api.Controllers
                 if (!IsValidPurpose(request.Purpose))
                 {
                     return BadRequest(ApiResponse<OtpResponseDto>.ErrorResponse(
-                        "Invalid purpose. Valid purposes are: EMAIL_VERIFICATION, SHOP_ACCESS, PASSWORD_RESET, PHONE_VERIFICATION, TWO_FACTOR_AUTH"));
+                        "Invalid purpose. Valid purposes are: EMAIL_VERIFICATION, SHOP_ACCESS, PROFILE_ACCESS, SHOP_STATUS_CHANGE, SHOP_DEFAULT_CHANGE, SHOP_DELETE, PASSWORD_RESET, PHONE_VERIFICATION, TWO_FACTOR_AUTH"));
                 }
 
                 var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
@@ -85,7 +85,7 @@ namespace stibe.api.Controllers
                 if (!IsValidPurpose(request.Purpose))
                 {
                     return BadRequest(ApiResponse<OtpResponseDto>.ErrorResponse(
-                        "Invalid purpose. Valid purposes are: EMAIL_VERIFICATION, SHOP_ACCESS, PASSWORD_RESET, PHONE_VERIFICATION, TWO_FACTOR_AUTH"));
+                        "Invalid purpose. Valid purposes are: EMAIL_VERIFICATION, SHOP_ACCESS, PROFILE_ACCESS, SHOP_STATUS_CHANGE, SHOP_DEFAULT_CHANGE, SHOP_DELETE, PASSWORD_RESET, PHONE_VERIFICATION, TWO_FACTOR_AUTH"));
                 }
 
                 var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
@@ -131,7 +131,7 @@ namespace stibe.api.Controllers
                 if (!IsValidPurpose(purpose))
                 {
                     return BadRequest(ApiResponse<OtpStatusDto>.ErrorResponse(
-                        "Invalid purpose. Valid purposes are: EMAIL_VERIFICATION, SHOP_ACCESS, PASSWORD_RESET, PHONE_VERIFICATION, TWO_FACTOR_AUTH"));
+                        "Invalid purpose. Valid purposes are: EMAIL_VERIFICATION, SHOP_ACCESS, PROFILE_ACCESS, SHOP_STATUS_CHANGE, SHOP_DEFAULT_CHANGE, SHOP_DELETE, PASSWORD_RESET, PHONE_VERIFICATION, TWO_FACTOR_AUTH"));
                 }
 
                 var status = await _otpService.GetOtpStatusAsync(email, purpose);
@@ -160,7 +160,7 @@ namespace stibe.api.Controllers
                 if (!IsValidPurpose(request.Purpose))
                 {
                     return BadRequest(ApiResponse<object>.ErrorResponse(
-                        "Invalid purpose. Valid purposes are: EMAIL_VERIFICATION, SHOP_ACCESS, PASSWORD_RESET, PHONE_VERIFICATION, TWO_FACTOR_AUTH"));
+                        "Invalid purpose. Valid purposes are: EMAIL_VERIFICATION, SHOP_ACCESS, PROFILE_ACCESS, SHOP_STATUS_CHANGE, SHOP_DEFAULT_CHANGE, SHOP_DELETE, PASSWORD_RESET, PHONE_VERIFICATION, TWO_FACTOR_AUTH"));
                 }
 
                 var result = await _otpService.InvalidateOtpsAsync(request.Email, request.Purpose);
@@ -216,6 +216,9 @@ namespace stibe.api.Controllers
             {
                 EmailVerification = OtpEntity.PURPOSE_EMAIL_VERIFICATION,
                 ShopAccess = OtpEntity.PURPOSE_SHOP_ACCESS,
+                ProfileAccess = OtpEntity.PURPOSE_PROFILE_ACCESS,
+                ShopStatusChange = OtpEntity.PURPOSE_SHOP_STATUS_CHANGE,
+                ShopDefaultChange = OtpEntity.PURPOSE_SHOP_DEFAULT_CHANGE,
                 ShopDelete = OtpEntity.PURPOSE_SHOP_DELETE,
                 PasswordReset = OtpEntity.PURPOSE_PASSWORD_RESET,
                 PhoneVerification = OtpEntity.PURPOSE_PHONE_VERIFICATION,
@@ -231,6 +234,7 @@ namespace stibe.api.Controllers
             {
                 OtpEntity.PURPOSE_EMAIL_VERIFICATION,
                 OtpEntity.PURPOSE_SHOP_ACCESS,
+                OtpEntity.PURPOSE_PROFILE_ACCESS,
                 OtpEntity.PURPOSE_SHOP_STATUS_CHANGE,
                 OtpEntity.PURPOSE_SHOP_DEFAULT_CHANGE,
                 OtpEntity.PURPOSE_SHOP_DELETE,

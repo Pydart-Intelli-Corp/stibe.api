@@ -36,6 +36,7 @@ namespace stibe.api.Models.Entities
         // Purpose types as constants
         public const string PURPOSE_EMAIL_VERIFICATION = "EMAIL_VERIFICATION";
         public const string PURPOSE_SHOP_ACCESS = "SHOP_ACCESS";
+        public const string PURPOSE_PROFILE_ACCESS = "PROFILE_ACCESS";
         public const string PURPOSE_SHOP_STATUS_CHANGE = "SHOP_STATUS_CHANGE";
         public const string PURPOSE_SHOP_DEFAULT_CHANGE = "SHOP_DEFAULT_CHANGE";
         public const string PURPOSE_SHOP_DELETE = "SHOP_DELETE";
