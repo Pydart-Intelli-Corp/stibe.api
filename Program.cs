@@ -18,11 +18,11 @@ using Microsoft.Extensions.FileProviders;
 using Serilog;
 
 // Force Production Environment (Manual Override)
-Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Production");
+// Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Production");
 
 // Configure Serilog with environment-based logging
-// Force Production environment (manual override)
-var environment = "Production"; // Manual override - always use Production
+// Force Development environment for local testing
+var environment = "Development"; // Manual override - use Development for local testing
 // var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"; // Original line
 var isDevelopment = environment == "Development";
 

@@ -87,5 +87,55 @@ namespace stibe.api.Controllers
 
             return Ok(ApiResponse.SuccessResponse(claims, "Current user claims"));
         }
+
+        [HttpGet("file-system-check")]
+        public async Task<ActionResult<ApiResponse>> FileSystemCheck([FromServices] IWebHostEnvironment environment)
+        {
+            try
+            {
+                var info = new
+                {
+                    Environment = environment.EnvironmentName,
+                    ContentRootPath = environment.ContentRootPath,
+                    WebRootPath = environment.WebRootPath,
+                    WebRootPathExists = !string.IsNullOrEmpty(environment.WebRootPath) && Directory.Exists(environment.WebRootPath),
+                    UploadsPath = !string.IsNullOrEmpty(environment.WebRootPath) ? Path.Combine(environment.WebRootPath, "uploads") : "WebRootPath is null",
+                    UploadsExists = !string.IsNullOrEmpty(environment.WebRootPath) && Directory.Exists(Path.Combine(environment.WebRootPath, "uploads")),
+                    ProfileImagesPath = !string.IsNullOrEmpty(environment.WebRootPath) ? Path.Combine(environment.WebRootPath, "uploads", "profile-images") : "WebRootPath is null",
+                    ProfileImagesExists = !string.IsNullOrEmpty(environment.WebRootPath) && Directory.Exists(Path.Combine(environment.WebRootPath, "uploads", "profile-images")),
+                    CanCreateTestFile = false,
+                    TestFileError = ""
+                };
+
+                // Test file creation
+                if (!string.IsNullOrEmpty(environment.WebRootPath))
+                {
+                    try
+                    {
+                        var testDir = Path.Combine(environment.WebRootPath, "uploads", "profile-images");
+                        Directory.CreateDirectory(testDir);
+                        
+                        var testFilePath = Path.Combine(testDir, "test_file.txt");
+                        await System.IO.File.WriteAllTextAsync(testFilePath, "Test file content");
+                        
+                        if (System.IO.File.Exists(testFilePath))
+                        {
+                            System.IO.File.Delete(testFilePath);
+                            info = info with { CanCreateTestFile = true };
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        info = info with { TestFileError = ex.Message };
+                    }
+                }
+
+                return Ok(ApiResponse.SuccessResponse(info, "File system diagnostic"));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ApiResponse.ErrorResponse($"File system check failed: {ex.Message}"));
+            }
+        }
     }
 }
