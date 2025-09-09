@@ -148,6 +148,19 @@ jobs:
         # Create fresh publish directory
         mkdir -p "${{ env.PUBLISH_OUTPUT }}"
         
+        # Create uploads directory structure in publish folder
+        echo "📁 Creating uploads directory structure..."
+        mkdir -p "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/profile-images"
+        mkdir -p "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/service-images"
+        mkdir -p "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/shop-images" 
+        mkdir -p "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/product-images"
+        
+        # Create test files to ensure directories exist
+        echo "Test file for profile images" > "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/profile-images/test.txt"
+        echo "Test file for service images" > "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/service-images/test.txt"
+        echo "Test file for shop images" > "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/shop-images/test.txt"
+        echo "Test file for product images" > "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/product-images/test.txt"
+        
         # Publish with same settings as Visual Studio
         echo "🔨 Publishing with Visual Studio-like settings..."
         dotnet publish stibe.api.csproj \
