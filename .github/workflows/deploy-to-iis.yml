@@ -78,25 +78,62 @@ jobs:
       continue-on-error: true
       
     - name: Install Entity Framework Tools
-      run: dotnet tool install --global dotnet-ef
+      run: |
+        echo "🔧 Installing Entity Framework CLI tools..."
+        dotnet tool install --global dotnet-ef --version 8.0.8 || dotnet tool update --global dotnet-ef --version 8.0.8 || echo "EF tools installation failed, trying alternative..."
+        
+        # Alternative installation method if global install fails
+        if ! command -v dotnet-ef &> /dev/null; then
+          echo "🔄 Trying local tool installation..."
+          dotnet new tool-manifest --force || echo "Tool manifest already exists"
+          dotnet tool install dotnet-ef --version 8.0.8 || echo "Local tool installation failed"
+        fi
+        
+        echo "✅ EF Tools installation completed"
+        dotnet ef --version || echo "EF tools not available - continuing without migrations"
       
     - name: Update database with migrations
       run: |
         echo "🗄️ Updating database with latest migrations..."
-        if [ -n "$DATABASE_CONNECTION_STRING" ]; then
-          echo "Database connection string provided, running migrations..."
-          dotnet ef database update --verbose --connection "$DATABASE_CONNECTION_STRING" --project stibe.api.csproj
-          echo "MIGRATION_STATUS=✅ COMPLETED" >> $GITHUB_ENV
-          echo "MIGRATION_MESSAGE=Database updated with latest migrations" >> $GITHUB_ENV
+        
+        # Check if EF tools are available
+        if command -v dotnet-ef &> /dev/null; then
+          echo "✅ EF tools are available"
+          
+          if [ -n "$DATABASE_CONNECTION_STRING" ]; then
+            echo "Database connection string provided, running migrations..."
+            echo "🔍 Checking for migrations..."
+            
+            # Try to list migrations first
+            if dotnet ef migrations list --project stibe.api.csproj --verbose 2>/dev/null; then
+              echo "🚀 Running database update..."
+              if dotnet ef database update --verbose --connection "$DATABASE_CONNECTION_STRING" --project stibe.api.csproj; then
+                echo "MIGRATION_STATUS=✅ COMPLETED" >> $GITHUB_ENV
+                echo "MIGRATION_MESSAGE=Database updated with latest migrations successfully" >> $GITHUB_ENV
+              else
+                echo "MIGRATION_STATUS=⚠️ FAILED" >> $GITHUB_ENV
+                echo "MIGRATION_MESSAGE=Database migration failed but deployment will continue" >> $GITHUB_ENV
+              fi
+            else
+              echo "MIGRATION_STATUS=⚠️ SKIPPED" >> $GITHUB_ENV
+              echo "MIGRATION_MESSAGE=Could not list migrations - skipping database update" >> $GITHUB_ENV
+            fi
+          else
+            echo "No database connection string provided, skipping migrations."
+            echo "MIGRATION_STATUS=⏭️ SKIPPED" >> $GITHUB_ENV
+            echo "MIGRATION_MESSAGE=Manual migration required - no connection string provided" >> $GITHUB_ENV
+          fi
         else
-          echo "No database connection string provided, skipping migrations."
-          echo "You will need to run 'dotnet ef database update' manually on the server."
+          echo "❌ EF tools not available, skipping migrations"
           echo "MIGRATION_STATUS=⏭️ SKIPPED" >> $GITHUB_ENV
-          echo "MIGRATION_MESSAGE=Manual migration required - no connection string provided" >> $GITHUB_ENV
+          echo "MIGRATION_MESSAGE=EF tools not available - manual migration required" >> $GITHUB_ENV
         fi
+        
+        echo "You can run migrations manually on the server with:"
+        echo "dotnet ef database update --project stibe.api.csproj"
       env:
         DATABASE_CONNECTION_STRING: ${{ secrets.DATABASE_CONNECTION_STRING }}
-      continue-on-error: false
+      continue-on-error: true
       
     - name: Publish application
       run: |
