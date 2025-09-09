@@ -17,8 +17,8 @@ using stibe.api.Services.Implementations.FileService;
 using Microsoft.Extensions.FileProviders;
 using Serilog;
 
-// Force Production Environment (Manual Override)
-// Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Production");
+// Force Development Environment for local testing
+Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
 
 // Configure Serilog with environment-based logging
 // Force Development environment for local testing

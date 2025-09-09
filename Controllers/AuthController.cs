@@ -1459,6 +1459,8 @@ namespace stibe.api.Controllers
 
                 // Generate URL for the file using configured base URL
                 var configuredBaseUrl = _configuration["FileStorage:BaseUrl"] ?? "/uploads";
+                _logger.LogInformation("DEBUG: Configuration FileStorage:BaseUrl = '{ConfiguredBaseUrl}'", configuredBaseUrl);
+                _logger.LogInformation("DEBUG: Environment.EnvironmentName = '{EnvironmentName}'", _environment.EnvironmentName);
                 string imageUrl;
                 
                 // If configured base URL is absolute, use it directly
