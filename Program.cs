@@ -249,6 +249,20 @@ builder.Services.AddCors(options =>
 // Build the application once all services are configured
 var app = builder.Build();
 
+// Get logger for startup configuration
+var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
+
+// Explicitly set WebRootPath for production environment
+if (app.Environment.IsProduction() && string.IsNullOrEmpty(app.Environment.WebRootPath))
+{
+    var productionWwwRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+    app.Environment.WebRootPath = productionWwwRoot;
+    startupLogger.LogInformation("🔧 Production WebRootPath set to: {WebRootPath}", productionWwwRoot);
+}
+
+startupLogger.LogInformation("🔧 Current WebRootPath: {WebRootPath}", app.Environment.WebRootPath);
+startupLogger.LogInformation("🔧 Current ContentRootPath: {ContentRootPath}", app.Environment.ContentRootPath);
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
