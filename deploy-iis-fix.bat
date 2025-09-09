@@ -1,6 +1,12 @@
 @echo off
 echo ================================================
-echo Deploying IIS Configuration Fix
+echo Deploying IIS Configuration Fix - Profile Upload Fix
+echo ================================================
+echo.
+echo This batch file applies the same fixes that resolved the profile upload issue:
+echo - Removes duplicate MIME mappings from web.config
+echo - Updates FileStorage BaseUrl to correct server
+echo - Creates logs directory and sets permissions
 echo ================================================
 
 echo Stopping IIS...
@@ -35,6 +41,6 @@ echo - Updated appsettings.Production.json (FileStorage now points to local serv
 echo - Created logs directory for debugging
 echo - Set proper file permissions
 echo.
-echo You can now test the profile upload again.
+echo Profile upload should now work correctly!
 echo.
 pause
