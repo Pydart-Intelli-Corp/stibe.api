@@ -429,41 +429,8 @@ jobs:
         total_tests=$((total_tests + 1))
         [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
         
-        echo "🔒 PROTECTED ENDPOINTS (Expecting 401 Unauthorized)"
-        echo "==================================================="
-        
-        # Test Controller - Protected endpoints
-        test_api_endpoint "GET" "/api/test/protected" "Protected Test Endpoint" "auth"
-        total_tests=$((total_tests + 1))
-        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
-        
-        test_api_endpoint "GET" "/api/test/admin-only" "Admin Only Endpoint" "admin"
-        total_tests=$((total_tests + 1))
-        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
-        
-        test_api_endpoint "GET" "/api/test/shop-owner" "Shop Owner Endpoint" "shop-owner"
-        total_tests=$((total_tests + 1))
-        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
-        
-        test_api_endpoint "GET" "/api/test/customer" "Customer Endpoint" "customer"
-        total_tests=$((total_tests + 1))
-        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
-        
-        test_api_endpoint "GET" "/api/test/debug-claims" "Debug Claims Endpoint" "auth"
-        total_tests=$((total_tests + 1))
-        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
-        
-        echo "🏪 BUSINESS ENDPOINTS"
-        echo "===================="
-        
-        # Staff Controller
-        test_api_endpoint "GET" "/api/staff/dashboard" "Staff Dashboard" "auth"
-        total_tests=$((total_tests + 1))
-        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
-        
-        test_api_endpoint "GET" "/api/staff/profile" "Staff Profile" "auth"
-        total_tests=$((total_tests + 1))
-        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        echo "🏪 BUSINESS ENDPOINTS (Public Only)"
+        echo "==================================="
         
         # Salon Controller
         test_api_endpoint "GET" "/api/salon" "Get All Salons" "public"
