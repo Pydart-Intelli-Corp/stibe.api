@@ -17,18 +17,31 @@ using stibe.api.Services.Implementations.FileService;
 using Microsoft.Extensions.FileProviders;
 using Serilog;
 
-// Configure Serilog early
+// Force Production Environment (Manual Override)
+Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Production");
+
+// Configure Serilog with environment-based logging
+// Force Production environment (manual override)
+var environment = "Production"; // Manual override - always use Production
+// var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"; // Original line
+var isDevelopment = environment == "Development";
+
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
     .WriteTo.File("logs/stibe-api-.log", 
         rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 7,
+        retainedFileCountLimit: isDevelopment ? 3 : 30,
         shared: true,
-        flushToDiskInterval: TimeSpan.FromSeconds(1))
-    .MinimumLevel.Information()
+        flushToDiskInterval: TimeSpan.FromSeconds(1),
+        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+    .MinimumLevel.Is(isDevelopment ? Serilog.Events.LogEventLevel.Debug : Serilog.Events.LogEventLevel.Information)
     .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
-    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", isDevelopment ? Serilog.Events.LogEventLevel.Information : Serilog.Events.LogEventLevel.Warning)
     .MinimumLevel.Override("System.Net.Http.HttpClient", Serilog.Events.LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", Serilog.Events.LogEventLevel.Information)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Application", "StibeAPI")
+    .Enrich.WithProperty("Environment", environment)
     .CreateLogger();
 
 try
@@ -43,11 +56,29 @@ builder.Host.UseSerilog();
 // Add services to the container.
 builder.Services.AddControllers();
 
-// Configure Entity Framework with MySQL
+// Configure Entity Framework with MySQL and Production Optimizations
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 40)));
+    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 40)), mySqlOptions =>
+    {
+        mySqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorNumbersToAdd: null);
+    });
+    
+    // Production optimizations
+    if (!builder.Environment.IsDevelopment())
+    {
+        options.EnableSensitiveDataLogging(false);
+        options.EnableDetailedErrors(false);
+    }
+    else
+    {
+        options.EnableSensitiveDataLogging(true);
+        options.EnableDetailedErrors(true);
+    }
 });
 
 // Configure JWT Authentication
@@ -168,17 +199,51 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Configure CORS
+// Configure CORS with environment-specific policies
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-        policy =>
-        {
-            policy.AllowAnyOrigin()
-                  .AllowAnyMethod()
-                  .AllowAnyHeader()
-                  .WithExposedHeaders("Content-Disposition"); // For file downloads
-        });
+    if (builder.Environment.IsDevelopment())
+    {
+        // Development: Allow all origins for testing
+        options.AddPolicy("AllowAll",
+            policy =>
+            {
+                policy.AllowAnyOrigin()
+                      .AllowAnyMethod()
+                      .AllowAnyHeader()
+                      .WithExposedHeaders("Content-Disposition");
+            });
+    }
+    else
+    {
+        // Production: Restrict to specific origins
+        options.AddPolicy("Production",
+            policy =>
+            {
+                policy.WithOrigins(
+                        "http://202.164.153.160",
+                        "http://202.164.153.160:85",
+                        "https://202.164.153.160",
+                        "https://202.164.153.160:85",
+                        "https://stibe.app",
+                        "https://www.stibe.app"
+                      )
+                      .AllowAnyMethod()
+                      .AllowAnyHeader()
+                      .AllowCredentials()
+                      .WithExposedHeaders("Content-Disposition");
+            });
+        
+        // Fallback policy for API testing
+        options.AddPolicy("AllowAll",
+            policy =>
+            {
+                policy.AllowAnyOrigin()
+                      .AllowAnyMethod()
+                      .AllowAnyHeader()
+                      .WithExposedHeaders("Content-Disposition");
+            });
+    }
 });
 
 // Build the application once all services are configured
@@ -192,16 +257,59 @@ if (app.Environment.IsDevelopment())
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Stibe Booking API v1");
         c.RoutePrefix = "swagger";
+        c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
+        c.DefaultModelExpandDepth(2);
+        c.DefaultModelRendering(Swashbuckle.AspNetCore.SwaggerUI.ModelRendering.Model);
+        c.DisplayRequestDuration();
+        c.EnableDeepLinking();
+        c.EnableFilter();
+        c.ShowExtensions();
     });
 
     // Automatically create database in development
     using (var scope = app.Services.CreateScope())
     {
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        context.Database.EnsureCreated();
+        try
+        {
+            context.Database.EnsureCreated();
+            Log.Information("Database ensured for development environment");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to ensure database in development");
+        }
     }
 
     app.UseDeveloperExceptionPage();
+}
+else
+{
+    // Production error handling
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
+    
+    // Health check endpoint for production monitoring
+    app.MapGet("/health", () => Results.Ok(new { 
+        status = "healthy", 
+        timestamp = DateTime.UtcNow,
+        version = "1.0.0",
+        environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+    }));
+}
+
+// Security headers for production
+if (!app.Environment.IsDevelopment())
+{
+    app.Use(async (context, next) =>
+    {
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        context.Response.Headers["X-Frame-Options"] = "DENY";
+        context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
+        context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+        context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'";
+        await next();
+    });
 }
 
 app.UseHttpsRedirection();
@@ -244,7 +352,10 @@ app.MapGet("/", context => {
     context.Response.Redirect("/index.html");
     return Task.CompletedTask;
 });
-app.UseCors("AllowAll");
+
+// Use environment-specific CORS policy
+var corsPolicy = app.Environment.IsDevelopment() ? "AllowAll" : "Production";
+app.UseCors(corsPolicy);
 
 // Add clean endpoint logging middleware
 app.Use(async (context, next) =>
