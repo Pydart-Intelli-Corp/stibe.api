@@ -26,6 +26,7 @@ namespace stibe.api.Controllers
         private readonly ILogger<AuthController> _logger;
         private readonly IWebHostEnvironment _environment;
         private readonly IGoogleOAuthService _googleOAuthService;
+        private readonly IConfiguration _configuration;
 
         public AuthController(
             ApplicationDbContext context,
@@ -34,7 +35,8 @@ namespace stibe.api.Controllers
             IEmailService emailService,
             ILogger<AuthController> logger,
             IWebHostEnvironment environment,
-            IGoogleOAuthService googleOAuthService)
+            IGoogleOAuthService googleOAuthService,
+            IConfiguration configuration)
         {
             _context = context;
             _passwordService = passwordService;
@@ -43,6 +45,7 @@ namespace stibe.api.Controllers
             _logger = logger;
             _environment = environment;
             _googleOAuthService = googleOAuthService;
+            _configuration = configuration;
         }
 
         [HttpPost("register-admin")]
@@ -1454,9 +1457,21 @@ namespace stibe.api.Controllers
                 var fileInfo = new FileInfo(filePath);
                 _logger.LogInformation("Saved file size: {FileSize} bytes", fileInfo.Length);
 
-                // Generate URL for the file
-                var baseUrl = $"{Request.Scheme}://{Request.Host}";
-                var imageUrl = $"{baseUrl}/uploads/profile-images/{fileName}";
+                // Generate URL for the file using configured base URL
+                var configuredBaseUrl = _configuration["FileStorage:BaseUrl"] ?? "/uploads";
+                string imageUrl;
+                
+                // If configured base URL is absolute, use it directly
+                if (configuredBaseUrl.StartsWith("http"))
+                {
+                    imageUrl = $"{configuredBaseUrl}/profile-images/{fileName}";
+                }
+                else
+                {
+                    // Fallback to request-based URL for local development
+                    var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                    imageUrl = $"{baseUrl}{configuredBaseUrl}/profile-images/{fileName}";
+                }
                 
                 _logger.LogInformation("Generated image URL: {ImageUrl}", imageUrl);
 

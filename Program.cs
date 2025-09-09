@@ -176,7 +176,8 @@ builder.Services.AddCors(options =>
         {
             policy.AllowAnyOrigin()
                   .AllowAnyMethod()
-                  .AllowAnyHeader();
+                  .AllowAnyHeader()
+                  .WithExposedHeaders("Content-Disposition"); // For file downloads
         });
 });
 
@@ -204,16 +205,41 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Configure static files and uploads directory
 var wwwrootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
 var uploadsPath = Path.Combine(wwwrootPath, "uploads");
 Directory.CreateDirectory(wwwrootPath);
 Directory.CreateDirectory(uploadsPath);
-app.UseStaticFiles(); // Default static files
+
+// Default static files (wwwroot)
+app.UseStaticFiles();
+
+// Static files for uploads with caching and proper MIME types
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(uploadsPath),
-    RequestPath = "/uploads"
+    RequestPath = "/uploads",
+    OnPrepareResponse = ctx =>
+    {
+        // Set cache headers for uploaded files
+        ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=3600");
+        
+        // Ensure proper MIME types for images
+        var extension = Path.GetExtension(ctx.File.Name).ToLowerInvariant();
+        switch (extension)
+        {
+            case ".jpg":
+            case ".jpeg":
+                ctx.Context.Response.ContentType = "image/jpeg";
+                break;
+            case ".png":
+                ctx.Context.Response.ContentType = "image/png";
+                break;
+        }
+    }
 });
+
 app.MapGet("/", context => {
     context.Response.Redirect("/index.html");
     return Task.CompletedTask;

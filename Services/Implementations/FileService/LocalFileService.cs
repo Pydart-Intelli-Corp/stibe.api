@@ -35,7 +35,17 @@ namespace stibe.api.Services.Implementations.FileService
                 ?? Path.Combine(contentRootPath, "wwwroot", "uploads");
 
             // Base URL for accessing files (configure in appsettings.json)
-            _baseStorageUrl = _configuration["FileStorage:BaseUrl"] ?? "/uploads";
+            var configuredBaseUrl = _configuration["FileStorage:BaseUrl"] ?? "/uploads";
+            
+            // Handle both absolute and relative URLs
+            if (configuredBaseUrl.StartsWith("http"))
+            {
+                _baseStorageUrl = configuredBaseUrl;
+            }
+            else
+            {
+                _baseStorageUrl = configuredBaseUrl;
+            }
 
             _logger.LogInformation($"File storage path set to: {_baseStoragePath}");
             _logger.LogInformation($"File URL base set to: {_baseStorageUrl}");
