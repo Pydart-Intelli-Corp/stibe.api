@@ -155,11 +155,15 @@ jobs:
         mkdir -p "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/shop-images" 
         mkdir -p "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/product-images"
         
-        # Create test files to ensure directories exist
+        # Create test files to ensure directories exist and test static file serving
         echo "Test file for profile images" > "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/profile-images/test.txt"
         echo "Test file for service images" > "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/service-images/test.txt"
         echo "Test file for shop images" > "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/shop-images/test.txt"
         echo "Test file for product images" > "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/product-images/test.txt"
+        
+        # Create a sample image placeholder for testing static file serving
+        echo "Sample test image content" > "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/profile-images/test-deployment.jpg"
+        echo "This is a test file to verify static file serving is working properly after deployment." > "${{ env.PUBLISH_OUTPUT }}/wwwroot/uploads/test-static-files.txt"
         
         # Publish with same settings as Visual Studio
         echo "🔨 Publishing with Visual Studio-like settings..."
@@ -472,7 +476,28 @@ jobs:
         total_tests=$((total_tests + 1))
         [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
         
-        echo "📋 ENDPOINT TESTING SUMMARY"
+        # Test uploads directory diagnostic
+        test_api_endpoint "GET" "/api/test/uploads-info" "Uploads Directory Info" "public"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        echo "� STATIC FILE SERVING TESTS"
+        echo "============================"
+        
+        # Test static file serving for test files
+        test_api_endpoint "GET" "/uploads/test-static-files.txt" "Static File Test (TXT)" "public"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        test_api_endpoint "GET" "/uploads/profile-images/test.txt" "Profile Images Directory Test" "public"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        test_api_endpoint "GET" "/uploads/profile-images/test-deployment.jpg" "Test Image File Serving" "public"
+        total_tests=$((total_tests + 1))
+        [ $? -eq 0 ] && successful_tests=$((successful_tests + 1))
+        
+        echo "�📋 ENDPOINT TESTING SUMMARY"
         echo "==========================="
         echo "Total Endpoints Tested: $total_tests"
         echo "Successful Responses: $successful_tests"

@@ -17,14 +17,33 @@ using stibe.api.Services.Implementations.FileService;
 using Microsoft.Extensions.FileProviders;
 using Serilog;
 
-// Force Development Environment for local testing
-Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+// ===== ENVIRONMENT CONFIGURATION =====
+// Quick environment switching for development/testing:
+// 
+// For DEVELOPMENT (default):
+//   - Uses appsettings.Development.json
+//   - More verbose logging
+//   - Database auto-creation
+//   - Swagger enabled
+//
+// For PRODUCTION:
+//   - Set environment variable: ASPNETCORE_ENVIRONMENT=Production
+//   - Uses appsettings.Production.json  
+//   - Minimal logging
+//   - No database auto-creation
+//   - Swagger disabled in production
+//
+// Quick override (uncomment one line below):
+//Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Production");
 
-// Configure Serilog with environment-based logging
-// Force Development environment for local testing
-var environment = "Development"; // Manual override - use Development for local testing
-// var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"; // Original line
+// Configure environment - uses ASPNETCORE_ENVIRONMENT or defaults to Development for easy local development
+// For production deployment, set ASPNETCORE_ENVIRONMENT=Production in your hosting environment
+var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
 var isDevelopment = environment == "Development";
+
+Console.WriteLine($"🌍 Environment: {environment}");
+Console.WriteLine($"🔧 Development Mode: {isDevelopment}");
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
@@ -221,6 +240,8 @@ builder.Services.AddCors(options =>
             policy =>
             {
                 policy.WithOrigins(
+                        "http://202.164.153.160:85",
+                        "https://202.164.153.160:85",
                         "http://202.164.153.160",
                         "http://202.164.153.160:85",
                         "https://202.164.153.160",
@@ -328,20 +349,47 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Configure static files and uploads directory
-var wwwrootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+// Configure static files and uploads directory with improved production support
+var wwwrootPath = app.Environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
 var uploadsPath = Path.Combine(wwwrootPath, "uploads");
+
+// Ensure directories exist
 Directory.CreateDirectory(wwwrootPath);
 Directory.CreateDirectory(uploadsPath);
 
-// Default static files (wwwroot)
-app.UseStaticFiles();
+// Create subdirectories for uploads
+var profileImagesPath = Path.Combine(uploadsPath, "profile-images");
+var serviceImagesPath = Path.Combine(uploadsPath, "service-images");
+var shopImagesPath = Path.Combine(uploadsPath, "shop-images");
+var productImagesPath = Path.Combine(uploadsPath, "product-images");
 
-// Static files for uploads with caching and proper MIME types
+Directory.CreateDirectory(profileImagesPath);
+Directory.CreateDirectory(serviceImagesPath);
+Directory.CreateDirectory(shopImagesPath);
+Directory.CreateDirectory(productImagesPath);
+
+startupLogger.LogInformation("📁 Upload directories created/verified:");
+startupLogger.LogInformation("   📂 WWW Root: {WwwRootPath}", wwwrootPath);
+startupLogger.LogInformation("   📂 Uploads: {UploadsPath}", uploadsPath);
+startupLogger.LogInformation("   📂 Profile Images: {ProfileImagesPath}", profileImagesPath);
+
+// Default static files (wwwroot) - should be first
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Set cache headers for static files
+        ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=86400");
+        startupLogger.LogDebug("📄 Serving static file: {FileName}", ctx.File.Name);
+    }
+});
+
+// Static files for uploads with enhanced configuration
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(uploadsPath),
     RequestPath = "/uploads",
+    ServeUnknownFileTypes = false,
     OnPrepareResponse = ctx =>
     {
         // Set cache headers for uploaded files
@@ -358,8 +406,41 @@ app.UseStaticFiles(new StaticFileOptions
             case ".png":
                 ctx.Context.Response.ContentType = "image/png";
                 break;
+            case ".gif":
+                ctx.Context.Response.ContentType = "image/gif";
+                break;
+            case ".webp":
+                ctx.Context.Response.ContentType = "image/webp";
+                break;
+            case ".svg":
+                ctx.Context.Response.ContentType = "image/svg+xml";
+                break;
         }
+        
+        startupLogger.LogDebug("📸 Serving upload file: {FileName} ({ContentType})", ctx.File.Name, ctx.Context.Response.ContentType);
     }
+});
+
+// Add a diagnostic endpoint to check uploads directory
+app.MapGet("/api/test/uploads-info", () =>
+{
+    var result = new
+    {
+        uploadsPath,
+        uploadsExists = Directory.Exists(uploadsPath),
+        profileImagesExists = Directory.Exists(profileImagesPath),
+        wwwrootPath,
+        wwwrootExists = Directory.Exists(wwwrootPath),
+        files = Directory.Exists(uploadsPath) ? 
+            Directory.GetFiles(uploadsPath, "*", SearchOption.AllDirectories)
+                .Select(f => new { 
+                    path = f.Replace(uploadsPath, "").Replace("\\", "/"),
+                    exists = File.Exists(f),
+                    size = new FileInfo(f).Length 
+                }).Take(10).ToArray() : 
+            Array.Empty<object>()
+    };
+    return Results.Ok(result);
 });
 
 app.MapGet("/", context => {
