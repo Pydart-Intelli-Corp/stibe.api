@@ -1006,7 +1006,7 @@ namespace stibe.api.Controllers
                         <h1 class='error'>Invalid Reset Link</h1>
                         <p>The password reset link is invalid or has expired.</p>
                         <p>Please request a new password reset link from the login page.</p>
-                        <a href='/login'>Go to Login</a>
+                        <a href='{_configuration["App:LoginRedirectUrl"] ?? "/login"}'>Go to Login</a>
                     </div>
                 </body>
                 </html>
@@ -1051,27 +1051,53 @@ namespace stibe.api.Controllers
 
                 _logger.LogInformation($"Password reset successfully for user: {user.Email}");
 
+                var loginRedirect = _configuration["App:LoginRedirectUrl"] ?? "/login";
+
                 return Content($@"
             <!DOCTYPE html>
             <html>
             <head>
+                <meta name=""viewport"" content=""width=device-width,initial-scale=1"" />
                 <title>Password Reset Success</title>
                 <style>
-                    body {{ font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }}
-                    .success {{ color: #4CAF50; }}
-                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; }}
+                    :root {{ --bg:#0f1724; --card:#0b1220; --accent:#6ee7b7; --muted:#9ca3af; --glass: rgba(255,255,255,0.04); }}
+                    html,body{{height:100%;margin:0;padding:0;font-family:Inter, Roboto, system-ui, -apple-system, 'Segoe UI', Arial; background: linear-gradient(180deg,#071021 0%, #071a2b 100%); color:#e6eef6}}
+                    .wrap{{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px}}
+                    .card{{width:100%;max-width:520px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:16px;padding:28px;box-shadow:0 8px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}}
+                    h1{{margin:0 0 12px;font-weight:600;font-size:22px;color:var(--accent)}}
+                    p{{margin:0 0 12px;color:var(--muted)}}
+                    .count{{font-weight:700;color:#fff;font-size:20px}}
+                    .manual{{display:inline-block;margin-top:14px;padding:10px 16px;border-radius:10px;background:linear-gradient(90deg,#0ea5a9,#7c3aed);color:white;text-decoration:none}}
                 </style>
             </head>
             <body>
-                <div class='container'>
-                    <h1 class='success'>Password Reset Successfully!</h1>
-                    <p>Your password has been reset. You can now log in with your new password.</p>
-                    <p>Redirecting to login page in 3 seconds...</p>
+                <div class='wrap'>
+                    <div class='card'>
+                        <h1>Password Reset Successfully</h1>
+                        <p>Your password has been updated. You'll be redirected to the app to sign in automatically.</p>
+                        <p id='message'>Redirecting to login in <span id='countdown' class='count'>3</span> seconds...</p>
+                        <p><a id='manualLink' class='manual' href='{loginRedirect}'>Open app now</a></p>
+                    </div>
                 </div>
                 <script>
-                    setTimeout(function() {{
-                        window.location.href = '/login';
-                    }}, 3000);
+                    (function(){{
+                        var countdownEl = document.getElementById('countdown');
+                        var seconds = 3;
+                        var redirectUrl = '{loginRedirect}';
+
+                        var interval = setInterval(function(){{
+                            seconds--;
+                            if (countdownEl) countdownEl.textContent = seconds;
+                            if (seconds <= 0){{
+                                clearInterval(interval);
+                                try{{
+                                    window.location.href = redirectUrl;
+                                }}catch(e){{
+                                    window.location.href = '/login';
+                                }}
+                            }}
+                        }}, 1000);
+                    }})();
                 </script>
             </body>
             </html>
@@ -1226,7 +1252,33 @@ namespace stibe.api.Controllers
 
                 if (user.IsEmailVerified)
                 {
-                    // Return success HTML - already verified
+                    // Already verified - redirect to app login with a short countdown
+                    var loginRedirectUrl1 = _configuration["App:LoginRedirectUrl"] ?? "/login";
+
+                    // Attempt to generate short-lived tokens for auto-login if possible
+                    string shortToken = string.Empty;
+                    string shortRefreshToken = string.Empty;
+                    string shortExpiresAt = string.Empty;
+                    try
+                    {
+                        shortToken = _jwtService.GenerateToken(user);
+                        shortRefreshToken = _jwtService.GenerateRefreshToken();
+                        shortExpiresAt = DateTime.UtcNow.AddMinutes(60).ToString("o");
+                    }
+                    catch
+                    {
+                        // Ignore token generation errors; fallback to redirect without tokens
+                    }
+
+                    var redirectUrl = loginRedirectUrl1;
+                    if (!string.IsNullOrEmpty(shortToken))
+                    {
+                        redirectUrl = $"{loginRedirectUrl1}?token={Uri.EscapeDataString(shortToken)}&refreshToken={Uri.EscapeDataString(shortRefreshToken)}&expiresAt={Uri.EscapeDataString(shortExpiresAt)}&next=dashboard";
+                    }
+
+                    // Safely serialize the redirect URL for embedding into JS to avoid quoting/escaping issues
+                    var redirectUrlJson = JsonSerializer.Serialize(redirectUrl);
+
                     return Content($@"
                 <!DOCTYPE html>
                 <html>
@@ -1241,9 +1293,30 @@ namespace stibe.api.Controllers
                 <body>
                     <div class='container'>
                         <h1 class='success'>Email Already Verified</h1>
-                        <p>Your email is already verified. You can now log in to your account.</p>
-                        <p>You can close this window and return to the app to continue.</p>
+                        <p>Your email is already verified. You will be redirected to the app shortly.</p>
+                        <p id='message'>Redirecting in <span id='countdown' class='count'>3</span> seconds...</p>
+                        <p><a id='manualLink' class='manual' href='{redirectUrl}'>Open in app now</a></p>
                     </div>
+                    <script>
+                        (function() {{
+                            var countdownEl = document.getElementById('countdown');
+                                var seconds = 3;
+                                var redirectUrl = {redirectUrlJson};
+
+                                var interval = setInterval(function() {{
+                                seconds--;
+                                if (countdownEl) countdownEl.textContent = seconds;
+                                if (seconds <= 0) {{
+                                    clearInterval(interval);
+                                    try {{
+                                        window.location.href = redirectUrl;
+                                    }} catch (e) {{
+                                        window.location.href = '/login';
+                                    }}
+                                }}
+                            }}, 1000);
+                        }})();
+                    </script>
                 </body>
                 </html>
             ", "text/html");
@@ -1271,7 +1344,32 @@ namespace stibe.api.Controllers
 
                 _logger.LogInformation($"Email verified successfully for user: {user.Email}");
 
-                // Return success HTML
+                // Generate tokens for auto-login and redirect to app
+                var loginRedirect = _configuration["App:LoginRedirectUrl"] ?? "/login";
+                string generatedToken = string.Empty;
+                string generatedRefresh = string.Empty;
+                string generatedExpires = string.Empty;
+                try
+                {
+                    generatedToken = _jwtService.GenerateToken(user);
+                    generatedRefresh = _jwtService.GenerateRefreshToken();
+                    generatedExpires = DateTime.UtcNow.AddMinutes(60).ToString("o");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to generate tokens for redirect after verification");
+                }
+
+                var redirect = loginRedirect;
+                if (!string.IsNullOrEmpty(generatedToken))
+                {
+                    redirect = $"{loginRedirect}?token={Uri.EscapeDataString(generatedToken)}&refreshToken={Uri.EscapeDataString(generatedRefresh)}&expiresAt={Uri.EscapeDataString(generatedExpires)}&next=dashboard";
+                }
+
+                // Safely serialize the redirect URL for embedding into JS to avoid quoting/escaping issues
+                var redirectJson = JsonSerializer.Serialize(redirect);
+
+                // Return success HTML with countdown and redirect
                 return Content($@"
             <!DOCTYPE html>
             <html>
@@ -1286,9 +1384,30 @@ namespace stibe.api.Controllers
             <body>
                 <div class='container'>
                     <h1 class='success'>Email Verified Successfully!</h1>
-                    <p>Your email has been verified. You can now log in to your account.</p>
-                    <p>You can close this window and return to the app to continue.</p>
+                    <p>Your email has been verified. You will be redirected to the app and logged in automatically.</p>
+                    <p id='message'>Redirecting to app in <span id='countdown' class='count'>3</span> seconds...</p>
+                    <p><a id='manualLink' class='manual' href='{redirect}'>Open in app now</a></p>
                 </div>
+                <script>
+                    (function() {{
+                        var countdownEl = document.getElementById('countdown');
+                            var seconds = 3;
+                            var redirectUrl = {redirectJson};
+
+                            var interval = setInterval(function() {{
+                            seconds--;
+                            if (countdownEl) countdownEl.textContent = seconds;
+                            if (seconds <= 0) {{
+                                clearInterval(interval);
+                                try {{
+                                    window.location.href = redirectUrl;
+                                }} catch (e) {{
+                                    window.location.href = '/login';
+                                }}
+                            }}
+                        }}, 1000);
+                    }})();
+                </script>
             </body>
             </html>
         ", "text/html");
@@ -1438,6 +1557,21 @@ namespace stibe.api.Controllers
                 
                 _logger.LogInformation("Generated file name: {FileName}", fileName);
                 _logger.LogInformation("Full file path: {FilePath}", filePath);
+
+                // Delete old profile image if it exists
+                if (!string.IsNullOrEmpty(user.ProfilePictureUrl))
+                {
+                    try
+                    {
+                        _logger.LogInformation("Attempting to delete old profile image: {OldImageUrl}", user.ProfilePictureUrl);
+                        DeleteOldProfileImage(user.ProfilePictureUrl);
+                    }
+                    catch (Exception deleteEx)
+                    {
+                        _logger.LogWarning(deleteEx, "Failed to delete old profile image: {OldImageUrl}", user.ProfilePictureUrl);
+                        // Continue with upload even if deletion fails
+                    }
+                }
 
                 // Save the file
                 _logger.LogInformation("Starting file save operation...");
@@ -1820,6 +1954,44 @@ namespace stibe.api.Controllers
             }
 
             return userId;
+        }
+
+        private void DeleteOldProfileImage(string imageUrl)
+        {
+            try
+            {
+                // Extract file path from URL
+                var uri = new Uri(imageUrl, UriKind.RelativeOrAbsolute);
+                string fileName;
+
+                if (uri.IsAbsoluteUri)
+                {
+                    fileName = Path.GetFileName(uri.LocalPath);
+                }
+                else
+                {
+                    // For relative URLs like "/uploads/profile-images/filename.jpg"
+                    var pathSegments = imageUrl.Split('/');
+                    fileName = pathSegments.Last();
+                }
+
+                var oldFilePath = Path.Combine(_environment.WebRootPath, "uploads", "profile-images", fileName);
+                
+                if (System.IO.File.Exists(oldFilePath))
+                {
+                    System.IO.File.Delete(oldFilePath);
+                    _logger.LogInformation("Old profile image deleted successfully: {FilePath}", oldFilePath);
+                }
+                else
+                {
+                    _logger.LogWarning("Old profile image file not found: {FilePath}", oldFilePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting old profile image: {ImageUrl}", imageUrl);
+                throw; // Re-throw to let the caller handle it
+            }
         }
     }
 

@@ -63,35 +63,69 @@ namespace stibe.api.Services.Implementations.FileService
         {
             if (file == null || file.Length == 0)
             {
+                _logger.LogWarning("UploadFileAsync: No file provided");
                 return string.Empty;
             }
 
             try
             {
+                _logger.LogInformation("=== LOCAL FILE SERVICE - UPLOAD STARTED ===");
+                _logger.LogInformation("File: {FileName}, Size: {FileSize} bytes, Container: {ContainerName}", 
+                    file.FileName, file.Length, containerName);
+                _logger.LogInformation("Base storage path: {BasePath}", _baseStoragePath);
+                _logger.LogInformation("Base storage URL: {BaseUrl}", _baseStorageUrl);
+
                 // Create container directory if it doesn't exist
                 var containerPath = Path.Combine(_baseStoragePath, containerName);
+                _logger.LogInformation("Container path: {ContainerPath}", containerPath);
+                
                 if (!Directory.Exists(containerPath))
                 {
+                    _logger.LogInformation("Creating container directory: {ContainerPath}", containerPath);
                     Directory.CreateDirectory(containerPath);
+                    _logger.LogInformation("Container directory created successfully");
+                }
+                else
+                {
+                    _logger.LogInformation("Container directory already exists");
                 }
 
                 // Create a unique filename
                 var fileName = GetUniqueFileName(file.FileName);
                 var filePath = Path.Combine(containerPath, fileName);
+                
+                _logger.LogInformation("Generated file name: {FileName}", fileName);
+                _logger.LogInformation("Full file path: {FilePath}", filePath);
 
                 // Save the file
+                _logger.LogInformation("Starting file save operation...");
                 using (var stream = new FileStream(filePath, FileMode.Create))
                 {
                     await file.CopyToAsync(stream);
                 }
+                _logger.LogInformation("File saved successfully");
+
+                // Verify file was created
+                if (!File.Exists(filePath))
+                {
+                    _logger.LogError("File verification failed: File not found at {FilePath}", filePath);
+                    return string.Empty;
+                }
+
+                var fileInfo = new FileInfo(filePath);
+                _logger.LogInformation("File verification successful - Size: {FileSize} bytes", fileInfo.Length);
 
                 // Return the URL that can be used to access the file
-                return $"{_baseStorageUrl}/{containerName}/{fileName}";
+                var resultUrl = $"{_baseStorageUrl}/{containerName}/{fileName}";
+                _logger.LogInformation("Generated file URL: {FileUrl}", resultUrl);
+                _logger.LogInformation("=== LOCAL FILE SERVICE - UPLOAD COMPLETED ===");
+                
+                return resultUrl;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error uploading file {FileName} to container {ContainerName}",
-                    file.FileName, containerName);
+                _logger.LogError(ex, "=== LOCAL FILE SERVICE - ERROR === Exception during file upload: {ErrorMessage}", ex.Message);
+                _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
                 return string.Empty;
             }
         }
@@ -159,6 +193,42 @@ namespace stibe.api.Services.Implementations.FileService
                 _logger.LogError(ex, "Error deleting file {FileUrl} from container {ContainerName}",
                     fileUrl, containerName);
                 return Task.CompletedTask;
+            }
+        }
+
+        public async Task<string> UpdateProfileImageAsync(IFormFile newFile, string? oldFileUrl, string containerName)
+        {
+            if (newFile == null || newFile.Length == 0)
+            {
+                _logger.LogWarning("UpdateProfileImageAsync: No file provided");
+                return string.Empty;
+            }
+
+            try
+            {
+                _logger.LogInformation("=== PROFILE IMAGE UPDATE STARTED ===");
+                _logger.LogInformation("New file: {FileName}, Size: {FileSize} bytes, Container: {ContainerName}", 
+                    newFile.FileName, newFile.Length, containerName);
+                
+                if (!string.IsNullOrEmpty(oldFileUrl))
+                {
+                    _logger.LogInformation("Deleting old profile image: {OldFileUrl}", oldFileUrl);
+                    await DeleteFileAsync(oldFileUrl, containerName);
+                }
+
+                // Upload the new file
+                var newFileUrl = await UploadFileAsync(newFile, containerName);
+                
+                _logger.LogInformation("Profile image updated successfully. New URL: {NewFileUrl}", newFileUrl);
+                _logger.LogInformation("=== PROFILE IMAGE UPDATE COMPLETED ===");
+                
+                return newFileUrl;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "=== PROFILE IMAGE UPDATE ERROR === Exception during profile image update: {ErrorMessage}", ex.Message);
+                _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
+                return string.Empty;
             }
         }
 

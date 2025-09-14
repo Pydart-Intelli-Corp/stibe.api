@@ -15,6 +15,8 @@ using stibe.api.Services.Implementations.SecurityServices;
 using stibe.api.Services.Implementations.PartnerServices.StaffServices;
 using stibe.api.Services.Implementations.FileService;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Server.IIS;
 using Serilog;
 
 // ===== ENVIRONMENT CONFIGURATION =====
@@ -34,8 +36,8 @@ using Serilog;
 //   - Swagger disabled in production
 //
 // Quick override (uncomment one line below):
-//Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
 Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Production");
+// NOTE: Environment is managed by the host (IIS / web.config) for production. Avoid setting it here so deployments honor the host configuration.
 
 // Configure environment - uses ASPNETCORE_ENVIRONMENT or defaults to Development for easy local development
 // For production deployment, set ASPNETCORE_ENVIRONMENT=Production in your hosting environment
@@ -74,6 +76,20 @@ builder.Host.UseSerilog();
 
 // Add services to the container.
 builder.Services.AddControllers();
+
+// Configure request size limits for file uploads
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = 104857600; // 100MB
+});
+
+// Configure form options for multipart forms
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.ValueLengthLimit = int.MaxValue;
+    options.MultipartBodyLengthLimit = 104857600; // 100MB
+    options.MultipartHeadersLengthLimit = 16384;
+});
 
 // Configure Entity Framework with MySQL and Production Optimizations
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -240,12 +256,12 @@ builder.Services.AddCors(options =>
             policy =>
             {
                 policy.WithOrigins(
-                        "http://202.164.153.160:85",
-                        "https://202.164.153.160:85",
+                        "http://192.168.1.40:5048",
+                        "https://192.168.1.40:5048",
                         "http://202.164.153.160",
-                        "http://202.164.153.160:85",
+                        "http://192.168.1.40:5048",
                         "https://202.164.153.160",
-                        "https://202.164.153.160:85",
+                        "https://192.168.1.40:5048",
                         "https://stibe.app",
                         "https://www.stibe.app"
                       )

@@ -1,0 +1,3 @@
+dotnet ef migrations add Update_20250913 --project "e:\Stibe\stibe.api\stibe.api.csproj" --startup-project "e:\Stibe\stibe.api\stibe.api.csproj" -c ApplicationDbContext
+dotnet ef database update Update_20250913 --project "e:\Stibe\stibe.api\stibe.api.csproj" --startup-project "e:\Stibe\stibe.api\stibe.api.csproj" -c ApplicationDbContext
+dotnet publish -c Release -o "e:\Stibe\stibe.api\publish"; if ($?) { Get-ChildItem -Path "e:\Stibe\stibe.api\publish" | Select-Object Name,Length,LastWriteTime | Sort-Object Name | Format-Table -AutoSize }

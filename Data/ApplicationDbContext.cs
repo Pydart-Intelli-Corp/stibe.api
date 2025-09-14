@@ -27,6 +27,9 @@ namespace stibe.api.Data
         // OTP Management
         public DbSet<OtpEntity> OtpEntities { get; set; } = null!;
 
+        // Payment Management
+        public DbSet<Payment> Payments { get; set; } = null!;
+
         // New DbSet properties for service management enhancements
         public DbSet<ServiceCategory> ServiceCategories { get; set; } = null!;
         public DbSet<ServiceOffer> ServiceOffers { get; set; } = null!;
@@ -46,6 +49,9 @@ namespace stibe.api.Data
 
             // OTP Management configuration
             ConfigureOtpEntity(modelBuilder);
+
+            // Payment Management configuration
+            ConfigurePaymentEntity(modelBuilder);
 
             // New configurations for service management
             ConfigureServiceCategoryEntity(modelBuilder);
@@ -75,6 +81,38 @@ namespace stibe.api.Data
             modelBuilder.Entity<OtpEntity>()
                 .HasIndex(o => new { o.Email, o.Purpose, o.IsUsed })
                 .HasFilter("IsUsed = 0 AND ExpiresAt > CURRENT_TIMESTAMP");
+        }
+
+        private void ConfigurePaymentEntity(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Payment>()
+                .HasKey(p => p.Id);
+
+            // Unique index for PaymentId
+            modelBuilder.Entity<Payment>()
+                .HasIndex(p => p.PaymentId)
+                .IsUnique();
+
+            // Index for user payments lookup
+            modelBuilder.Entity<Payment>()
+                .HasIndex(p => new { p.UserId, p.Status });
+
+            // Index for payment status and purpose
+            modelBuilder.Entity<Payment>()
+                .HasIndex(p => new { p.Status, p.Purpose });
+
+            // Index for cleanup of expired payments
+            modelBuilder.Entity<Payment>()
+                .HasIndex(p => p.ExpiresAt);
+
+            // Index for transaction reference lookups
+            modelBuilder.Entity<Payment>()
+                .HasIndex(p => p.TransactionId)
+                .HasFilter("TransactionId IS NOT NULL");
+
+            modelBuilder.Entity<Payment>()
+                .HasIndex(p => p.UpiTransactionRef)
+                .HasFilter("UpiTransactionRef IS NOT NULL");
         }
 
         // Add missing configuration methods

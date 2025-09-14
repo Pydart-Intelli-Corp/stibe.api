@@ -78,8 +78,8 @@ The workflow provides detailed logging for each step:
 ### After Deployment
 
 The workflow tests these endpoints:
-- **Health Check**: `http://202.164.153.160:85/api/test/health`
-- **Root API**: `http://202.164.153.160:85/test/`
+- **Health Check**: `http://192.168.1.40:5048/api/test/health`
+- **Root API**: `http://192.168.1.40:5048/test/`
 
 ### Deployment Artifacts
 
@@ -141,7 +141,7 @@ If automated health checks fail, manually verify:
 
 3. **Direct API Test**:
    ```
-   curl http://202.164.153.160:85/api/test/health
+   curl http://192.168.1.40:5048/api/test/health
    ```
 
 ## Security Considerations
