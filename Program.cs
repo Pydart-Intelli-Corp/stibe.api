@@ -7,6 +7,7 @@ using stibe.api.Configuration;
 using stibe.api.Data;
 using stibe.api.Services.Interfaces;
 using stibe.api.Services.Implementations.General;
+using stibe.api.Services;
 using System.Text;
 using stibe.api.Services.Interfaces.Partner;
 using stibe.api.Services.Implementations.MockServices;
@@ -163,6 +164,7 @@ builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.AddScoped<IPaymentGatewayService, PaymentGatewayService>();
 
 // Configure Feature Flags first
 builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("FeatureFlags"));
@@ -256,12 +258,12 @@ builder.Services.AddCors(options =>
             policy =>
             {
                 policy.WithOrigins(
-                        "http://192.168.1.40:5048",
-                        "https://192.168.1.40:5048",
+                        "http://192.168.1.36:5048",
+                        "https://192.168.1.36:5048",
                         "http://202.164.153.160",
-                        "http://192.168.1.40:5048",
+                        "http://192.168.1.36:5048",
                         "https://202.164.153.160",
-                        "https://192.168.1.40:5048",
+                        "https://192.168.1.36:5048",
                         "https://stibe.app",
                         "https://www.stibe.app"
                       )

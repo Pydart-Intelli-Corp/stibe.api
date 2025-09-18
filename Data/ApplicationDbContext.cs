@@ -29,6 +29,11 @@ namespace stibe.api.Data
 
         // Payment Management
         public DbSet<Payment> Payments { get; set; } = null!;
+        public DbSet<PaymentStatusHistory> PaymentStatusHistories { get; set; } = null!;
+        public DbSet<PaymentRefund> PaymentRefunds { get; set; } = null!;
+        public DbSet<PaymentConfiguration> PaymentConfigurations { get; set; } = null!;
+        public DbSet<PaymentWebhook> PaymentWebhooks { get; set; } = null!;
+        public DbSet<PaymentAuditLog> PaymentAuditLogs { get; set; } = null!;
 
         // New DbSet properties for service management enhancements
         public DbSet<ServiceCategory> ServiceCategories { get; set; } = null!;
@@ -97,9 +102,9 @@ namespace stibe.api.Data
             modelBuilder.Entity<Payment>()
                 .HasIndex(p => new { p.UserId, p.Status });
 
-            // Index for payment status and purpose
+            // Index for payment status and type
             modelBuilder.Entity<Payment>()
-                .HasIndex(p => new { p.Status, p.Purpose });
+                .HasIndex(p => new { p.Status, p.PaymentType });
 
             // Index for cleanup of expired payments
             modelBuilder.Entity<Payment>()
@@ -111,8 +116,41 @@ namespace stibe.api.Data
                 .HasFilter("TransactionId IS NOT NULL");
 
             modelBuilder.Entity<Payment>()
-                .HasIndex(p => p.UpiTransactionRef)
-                .HasFilter("UpiTransactionRef IS NOT NULL");
+                .HasIndex(p => p.UpiTransactionId)
+                .HasFilter("UpiTransactionId IS NOT NULL");
+
+            // Configure related entities
+            modelBuilder.Entity<PaymentStatusHistory>()
+                .HasKey(psh => psh.Id);
+
+            modelBuilder.Entity<PaymentStatusHistory>()
+                .HasIndex(psh => new { psh.PaymentId, psh.CreatedAt });
+
+            modelBuilder.Entity<PaymentRefund>()
+                .HasKey(pr => pr.Id);
+
+            modelBuilder.Entity<PaymentRefund>()
+                .HasIndex(pr => pr.RefundId)
+                .IsUnique();
+
+            modelBuilder.Entity<PaymentConfiguration>()
+                .HasKey(pc => pc.Id);
+
+            modelBuilder.Entity<PaymentConfiguration>()
+                .HasIndex(pc => pc.ConfigurationKey)
+                .IsUnique();
+
+            modelBuilder.Entity<PaymentWebhook>()
+                .HasKey(pw => pw.Id);
+
+            modelBuilder.Entity<PaymentWebhook>()
+                .HasIndex(pw => new { pw.PaymentId, pw.Status });
+
+            modelBuilder.Entity<PaymentAuditLog>()
+                .HasKey(pal => pal.Id);
+
+            modelBuilder.Entity<PaymentAuditLog>()
+                .HasIndex(pal => new { pal.PaymentId, pal.CreatedAt });
         }
 
         // Add missing configuration methods
