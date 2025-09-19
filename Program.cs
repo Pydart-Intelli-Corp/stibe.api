@@ -164,7 +164,7 @@ builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
-builder.Services.AddScoped<IPaymentGatewayService, PaymentGatewayService>();
+builder.Services.AddScoped<IRazorpayService, RazorpayService>();
 
 // Configure Feature Flags first
 builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("FeatureFlags"));

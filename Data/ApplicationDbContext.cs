@@ -105,14 +105,15 @@ namespace stibe.api.Data
             modelBuilder.Entity<Payment>()
                 .HasIndex(p => p.ExpiresAt);
 
-            // Index for transaction reference lookups
+            // Index for Razorpay order ID lookups
             modelBuilder.Entity<Payment>()
-                .HasIndex(p => p.TransactionId)
-                .HasFilter("TransactionId IS NOT NULL");
+                .HasIndex(p => p.RazorpayOrderId)
+                .HasFilter("RazorpayOrderId IS NOT NULL");
 
+            // Index for Razorpay payment ID lookups
             modelBuilder.Entity<Payment>()
-                .HasIndex(p => p.UpiTransactionRef)
-                .HasFilter("UpiTransactionRef IS NOT NULL");
+                .HasIndex(p => p.RazorpayPaymentId)
+                .HasFilter("RazorpayPaymentId IS NOT NULL");
         }
 
         // Add missing configuration methods

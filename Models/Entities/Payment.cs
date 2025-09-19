@@ -34,34 +34,40 @@ namespace stibe.api.Models.Entities
         
         [Required]
         [StringLength(20)]
-        public string Status { get; set; } = "PENDING";
+        public string Status { get; set; } = "CREATED";
         
         [Required]
         [StringLength(50)]
-        public string PaymentMethod { get; set; } = "UPI";
+        public string PaymentMethod { get; set; } = "razorpay";
         
-        // UPI Specific Fields
-        [StringLength(50)]
-        public string? UpiId { get; set; }
+        // Razorpay Specific Fields
+        [StringLength(100)]
+        public string? RazorpayOrderId { get; set; }
         
         [StringLength(100)]
-        public string? PayeeName { get; set; }
+        public string? RazorpayPaymentId { get; set; }
         
-        // Transaction Details
-        [StringLength(100)]
-        public string? TransactionId { get; set; }
-        
-        [StringLength(50)]
-        public string? UpiTransactionRef { get; set; }
+        [StringLength(500)]
+        public string? RazorpaySignature { get; set; }
         
         [StringLength(200)]
-        public string? TransactionNote { get; set; }
+        public string? Receipt { get; set; }
+        
+        // Additional Razorpay fields
+        [StringLength(100)]
+        public string? MethodType { get; set; } // card, netbanking, wallet, upi
+        
+        [StringLength(100)]
+        public string? Bank { get; set; }
+        
+        [StringLength(100)]
+        public string? Wallet { get; set; }
+        
+        [StringLength(100)]
+        public string? VPA { get; set; } // Virtual Payment Address
         
         [Column(TypeName = "text")]
-        public string? UpiIntentUrl { get; set; }
-        
-        [Column(TypeName = "text")]
-        public string? QrCodeData { get; set; }
+        public string? RazorpayResponseJson { get; set; } // Full Razorpay response
         
         // Shop Data for registration payments
         [Column(TypeName = "text")]
@@ -71,6 +77,12 @@ namespace stibe.api.Models.Entities
         [StringLength(500)]
         public string? FailureReason { get; set; }
         
+        [StringLength(100)]
+        public string? ErrorCode { get; set; }
+        
+        [StringLength(500)]
+        public string? ErrorDescription { get; set; }
+        
         // Timing
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -79,6 +91,15 @@ namespace stibe.api.Models.Entities
         
         // Associated Data
         public int? CreatedShopId { get; set; } // For shop registration payments
+        
+        // Refund Information
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal RefundedAmount { get; set; } = 0;
+        
+        [StringLength(100)]
+        public string? RefundId { get; set; }
+        
+        public DateTime? RefundedAt { get; set; }
         
         // Navigation Properties
         [ForeignKey("UserId")]
