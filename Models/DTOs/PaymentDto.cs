@@ -149,18 +149,4 @@ namespace stibe.api.Models.DTOs
         public string? TransactionId { get; set; }
         public string? FailureReason { get; set; }
     }
-
-    public class PaymentConfigDto
-    {
-        public decimal ShopRegistrationFee { get; set; }
-        public string Currency { get; set; } = "INR";
-        public string CurrencySymbol { get; set; } = "₹";
-        public int PaymentTimeoutMinutes { get; set; }
-        public int MaxRetryAttempts { get; set; }
-        public string UpiPaymentAddress { get; set; } = string.Empty;
-        public string PayeeName { get; set; } = string.Empty;
-        public string MerchantCode { get; set; } = string.Empty;
-        public List<string> SupportedPaymentMethods { get; set; } = new();
-        public List<string> SupportedUpiApps { get; set; } = new();
-    }
 }

@@ -249,7 +249,7 @@ namespace stibe.api.Models.DTOs
     {
         public string RefundId { get; set; } = string.Empty;
         public string PaymentId { get; set; } = string.Empty;
-        public RefundStatus Status { get; set; }
+        public string Status { get; set; } = "PENDING";
         public decimal RefundAmount { get; set; }
         public string Currency { get; set; } = "INR";
         public string Reason { get; set; } = string.Empty;

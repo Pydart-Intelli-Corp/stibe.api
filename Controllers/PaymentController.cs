@@ -70,13 +70,12 @@ namespace stibe.api.Controllers
                 var payment = new Payment
                 {
                     PaymentId = paymentId,
-                    OrderId = paymentId,
                     UserId = request.UserId,
                     Amount = request.Amount,
                     Currency = request.Currency,
-                    PaymentType = request.Purpose,
+                    Purpose = request.Purpose,
                     Description = request.Description,
-                    Status = PaymentStatus.Pending,
+                    Status = "PENDING",
                     PaymentMethod = "UPI",
                     UpiId = upiPaymentData.UpiId,
                     PayeeName = upiPaymentData.PayeeName,
@@ -134,7 +133,7 @@ namespace stibe.api.Controllers
                 }
 
                 // Check if payment is already processed
-                if (payment.Status == PaymentStatus.Success)
+                if (payment.Status == "SUCCESS")
                 {
                     var existingShop = await _context.Shops
                         .FirstOrDefaultAsync(s => s.Id == payment.CreatedShopId);
@@ -144,7 +143,7 @@ namespace stibe.api.Controllers
                         PaymentId = payment.PaymentId,
                         Status = "SUCCESS",
                         TransactionId = payment.TransactionId,
-                        UpiTransactionRef = payment.UpiTransactionId,
+                        UpiTransactionRef = payment.UpiTransactionRef,
                         Amount = payment.Amount,
                         PaymentCompletedAt = payment.CompletedAt,
                         ShopData = existingShop != null ? MapShopToResponse(existingShop) : null
@@ -154,9 +153,9 @@ namespace stibe.api.Controllers
                 }
 
                 // Check if payment has expired
-                if (DateTime.UtcNow > payment.ExpiresAt && payment.Status == PaymentStatus.Pending)
+                if (DateTime.UtcNow > payment.ExpiresAt && payment.Status == "PENDING")
                 {
-                    payment.Status = PaymentStatus.Expired;
+                    payment.Status = "EXPIRED";
                     payment.FailureReason = "Payment expired";
                     payment.UpdatedAt = DateTime.UtcNow;
                     await _context.SaveChangesAsync();
@@ -199,9 +198,9 @@ namespace stibe.api.Controllers
                 _logger.LogInformation("Verifying payment {PaymentId} with transaction ID: {TransactionId}", payment.PaymentId, request.TransactionId);
                 
                 // Mark payment as successful and create shop
-                payment.Status = PaymentStatus.Success;
+                payment.Status = "SUCCESS";
                 payment.TransactionId = request.TransactionId;
-                payment.UpiTransactionId = request.UpiTransactionRef;
+                payment.UpiTransactionRef = request.UpiTransactionRef;
                 payment.CompletedAt = DateTime.UtcNow;
                 payment.UpdatedAt = DateTime.UtcNow;
 
@@ -217,7 +216,7 @@ namespace stibe.api.Controllers
                     PaymentId = payment.PaymentId,
                     Status = "SUCCESS",
                     TransactionId = payment.TransactionId,
-                    UpiTransactionRef = payment.UpiTransactionId,
+                    UpiTransactionRef = payment.UpiTransactionRef,
                     Amount = payment.Amount,
                     PaymentCompletedAt = payment.CompletedAt,
                     ShopData = MapShopToResponse(createdShop)
@@ -259,7 +258,7 @@ namespace stibe.api.Controllers
                     Status = payment.Status.ToString(),
                     Amount = payment.Amount,
                     Currency = payment.Currency,
-                    Purpose = payment.PaymentType,
+                    Purpose = payment.Purpose,
                     CreatedAt = payment.CreatedAt,
                     CompletedAt = payment.CompletedAt,
                     TransactionId = payment.TransactionId,
@@ -291,13 +290,13 @@ namespace stibe.api.Controllers
                     PayeeName = _configuration.GetValue<string>("UPI:PayeeName", "Stibe Services") ?? "Stibe Services",
                     MerchantCode = _configuration.GetValue<string>("UPI:MerchantCode", "STIBE001") ?? "STIBE001",
                     SupportedPaymentMethods = new List<string> { "UPI" },
-                    SupportedUpiApps = new List<string>
+                    SupportedUpiApps = new Dictionary<string, string>
                     {
-                        "Google Pay",
-                        "PhonePe", 
-                        "Paytm",
-                        "BHIM",
-                        "Amazon Pay"
+                        { "google_pay", "Google Pay" },
+                        { "phonepe", "PhonePe" },
+                        { "paytm", "Paytm" },
+                        { "bhim", "BHIM" },
+                        { "amazon_pay", "Amazon Pay" }
                     }
                 };
 
