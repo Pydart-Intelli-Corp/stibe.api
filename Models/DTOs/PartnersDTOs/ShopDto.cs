@@ -363,4 +363,13 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         [StringLength(10)]
         public string? PANNumber { get; set; }
     }
+
+    public class UpdateShopGalleryImagesDto
+    {
+        [Required]
+        public List<string> ImageUrls { get; set; } = new List<string>();
+        
+        [StringLength(500)]
+        public string? ProfilePictureUrl { get; set; }
+    }
 }

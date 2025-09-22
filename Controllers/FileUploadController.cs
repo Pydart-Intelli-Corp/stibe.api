@@ -376,7 +376,7 @@ namespace stibe.api.Controllers
                 }
 
                 _logger.LogInformation("Starting shop image upload via FileService with old image deletion...");
-                var fileUrl = await _fileService.UpdateProfileImageAsync(file, oldImageUrl, "shop-images");
+                var fileUrl = await _fileService.UpdateShopImageAsync(file, oldImageUrl, "shop-images", isProfileImage);
 
                 if (string.IsNullOrEmpty(fileUrl))
                 {

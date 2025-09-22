@@ -258,12 +258,12 @@ builder.Services.AddCors(options =>
             policy =>
             {
                 policy.WithOrigins(
-                        "http://192.168.1.36:5048",
-                        "https://192.168.1.36:5048",
+                        "http://192.168.1.34:5048",
+                        "https://192.168.1.34:5048",
                         "http://202.164.153.160",
-                        "http://192.168.1.36:5048",
+                        "http://192.168.1.34:5048",
                         "https://202.164.153.160",
-                        "https://192.168.1.36:5048",
+                        "https://192.168.1.34:5048",
                         "https://stibe.app",
                         "https://www.stibe.app"
                       )

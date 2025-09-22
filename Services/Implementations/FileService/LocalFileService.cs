@@ -232,6 +232,66 @@ namespace stibe.api.Services.Implementations.FileService
             }
         }
 
+        public Task DeleteMultipleFilesAsync(IEnumerable<string> fileUrls, string containerName)
+        {
+            if (fileUrls == null || !fileUrls.Any())
+            {
+                return Task.CompletedTask;
+            }
+
+            try
+            {
+                _logger.LogInformation("=== BATCH FILE DELETION STARTED ===");
+                _logger.LogInformation("Deleting {Count} files from container: {ContainerName}", fileUrls.Count(), containerName);
+
+                var deletionTasks = fileUrls.Select(fileUrl => DeleteFileAsync(fileUrl, containerName));
+                
+                return Task.WhenAll(deletionTasks);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during batch file deletion in container {ContainerName}", containerName);
+                return Task.CompletedTask;
+            }
+        }
+
+        public async Task<string> UpdateShopImageAsync(IFormFile newFile, string? oldFileUrl, string containerName, bool isProfileImage = false)
+        {
+            if (newFile == null || newFile.Length == 0)
+            {
+                _logger.LogWarning("UpdateShopImageAsync: No file provided");
+                return string.Empty;
+            }
+
+            try
+            {
+                _logger.LogInformation("=== SHOP IMAGE UPDATE STARTED ===");
+                _logger.LogInformation("New file: {FileName}, Size: {FileSize} bytes, Container: {ContainerName}, IsProfile: {IsProfile}", 
+                    newFile.FileName, newFile.Length, containerName, isProfileImage);
+                
+                // Delete old image only if we're updating an existing image
+                if (!string.IsNullOrEmpty(oldFileUrl))
+                {
+                    _logger.LogInformation("Deleting old shop image: {OldFileUrl}", oldFileUrl);
+                    await DeleteFileAsync(oldFileUrl, containerName);
+                }
+
+                // Upload the new file
+                var newFileUrl = await UploadFileAsync(newFile, containerName);
+                
+                _logger.LogInformation("Shop image updated successfully. New URL: {NewFileUrl}", newFileUrl);
+                _logger.LogInformation("=== SHOP IMAGE UPDATE COMPLETED ===");
+                
+                return newFileUrl;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "=== SHOP IMAGE UPDATE ERROR === Exception during shop image update: {ErrorMessage}", ex.Message);
+                _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
+                return string.Empty;
+            }
+        }
+
         private string GetUniqueFileName(string fileName)
         {
             // Generate a unique name by adding a timestamp and guid

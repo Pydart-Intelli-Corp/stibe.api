@@ -1166,7 +1166,7 @@ namespace stibe.api.Controllers
                             try
                             {
                                 _logger.LogInformation("Deleting old shop profile picture: {OldUrl}", existingShop.ProfilePictureUrl);
-                                DeleteOldShopImage(existingShop.ProfilePictureUrl);
+                                await _fileService.DeleteFileAsync(existingShop.ProfilePictureUrl, "shop-images");
                             }
                             catch (Exception deleteEx)
                             {
@@ -1185,7 +1185,7 @@ namespace stibe.api.Controllers
                             try
                             {
                                 _logger.LogInformation("Deleting shop profile picture due to removal: {OldUrl}", existingShop.ProfilePictureUrl);
-                                DeleteOldShopImage(existingShop.ProfilePictureUrl);
+                                await _fileService.DeleteFileAsync(existingShop.ProfilePictureUrl, "shop-images");
                             }
                             catch (Exception deleteEx)
                             {
@@ -1217,16 +1217,16 @@ namespace stibe.api.Controllers
 
                     // Delete old gallery images that are not in the new list
                     var imagesToDelete = currentImageUrls.Where(oldUrl => !request.ImageUrls.Contains(oldUrl)).ToList();
-                    foreach (var imageUrl in imagesToDelete)
+                    if (imagesToDelete.Any())
                     {
                         try
                         {
-                            _logger.LogInformation("Deleting old gallery image: {ImageUrl}", imageUrl);
-                            await _fileService.DeleteFileAsync(imageUrl, "shop-images");
+                            _logger.LogInformation("Deleting {Count} old gallery images", imagesToDelete.Count);
+                            await _fileService.DeleteMultipleFilesAsync(imagesToDelete, "shop-images");
                         }
                         catch (Exception deleteEx)
                         {
-                            _logger.LogWarning(deleteEx, "Failed to delete old gallery image: {ImageUrl}", imageUrl);
+                            _logger.LogWarning(deleteEx, "Failed to delete some old gallery images");
                             // Continue with update even if deletion fails
                         }
                     }
@@ -1309,6 +1309,9 @@ namespace stibe.api.Controllers
                     return NotFound(ApiResponse<object>.ErrorResponse("Shop not found or you don't have permission to delete it"));
                 }
 
+                // Clean up all shop images before deletion
+                await CleanupShopImagesAsync(existingShop);
+
                 // Remove the shop from the database
                 _context.Shops.Remove(existingShop);
                 await _context.SaveChangesAsync();
@@ -1363,6 +1366,9 @@ namespace stibe.api.Controllers
                 {
                     return NotFound(ApiResponse<object>.ErrorResponse("Shop not found or you don't have permission to delete it"));
                 }
+
+                // Clean up all shop images before deletion
+                await CleanupShopImagesAsync(shop);
 
                 // Remove the shop from the database
                 _context.Shops.Remove(shop);
@@ -1473,6 +1479,119 @@ namespace stibe.api.Controllers
             {
                 _logger.LogError(ex, "Error checking shop email address status");
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while checking email address status"));
+            }
+        }
+
+        [HttpPut("{shopId}/gallery-images")]
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse<object>>> UpdateShopGalleryImages(int shopId, [FromBody] UpdateShopGalleryImagesDto request)
+        {
+            try
+            {
+                _logger.LogInformation($"🖼️ UpdateShopGalleryImages called for shop ID: {shopId}");
+                
+                if (request == null || request.ImageUrls == null)
+                {
+                    return BadRequest(ApiResponse<object>.ErrorResponse("Invalid request data"));
+                }
+                
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<object>.ErrorResponse("User not authenticated"));
+                }
+
+                // Find the existing shop
+                var existingShop = await _context.Shops.FirstOrDefaultAsync(s => s.Id == shopId && s.OwnerId == currentUserId && !s.IsDeleted);
+                if (existingShop == null)
+                {
+                    return NotFound(ApiResponse<object>.ErrorResponse("Shop not found or you don't have permission to update it"));
+                }
+
+                // Get current gallery images for deletion
+                List<string> currentImageUrls = new List<string>();
+                if (!string.IsNullOrEmpty(existingShop.ImageUrls))
+                {
+                    try
+                    {
+                        currentImageUrls = JsonSerializer.Deserialize<List<string>>(existingShop.ImageUrls) ?? new List<string>();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to parse existing ImageUrls for shop {ShopId}, starting with empty list", shopId);
+                        currentImageUrls = new List<string>();
+                    }
+                }
+
+                // Determine which images to delete (old images not in new list)
+                var imagesToDelete = currentImageUrls.Where(oldUrl => !request.ImageUrls.Contains(oldUrl)).ToList();
+                
+                // Delete old images that are no longer needed
+                if (imagesToDelete.Any())
+                {
+                    try
+                    {
+                        _logger.LogInformation("Deleting {Count} old gallery images for shop {ShopId}", imagesToDelete.Count, shopId);
+                        await _fileService.DeleteMultipleFilesAsync(imagesToDelete, "shop-images");
+                    }
+                    catch (Exception deleteEx)
+                    {
+                        _logger.LogWarning(deleteEx, "Failed to delete some old gallery images for shop {ShopId}", shopId);
+                        // Continue with update even if deletion fails
+                    }
+                }
+
+                // Update shop with new gallery images
+                existingShop.ImageUrls = JsonSerializer.Serialize(request.ImageUrls);
+                
+                // Update profile picture if specified or set to first gallery image if profile is empty
+                if (!string.IsNullOrEmpty(request.ProfilePictureUrl))
+                {
+                    // Only update if the new profile picture is different from current
+                    if (existingShop.ProfilePictureUrl != request.ProfilePictureUrl)
+                    {
+                        // Delete old profile picture if it exists and is not in the new gallery
+                        if (!string.IsNullOrEmpty(existingShop.ProfilePictureUrl) && 
+                            !request.ImageUrls.Contains(existingShop.ProfilePictureUrl))
+                        {
+                            try
+                            {
+                                _logger.LogInformation("Deleting old profile picture for shop {ShopId}: {OldUrl}", shopId, existingShop.ProfilePictureUrl);
+                                await _fileService.DeleteFileAsync(existingShop.ProfilePictureUrl, "shop-images");
+                            }
+                            catch (Exception deleteEx)
+                            {
+                                _logger.LogWarning(deleteEx, "Failed to delete old profile picture for shop {ShopId}", shopId);
+                            }
+                        }
+                        existingShop.ProfilePictureUrl = request.ProfilePictureUrl;
+                    }
+                }
+                else if (string.IsNullOrEmpty(existingShop.ProfilePictureUrl) && request.ImageUrls.Any())
+                {
+                    // Set first gallery image as profile picture if no profile picture exists
+                    existingShop.ProfilePictureUrl = request.ImageUrls.First();
+                }
+                
+                existingShop.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                var response = new
+                {
+                    shopId = existingShop.Id,
+                    profilePictureUrl = existingShop.ProfilePictureUrl,
+                    galleryImages = request.ImageUrls,
+                    deletedImagesCount = imagesToDelete.Count,
+                    totalGalleryImages = request.ImageUrls.Count
+                };
+
+                _logger.LogInformation($"✅ Shop gallery images updated successfully for shop ID: {shopId}");
+                return Ok(ApiResponse<object>.SuccessResponse(response, "Shop gallery images updated successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating shop gallery images for shop {ShopId}", shopId);
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while updating shop gallery images"));
             }
         }
 
@@ -1633,6 +1752,58 @@ namespace stibe.api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error auto-setting default shop");
+            }
+        }
+
+        /// <summary>
+        /// Cleans up all images associated with a shop (profile picture and gallery images)
+        /// </summary>
+        private async Task CleanupShopImagesAsync(Shop shop)
+        {
+            try
+            {
+                _logger.LogInformation("🧹 Starting cleanup of all images for shop {ShopId}: {ShopName}", shop.Id, shop.Name);
+
+                var imagesToDelete = new List<string>();
+
+                // Add profile picture if exists
+                if (!string.IsNullOrEmpty(shop.ProfilePictureUrl))
+                {
+                    imagesToDelete.Add(shop.ProfilePictureUrl);
+                    _logger.LogInformation("Added profile picture to deletion list: {ProfileUrl}", shop.ProfilePictureUrl);
+                }
+
+                // Add gallery images if they exist
+                if (!string.IsNullOrEmpty(shop.ImageUrls))
+                {
+                    try
+                    {
+                        var galleryImages = JsonSerializer.Deserialize<List<string>>(shop.ImageUrls) ?? new List<string>();
+                        imagesToDelete.AddRange(galleryImages.Where(url => !string.IsNullOrEmpty(url)));
+                        _logger.LogInformation("Added {Count} gallery images to deletion list", galleryImages.Count);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to parse gallery images for shop {ShopId}, skipping gallery cleanup", shop.Id);
+                    }
+                }
+
+                // Delete all images in batch
+                if (imagesToDelete.Any())
+                {
+                    _logger.LogInformation("Deleting {Count} total images for shop {ShopId}", imagesToDelete.Count, shop.Id);
+                    await _fileService.DeleteMultipleFilesAsync(imagesToDelete, "shop-images");
+                    _logger.LogInformation("✅ Successfully cleaned up all images for shop {ShopId}", shop.Id);
+                }
+                else
+                {
+                    _logger.LogInformation("No images to cleanup for shop {ShopId}", shop.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error during image cleanup for shop {ShopId}: {ShopName}", shop.Id, shop.Name);
+                // Don't throw exception as we want shop deletion to continue even if image cleanup fails
             }
         }
 
