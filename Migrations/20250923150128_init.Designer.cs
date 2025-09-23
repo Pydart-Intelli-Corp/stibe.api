@@ -12,8 +12,8 @@ using stibe.api.Data;
 namespace stibe.api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250919025937_SimplifyPaymentEntity")]
-    partial class SimplifyPaymentEntity
+    [Migration("20250923150128_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -999,6 +999,10 @@ namespace stibe.api.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("Bank")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime(6)");
 
@@ -1017,6 +1021,14 @@ namespace stibe.api.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
 
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("ErrorDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("datetime(6)");
 
@@ -1027,7 +1039,7 @@ namespace stibe.api.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<string>("PayeeName")
+                    b.Property<string>("MethodType")
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
@@ -1046,8 +1058,34 @@ namespace stibe.api.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
 
-                    b.Property<string>("QrCodeData")
+                    b.Property<string>("RazorpayOrderId")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("RazorpayPaymentId")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("RazorpayResponseJson")
                         .HasColumnType("text");
+
+                    b.Property<string>("RazorpaySignature")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Receipt")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("RefundId")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<decimal>("RefundedAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("RefundedAt")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("ShopDataJson")
                         .HasColumnType("text");
@@ -1057,30 +1095,19 @@ namespace stibe.api.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
-                    b.Property<string>("TransactionId")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("TransactionNote")
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("UpiId")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("UpiIntentUrl")
-                        .HasColumnType("text");
-
-                    b.Property<string>("UpiTransactionRef")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
                     b.Property<int>("UserId")
                         .HasColumnType("int");
+
+                    b.Property<string>("VPA")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Wallet")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.HasKey("Id");
 
@@ -1091,11 +1118,11 @@ namespace stibe.api.Migrations
                     b.HasIndex("PaymentId")
                         .IsUnique();
 
-                    b.HasIndex("TransactionId")
-                        .HasFilter("TransactionId IS NOT NULL");
+                    b.HasIndex("RazorpayOrderId")
+                        .HasFilter("RazorpayOrderId IS NOT NULL");
 
-                    b.HasIndex("UpiTransactionRef")
-                        .HasFilter("UpiTransactionRef IS NOT NULL");
+                    b.HasIndex("RazorpayPaymentId")
+                        .HasFilter("RazorpayPaymentId IS NOT NULL");
 
                     b.HasIndex("Status", "Purpose");
 

@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace stibe.api.Migrations
 {
     /// <inheritdoc />
-    public partial class SimplifyPaymentEntity : Migration
+    public partial class init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -109,29 +109,41 @@ namespace stibe.api.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     PaymentMethod = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    UpiId = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                    RazorpayOrderId = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    PayeeName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                    RazorpayPaymentId = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    TransactionId = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                    RazorpaySignature = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    UpiTransactionRef = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                    Receipt = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    TransactionNote = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
+                    MethodType = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    UpiIntentUrl = table.Column<string>(type: "text", nullable: true)
+                    Bank = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    QrCodeData = table.Column<string>(type: "text", nullable: true)
+                    Wallet = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    VPA = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    RazorpayResponseJson = table.Column<string>(type: "text", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     ShopDataJson = table.Column<string>(type: "text", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     FailureReason = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ErrorCode = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ErrorDescription = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     CompletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     ExpiresAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     CreatedShopId = table.Column<int>(type: "int", nullable: true),
+                    RefundedAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    RefundId = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    RefundedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
@@ -603,21 +615,21 @@ namespace stibe.api.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_Payments_RazorpayOrderId",
+                table: "Payments",
+                column: "RazorpayOrderId",
+                filter: "RazorpayOrderId IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Payments_RazorpayPaymentId",
+                table: "Payments",
+                column: "RazorpayPaymentId",
+                filter: "RazorpayPaymentId IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Payments_Status_Purpose",
                 table: "Payments",
                 columns: new[] { "Status", "Purpose" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Payments_TransactionId",
-                table: "Payments",
-                column: "TransactionId",
-                filter: "TransactionId IS NOT NULL");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Payments_UpiTransactionRef",
-                table: "Payments",
-                column: "UpiTransactionRef",
-                filter: "UpiTransactionRef IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Payments_UserId_Status",

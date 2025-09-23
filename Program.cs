@@ -20,50 +20,27 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.IIS;
 using Serilog;
 
-// ===== ENVIRONMENT CONFIGURATION =====
-// Quick environment switching for development/testing:
-// 
-// For DEVELOPMENT (default):
-//   - Uses appsettings.Development.json
-//   - More verbose logging
-//   - Database auto-creation
-//   - Swagger enabled
-//
-// For PRODUCTION:
-//   - Set environment variable: ASPNETCORE_ENVIRONMENT=Production
-//   - Uses appsettings.Production.json  
-//   - Minimal logging
-//   - No database auto-creation
-//   - Swagger disabled in production
-//
-// Quick override (uncomment one line below):
-Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Production");
-// NOTE: Environment is managed by the host (IIS / web.config) for production. Avoid setting it here so deployments honor the host configuration.
+// ===== SIMPLIFIED CONFIGURATION =====
+// Using single appsettings.json file for all environments
+// Environment-specific settings can be overridden via environment variables
 
-// Configure environment - uses ASPNETCORE_ENVIRONMENT or defaults to Development for easy local development
-// For production deployment, set ASPNETCORE_ENVIRONMENT=Production in your hosting environment
-var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
-var isDevelopment = environment == "Development";
-
-Console.WriteLine($"🌍 Environment: {environment}");
-Console.WriteLine($"🔧 Development Mode: {isDevelopment}");
+Console.WriteLine($"🌍 Starting Stibe API...");
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
     .WriteTo.File("logs/stibe-api-.log", 
         rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: isDevelopment ? 3 : 30,
+        retainedFileCountLimit: 30,
         shared: true,
         flushToDiskInterval: TimeSpan.FromSeconds(1),
         outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
-    .MinimumLevel.Is(isDevelopment ? Serilog.Events.LogEventLevel.Debug : Serilog.Events.LogEventLevel.Information)
+    .MinimumLevel.Is(Serilog.Events.LogEventLevel.Information)
     .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
-    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", isDevelopment ? Serilog.Events.LogEventLevel.Information : Serilog.Events.LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
     .MinimumLevel.Override("System.Net.Http.HttpClient", Serilog.Events.LogEventLevel.Warning)
     .MinimumLevel.Override("Microsoft.Hosting.Lifetime", Serilog.Events.LogEventLevel.Information)
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Application", "StibeAPI")
-    .Enrich.WithProperty("Environment", environment)
     .CreateLogger();
 
 try
@@ -104,17 +81,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
             errorNumbersToAdd: null);
     });
     
-    // Production optimizations
-    if (!builder.Environment.IsDevelopment())
-    {
-        options.EnableSensitiveDataLogging(false);
-        options.EnableDetailedErrors(false);
-    }
-    else
-    {
-        options.EnableSensitiveDataLogging(true);
-        options.EnableDetailedErrors(true);
-    }
+    // Standard optimizations
+    options.EnableSensitiveDataLogging(false);
+    options.EnableDetailedErrors(false);
 });
 
 // Configure JWT Authentication
@@ -236,53 +205,17 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Configure CORS with environment-specific policies
+// Configure CORS - Allow all for flexibility
 builder.Services.AddCors(options =>
 {
-    if (builder.Environment.IsDevelopment())
-    {
-        // Development: Allow all origins for testing
-        options.AddPolicy("AllowAll",
-            policy =>
-            {
-                policy.AllowAnyOrigin()
-                      .AllowAnyMethod()
-                      .AllowAnyHeader()
-                      .WithExposedHeaders("Content-Disposition");
-            });
-    }
-    else
-    {
-        // Production: Restrict to specific origins
-        options.AddPolicy("Production",
-            policy =>
-            {
-                policy.WithOrigins(
-                        "http://192.168.1.34:5048",
-                        "https://192.168.1.34:5048",
-                        "http://202.164.153.160",
-                        "http://192.168.1.34:5048",
-                        "https://202.164.153.160",
-                        "https://192.168.1.34:5048",
-                        "https://stibe.app",
-                        "https://www.stibe.app"
-                      )
-                      .AllowAnyMethod()
-                      .AllowAnyHeader()
-                      .AllowCredentials()
-                      .WithExposedHeaders("Content-Disposition");
-            });
-        
-        // Fallback policy for API testing
-        options.AddPolicy("AllowAll",
-            policy =>
-            {
-                policy.AllowAnyOrigin()
-                      .AllowAnyMethod()
-                      .AllowAnyHeader()
-                      .WithExposedHeaders("Content-Disposition");
-            });
-    }
+    options.AddPolicy("AllowAll",
+        policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .WithExposedHeaders("Content-Disposition");
+        });
 });
 
 // Build the application once all services are configured
@@ -291,79 +224,54 @@ var app = builder.Build();
 // Get logger for startup configuration
 var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
 
-// Explicitly set WebRootPath for production environment
-if (app.Environment.IsProduction() && string.IsNullOrEmpty(app.Environment.WebRootPath))
+// Set WebRootPath if needed
+if (string.IsNullOrEmpty(app.Environment.WebRootPath))
 {
-    var productionWwwRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
-    app.Environment.WebRootPath = productionWwwRoot;
-    startupLogger.LogInformation("🔧 Production WebRootPath set to: {WebRootPath}", productionWwwRoot);
+    var wwwRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+    app.Environment.WebRootPath = wwwRoot;
+    startupLogger.LogInformation("🔧 WebRootPath set to: {WebRootPath}", wwwRoot);
 }
 
 startupLogger.LogInformation("🔧 Current WebRootPath: {WebRootPath}", app.Environment.WebRootPath);
 startupLogger.LogInformation("🔧 Current ContentRootPath: {ContentRootPath}", app.Environment.ContentRootPath);
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Always enable Swagger for API documentation
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Stibe Booking API v1");
-        c.RoutePrefix = "swagger";
-        c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
-        c.DefaultModelExpandDepth(2);
-        c.DefaultModelRendering(Swashbuckle.AspNetCore.SwaggerUI.ModelRendering.Model);
-        c.DisplayRequestDuration();
-        c.EnableDeepLinking();
-        c.EnableFilter();
-        c.ShowExtensions();
-    });
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Stibe Booking API v1");
+    c.RoutePrefix = "swagger";
+    c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
+    c.DefaultModelExpandDepth(2);
+    c.DefaultModelRendering(Swashbuckle.AspNetCore.SwaggerUI.ModelRendering.Model);
+    c.DisplayRequestDuration();
+    c.EnableDeepLinking();
+    c.EnableFilter();
+    c.ShowExtensions();
+});
 
-    // Automatically create database in development
-    using (var scope = app.Services.CreateScope())
-    {
-        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        try
-        {
-            context.Database.EnsureCreated();
-            Log.Information("Database ensured for development environment");
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to ensure database in development");
-        }
-    }
+// Health check endpoint
+app.MapGet("/health", () => Results.Ok(new { 
+    status = "healthy", 
+    timestamp = DateTime.UtcNow,
+    version = "1.0.0"
+}));
 
-    app.UseDeveloperExceptionPage();
-}
-else
+// Standard error handling
+app.UseExceptionHandler("/Error");
+app.UseHsts();
+
+// Security headers
+app.Use(async (context, next) =>
 {
-    // Production error handling
-    app.UseExceptionHandler("/Error");
-    app.UseHsts();
-    
-    // Health check endpoint for production monitoring
-    app.MapGet("/health", () => Results.Ok(new { 
-        status = "healthy", 
-        timestamp = DateTime.UtcNow,
-        version = "1.0.0",
-        environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
-    }));
-}
-
-// Security headers for production
-if (!app.Environment.IsDevelopment())
-{
-    app.Use(async (context, next) =>
-    {
-        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-        context.Response.Headers["X-Frame-Options"] = "DENY";
-        context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
-        context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-        context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'";
-        await next();
-    });
-}
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'";
+    await next();
+});
 
 app.UseHttpsRedirection();
 
@@ -466,9 +374,8 @@ app.MapGet("/", context => {
     return Task.CompletedTask;
 });
 
-// Use environment-specific CORS policy
-var corsPolicy = app.Environment.IsDevelopment() ? "AllowAll" : "Production";
-app.UseCors(corsPolicy);
+// Use CORS policy
+app.UseCors("AllowAll");
 
 // Add clean endpoint logging middleware
 app.Use(async (context, next) =>
