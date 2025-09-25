@@ -29,6 +29,10 @@ namespace stibe.api.Models.DTOs
         // Shop data for registration payments
         public CreateShopPaymentDataDto? ShopData { get; set; }
         
+        // Coupon code for discounts
+        [StringLength(50)]
+        public string? CouponCode { get; set; }
+        
         // Additional metadata
         public Dictionary<string, string> Notes { get; set; } = new();
     }

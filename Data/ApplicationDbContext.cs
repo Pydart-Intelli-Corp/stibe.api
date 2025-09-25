@@ -30,6 +30,10 @@ namespace stibe.api.Data
         // Payment Management
         public DbSet<Payment> Payments { get; set; } = null!;
 
+        // Coupon Management
+        public DbSet<CouponUsage> CouponUsages { get; set; } = null!;
+        public DbSet<UserCouponUsage> UserCouponUsages { get; set; } = null!;
+
         // New DbSet properties for service management enhancements
         public DbSet<ServiceCategory> ServiceCategories { get; set; } = null!;
         public DbSet<ServiceOffer> ServiceOffers { get; set; } = null!;
@@ -52,6 +56,10 @@ namespace stibe.api.Data
 
             // Payment Management configuration
             ConfigurePaymentEntity(modelBuilder);
+
+            // Coupon Management configuration
+            ConfigureCouponUsageEntity(modelBuilder);
+            ConfigureUserCouponUsageEntity(modelBuilder);
 
             // New configurations for service management
             ConfigureServiceCategoryEntity(modelBuilder);
@@ -114,6 +122,86 @@ namespace stibe.api.Data
             modelBuilder.Entity<Payment>()
                 .HasIndex(p => p.RazorpayPaymentId)
                 .HasFilter("RazorpayPaymentId IS NOT NULL");
+        }
+
+        private void ConfigureCouponUsageEntity(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<CouponUsage>()
+                .HasKey(cu => cu.Id);
+
+            // Index for coupon code lookups
+            modelBuilder.Entity<CouponUsage>()
+                .HasIndex(cu => cu.CouponCode);
+
+            // Index for user coupon usage lookups
+            modelBuilder.Entity<CouponUsage>()
+                .HasIndex(cu => new { cu.UserId, cu.CouponCode, cu.Purpose });
+
+            // Index for payment reference lookups
+            modelBuilder.Entity<CouponUsage>()
+                .HasIndex(cu => cu.PaymentId)
+                .HasFilter("PaymentId IS NOT NULL");
+
+            // Index for status and date queries
+            modelBuilder.Entity<CouponUsage>()
+                .HasIndex(cu => new { cu.Status, cu.AppliedAt });
+
+            // Index for soft delete queries
+            modelBuilder.Entity<CouponUsage>()
+                .HasIndex(cu => cu.IsDeleted);
+
+            // Foreign key relationship with User
+            modelBuilder.Entity<CouponUsage>()
+                .HasOne(cu => cu.User)
+                .WithMany()
+                .HasForeignKey(cu => cu.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Decimal precision for amounts
+            modelBuilder.Entity<CouponUsage>()
+                .Property(cu => cu.OriginalAmount)
+                .HasPrecision(10, 2);
+
+            modelBuilder.Entity<CouponUsage>()
+                .Property(cu => cu.FinalAmount)
+                .HasPrecision(10, 2);
+
+            modelBuilder.Entity<CouponUsage>()
+                .Property(cu => cu.Savings)
+                .HasPrecision(10, 2);
+        }
+
+        private void ConfigureUserCouponUsageEntity(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<UserCouponUsage>()
+                .HasKey(ucu => ucu.Id);
+
+            // Index for user and coupon lookups
+            modelBuilder.Entity<UserCouponUsage>()
+                .HasIndex(ucu => new { ucu.UserId, ucu.CouponCode });
+
+            // Index for email and phone uniqueness checks
+            modelBuilder.Entity<UserCouponUsage>()
+                .HasIndex(ucu => new { ucu.Email, ucu.PhoneNumber, ucu.Purpose });
+
+            // Index for email status queries
+            modelBuilder.Entity<UserCouponUsage>()
+                .HasIndex(ucu => new { ucu.Email, ucu.IsEmailSent });
+
+            // Index for blocked users
+            modelBuilder.Entity<UserCouponUsage>()
+                .HasIndex(ucu => ucu.IsBlocked);
+
+            // Index for soft delete queries
+            modelBuilder.Entity<UserCouponUsage>()
+                .HasIndex(ucu => ucu.IsDeleted);
+
+            // Foreign key relationship with User
+            modelBuilder.Entity<UserCouponUsage>()
+                .HasOne(ucu => ucu.User)
+                .WithMany()
+                .HasForeignKey(ucu => ucu.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
 
         // Add missing configuration methods

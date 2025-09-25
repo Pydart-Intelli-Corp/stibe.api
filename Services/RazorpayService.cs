@@ -4,6 +4,7 @@ using stibe.api.Data;
 using stibe.api.Models.DTOs;
 using stibe.api.Models.Entities;
 using stibe.api.Models.Entities.PartnersEntity;
+using stibe.api.Services.Interfaces;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -26,6 +27,7 @@ namespace stibe.api.Services
         private readonly ApplicationDbContext _context;
         private readonly ILogger<RazorpayService> _logger;
         private readonly IConfiguration _configuration;
+        private readonly ICouponService _couponService;
         private readonly RazorpayClient _razorpayClient;
         private readonly string _keyId;
         private readonly string _keySecret;
@@ -34,11 +36,13 @@ namespace stibe.api.Services
         public RazorpayService(
             ApplicationDbContext context, 
             ILogger<RazorpayService> logger,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            ICouponService couponService)
         {
             _context = context;
             _logger = logger;
             _configuration = configuration;
+            _couponService = couponService;
             
             _keyId = _configuration["Razorpay:KeyId"] ?? throw new ArgumentException("Razorpay KeyId not configured");
             _keySecret = _configuration["Razorpay:KeySecret"] ?? throw new ArgumentException("Razorpay KeySecret not configured");
@@ -51,13 +55,53 @@ namespace stibe.api.Services
         {
             try
             {
-                _logger.LogInformation("Creating Razorpay order for user {UserId}, amount {Amount}", request.UserId, request.Amount);
+                _logger.LogInformation("Creating Razorpay order for user {UserId}, amount {Amount}, couponCode {CouponCode}", 
+                    request.UserId, request.Amount, request.CouponCode);
 
                 // Generate unique payment ID
                 var paymentId = $"STIBE_{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid():N}"[..50];
                 
+                // Apply coupon discount if provided
+                decimal finalAmount = request.Amount;
+                string? appliedCouponCode = null;
+                
+                if (!string.IsNullOrEmpty(request.CouponCode))
+                {
+                    try
+                    {
+                        var validationRequest = new ValidateCouponRequestDto
+                        {
+                            CouponCode = request.CouponCode,
+                            Purpose = request.Purpose,
+                            OriginalAmount = request.Amount
+                        };
+                        
+                        var couponValidation = await _couponService.ValidateCouponAsync(validationRequest);
+                        
+                        if (couponValidation.IsValid)
+                        {
+                            finalAmount = couponValidation.FinalAmount;
+                            appliedCouponCode = request.CouponCode;
+                            
+                            _logger.LogInformation("Coupon applied successfully: {CouponCode}, Original: {OriginalAmount}, Final: {FinalAmount}", 
+                                request.CouponCode, request.Amount, finalAmount);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Invalid coupon code provided: {CouponCode}, Error: {Error}", 
+                                request.CouponCode, couponValidation.ErrorMessage);
+                            // Continue with original amount if coupon is invalid
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error validating coupon: {CouponCode}", request.CouponCode);
+                        // Continue with original amount if coupon validation fails
+                    }
+                }
+                
                 // Convert amount to paisa (Razorpay expects amount in smallest currency unit)
-                var amountInPaisa = (int)(request.Amount * 100);
+                var amountInPaisa = (int)(finalAmount * 100);
                 
                 // Create Razorpay order
                 var orderRequest = new Dictionary<string, object>
@@ -75,7 +119,7 @@ namespace stibe.api.Services
                 {
                     PaymentId = paymentId,
                     UserId = request.UserId,
-                    Amount = request.Amount,
+                    Amount = finalAmount, // Store the final amount after discount
                     Currency = request.Currency,
                     Purpose = request.Purpose,
                     Description = request.Description,
@@ -96,14 +140,21 @@ namespace stibe.api.Services
                 {
                     PaymentId = paymentId,
                     RazorpayOrderId = order["id"].ToString()!,
-                    Amount = request.Amount,
+                    Amount = finalAmount, // Return the final amount after discount
                     Currency = request.Currency,
                     Status = "CREATED",
                     Receipt = payment.Receipt!,
                     Purpose = request.Purpose,
                     CreatedAt = payment.CreatedAt,
                     ExpiresAt = payment.ExpiresAt,
-                    Notes = request.Notes,
+                    Notes = appliedCouponCode != null 
+                        ? new Dictionary<string, string>(request.Notes)
+                        {
+                            ["coupon_code"] = appliedCouponCode,
+                            ["original_amount"] = request.Amount.ToString("F2"),
+                            ["discount_applied"] = (request.Amount - finalAmount).ToString("F2")
+                        }
+                        : request.Notes,
                     RazorpayConfig = new RazorpayConfigDto
                     {
                         KeyId = _keyId,
@@ -210,6 +261,28 @@ namespace stibe.api.Services
                         {
                             var createdShop = await CreateShopFromPaymentDataAsync(shopData, payment.UserId);
                             payment.CreatedShopId = createdShop.Id;
+                        }
+                    }
+                    
+                    // Mark coupon as used if payment included a coupon
+                    // Extract coupon code from Razorpay order notes
+                    var razorpayOrder = _razorpayClient.Order.Fetch(payment.RazorpayOrderId);
+                    var orderNotes = razorpayOrder["notes"] as Newtonsoft.Json.Linq.JObject;
+                    var couponCode = orderNotes?["coupon_code"]?.ToString();
+                    
+                    if (!string.IsNullOrEmpty(couponCode))
+                    {
+                        try
+                        {
+                            await _couponService.MarkCouponAsUsedAsync(couponCode, payment.UserId, payment.RazorpayPaymentId);
+                            _logger.LogInformation("Coupon marked as used: {CouponCode} for payment: {PaymentId}", 
+                                couponCode, payment.PaymentId);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to mark coupon as used: {CouponCode} for payment: {PaymentId}", 
+                                couponCode, payment.PaymentId);
+                            // Don't fail the payment verification if coupon marking fails
                         }
                     }
                 }

@@ -7,6 +7,7 @@ using stibe.api.Configuration;
 using stibe.api.Data;
 using stibe.api.Services.Interfaces;
 using stibe.api.Services.Implementations.General;
+using stibe.api.Services.Implementations;
 using stibe.api.Services;
 using System.Text;
 using stibe.api.Services.Interfaces.Partner;
@@ -134,6 +135,8 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IRazorpayService, RazorpayService>();
+builder.Services.AddScoped<ICouponService, CouponService>();
+builder.Services.AddScoped<IUserCouponService, UserCouponService>();
 
 // Configure Feature Flags first
 builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("FeatureFlags"));

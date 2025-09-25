@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using stibe.api.Data;
 
@@ -11,9 +12,11 @@ using stibe.api.Data;
 namespace stibe.api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250925072848_AddCouponUsageEntity")]
+    partial class AddCouponUsageEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1199,83 +1202,6 @@ namespace stibe.api.Migrations
                     b.ToTable("Payments");
                 });
 
-            modelBuilder.Entity("stibe.api.Models.Entities.UserCouponUsage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("BlockReason")
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime?>("BlockedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("CouponCode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<DateTime?>("EmailSentAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("IsBlocked")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsEmailSent")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<DateTime>("IssuedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("MaxUsageLimit")
-                        .HasColumnType("int");
-
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("Purpose")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("UsageCount")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IsBlocked");
-
-                    b.HasIndex("IsDeleted");
-
-                    b.HasIndex("Email", "IsEmailSent");
-
-                    b.HasIndex("UserId", "CouponCode");
-
-                    b.HasIndex("Email", "PhoneNumber", "Purpose");
-
-                    b.ToTable("UserCouponUsages");
-                });
-
             modelBuilder.Entity("stibe.api.Models.Entities.CouponUsage", b =>
                 {
                     b.HasOne("stibe.api.Models.Entities.PartnersEntity.User", "User")
@@ -1475,17 +1401,6 @@ namespace stibe.api.Migrations
                         .IsRequired();
 
                     b.Navigation("CreatedShop");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("stibe.api.Models.Entities.UserCouponUsage", b =>
-                {
-                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
 
                     b.Navigation("User");
                 });

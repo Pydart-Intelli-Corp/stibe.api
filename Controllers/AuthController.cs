@@ -8,6 +8,7 @@ using stibe.api.Models.DTOs.Auth;
 using stibe.api.Models.DTOs.Features;
 using stibe.api.Models.Entities.PartnersEntity;
 using stibe.api.Services.Interfaces;
+using stibe.api.Services;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
@@ -27,6 +28,7 @@ namespace stibe.api.Controllers
         private readonly IWebHostEnvironment _environment;
         private readonly IGoogleOAuthService _googleOAuthService;
         private readonly IConfiguration _configuration;
+        private readonly IUserCouponService _userCouponService;
 
         public AuthController(
             ApplicationDbContext context,
@@ -36,7 +38,8 @@ namespace stibe.api.Controllers
             ILogger<AuthController> logger,
             IWebHostEnvironment environment,
             IGoogleOAuthService googleOAuthService,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IUserCouponService userCouponService)
         {
             _context = context;
             _passwordService = passwordService;
@@ -46,6 +49,7 @@ namespace stibe.api.Controllers
             _environment = environment;
             _googleOAuthService = googleOAuthService;
             _configuration = configuration;
+            _userCouponService = userCouponService;
         }
 
         [HttpPost("register-admin")]
@@ -1343,6 +1347,41 @@ namespace stibe.api.Controllers
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation($"Email verified successfully for user: {user.Email}");
+
+                // Generate and send user-specific coupon after successful email verification
+                try
+                {
+                    // Check if user can receive a coupon (hasn't received one already)
+                    if (await _userCouponService.CanUserReceiveCouponAsync(user.Email, user.PhoneNumber ?? ""))
+                    {
+                        var userCoupon = await _userCouponService.GenerateUserCouponAsync(user.Id, user.Email, user.PhoneNumber ?? "");
+                        if (userCoupon != null)
+                        {
+                            var emailSent = await _userCouponService.SendCouponEmailAsync(userCoupon);
+                            if (emailSent)
+                            {
+                                _logger.LogInformation($"Coupon email sent successfully to {user.Email} with code {userCoupon.CouponCode}");
+                            }
+                            else
+                            {
+                                _logger.LogWarning($"Failed to send coupon email to {user.Email}");
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"Failed to generate coupon for user {user.Email}");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"User {user.Email} already has a coupon, skipping generation");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Error generating/sending coupon for user {user.Email}");
+                    // Don't fail the verification process if coupon generation fails
+                }
 
                 // Generate tokens for auto-login and redirect to app
                 var loginRedirect = _configuration["App:LoginRedirectUrl"] ?? "/login";
