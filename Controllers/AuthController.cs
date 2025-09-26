@@ -1348,39 +1348,39 @@ namespace stibe.api.Controllers
 
                 _logger.LogInformation($"Email verified successfully for user: {user.Email}");
 
-                // Generate and send user-specific coupon after successful email verification
+                // Assign ACCOUNT99 coupon to user after successful email verification
                 try
                 {
-                    // Check if user can receive a coupon (hasn't received one already)
+                    // Check if user can receive the ACCOUNT99 coupon (hasn't used it already)
                     if (await _userCouponService.CanUserReceiveCouponAsync(user.Email, user.PhoneNumber ?? ""))
                     {
-                        var userCoupon = await _userCouponService.GenerateUserCouponAsync(user.Id, user.Email, user.PhoneNumber ?? "");
-                        if (userCoupon != null)
+                        var assignedCoupon = await _userCouponService.AssignPredefinedCouponAsync(user.Id, user.Email, user.PhoneNumber ?? "", "ACCOUNT99");
+                        if (assignedCoupon != null)
                         {
-                            var emailSent = await _userCouponService.SendCouponEmailAsync(userCoupon);
+                            var emailSent = await _userCouponService.SendPredefinedCouponEmailAsync(assignedCoupon, "ACCOUNT99");
                             if (emailSent)
                             {
-                                _logger.LogInformation($"Coupon email sent successfully to {user.Email} with code {userCoupon.CouponCode}");
+                                _logger.LogInformation($"ACCOUNT99 coupon email sent successfully to {user.Email}");
                             }
                             else
                             {
-                                _logger.LogWarning($"Failed to send coupon email to {user.Email}");
+                                _logger.LogWarning($"Failed to send ACCOUNT99 coupon email to {user.Email}");
                             }
                         }
                         else
                         {
-                            _logger.LogWarning($"Failed to generate coupon for user {user.Email}");
+                            _logger.LogWarning($"Failed to assign ACCOUNT99 coupon to user {user.Email}");
                         }
                     }
                     else
                     {
-                        _logger.LogInformation($"User {user.Email} already has a coupon, skipping generation");
+                        _logger.LogInformation($"User {user.Email} already has used the account registration coupon, skipping assignment");
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"Error generating/sending coupon for user {user.Email}");
-                    // Don't fail the verification process if coupon generation fails
+                    _logger.LogError(ex, $"Error assigning/sending ACCOUNT99 coupon for user {user.Email}");
+                    // Don't fail the verification process if coupon assignment fails
                 }
 
                 // Generate tokens for auto-login and redirect to app

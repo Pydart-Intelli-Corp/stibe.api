@@ -90,6 +90,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+builder.Services.Configure<PaymentSettings>(builder.Configuration.GetSection("Payment"));
 
 // Configure Google OAuth Settings
 builder.Services.Configure<GoogleOAuthSettings>(builder.Configuration.GetSection("GoogleOAuth"));
@@ -156,6 +157,8 @@ builder.Services.AddScoped<IStaffWorkService, StaffWorkService>();
 builder.Services.Configure<EmailConfiguration>(builder.Configuration.GetSection("SmtpSettings"));
 builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("FeatureFlags"));
 builder.Services.AddScoped<IFileService, LocalFileService>();
+builder.Services.AddScoped<IPdfService, PdfService>();
+builder.Services.AddScoped<IGstService, GstService>();
 
 if (builder.Configuration.GetValue<bool>("FeatureFlags:UseRealEmailService"))
 {

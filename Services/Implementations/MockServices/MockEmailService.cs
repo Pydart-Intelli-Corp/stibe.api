@@ -62,6 +62,26 @@ namespace stibe.api.Services.Implementations.MockServices
             return await SendEmailAsync(to, subject, body);
         }
 
+        public async Task<bool> SendEmailWithAttachmentAsync(string to, string subject, string body, byte[] attachment, string attachmentName, bool isHtml = true)
+        {
+            if (_featureFlags.UseRealEmailService)
+            {
+                throw new NotImplementedException("Real email service not implemented yet");
+            }
+
+            // Mock implementation - just log the email with attachment info
+            _logger.LogInformation("=== MOCK EMAIL SERVICE WITH ATTACHMENT ===");
+            _logger.LogInformation($"To: {to}");
+            _logger.LogInformation($"Subject: {subject}");
+            _logger.LogInformation($"Body: {body}");
+            _logger.LogInformation($"Attachment: {attachmentName} ({attachment.Length} bytes)");
+            _logger.LogInformation($"Is HTML: {isHtml}");
+            _logger.LogInformation("=== END MOCK EMAIL WITH ATTACHMENT ===");
+
+            await Task.Delay(100);
+            return true;
+        }
+
         public async Task<bool> SendBookingConfirmationEmailAsync(string to, string bookingDetails)
         {
             var subject = "Booking Confirmation - Stibe Booking";
@@ -72,6 +92,14 @@ namespace stibe.api.Services.Implementations.MockServices
                 <p>Thank you for choosing Stibe Booking!</p>";
 
             return await SendEmailAsync(to, subject, body);
+        }
+
+        public async Task<bool> SendPaymentReceiptEmailAsync(string to, string customerName, byte[] receiptPdf, string receiptFileName)
+        {
+            var subject = "Payment Receipt - Stibe";
+            var body = $"Payment receipt for {customerName}. Receipt file: {receiptFileName}";
+
+            return await SendEmailWithAttachmentAsync(to, subject, body, receiptPdf, receiptFileName, true);
         }
     }
 }

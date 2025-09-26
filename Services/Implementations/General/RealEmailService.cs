@@ -155,6 +155,46 @@ namespace stibe.api.Services.Implementations.General
         }
 
 
+        public async Task<bool> SendEmailWithAttachmentAsync(string to, string subject, string body, byte[] attachment, string attachmentName, bool isHtml = true)
+        {
+            try
+            {
+                var message = new MimeMessage();
+                message.From.Add(new MailboxAddress(_emailConfig.SenderName, _emailConfig.SenderEmail));
+                message.To.Add(MailboxAddress.Parse(to));
+                message.Subject = subject;
+
+                var bodyBuilder = new BodyBuilder();
+                if (isHtml)
+                    bodyBuilder.HtmlBody = body;
+                else
+                    bodyBuilder.TextBody = body;
+
+                // Add attachment
+                bodyBuilder.Attachments.Add(attachmentName, attachment, ContentType.Parse("application/pdf"));
+
+                message.Body = bodyBuilder.ToMessageBody();
+
+                using var client = new SmtpClient();
+
+                await client.ConnectAsync(_emailConfig.Host, _emailConfig.Port,
+                    _emailConfig.EnableSSL ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto);
+
+                if (!string.IsNullOrEmpty(_emailConfig.Username))
+                    await client.AuthenticateAsync(_emailConfig.Username, _emailConfig.Password);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
+
+                _logger.LogInformation($"Email with attachment sent successfully to {to}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to send email with attachment to {to}");
+                return false;
+            }
+        }
+
         public async Task<bool> SendBookingConfirmationEmailAsync(string to, string bookingDetails)
         {
             var subject = "Booking Confirmation - Stibe Booking";
@@ -165,6 +205,80 @@ namespace stibe.api.Services.Implementations.General
                 <p>Thank you for choosing Stibe Booking!</p>";
 
             return await SendEmailAsync(to, subject, body);
+        }
+
+        public async Task<bool> SendPaymentReceiptEmailAsync(string to, string customerName, byte[] receiptPdf, string receiptFileName)
+        {
+            var subject = "Payment Receipt - Stibe";
+            var body = $@"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Payment Receipt</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .email-container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background-color: #4A86E8; padding: 30px; text-align: center; color: white; border-radius: 8px 8px 0 0; }}
+                .content {{ padding: 30px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px; background-color: #f9f9f9; }}
+                .success-badge {{ 
+                    background-color: #4CAF50; 
+                    color: white; 
+                    padding: 10px 20px; 
+                    border-radius: 25px; 
+                    display: inline-block; 
+                    margin: 15px 0;
+                    font-weight: bold;
+                }}
+                .receipt-info {{ 
+                    background-color: white; 
+                    padding: 20px; 
+                    border-radius: 8px; 
+                    margin: 15px 0;
+                    border-left: 4px solid #4A86E8;
+                }}
+                .footer {{ margin-top: 20px; font-size: 12px; color: #777; text-align: center; }}
+            </style>
+        </head>
+        <body>
+            <div class='email-container'>
+                <div class='header'>
+                    <h2>🎉 Payment Successful!</h2>
+                    <div class='success-badge'>✓ PAYMENT CONFIRMED</div>
+                </div>
+                <div class='content'>
+                    <p>Dear {customerName},</p>
+                    
+                    <p>Thank you for your payment! Your transaction has been processed successfully.</p>
+                    
+                    <div class='receipt-info'>
+                        <h3>📄 Receipt Details</h3>
+                        <p>We've attached your official payment receipt to this email. This receipt contains:</p>
+                        <ul>
+                            <li>Complete payment information</li>
+                            <li>Transaction details and IDs</li>
+                            <li>Applied discounts (if any)</li>
+                            <li>Digital signatures and company seal</li>
+                        </ul>
+                        <p><strong>Attachment:</strong> {receiptFileName}</p>
+                    </div>
+                    
+                    <p>Please keep this receipt for your records. If you have any questions about your payment, feel free to contact our support team.</p>
+                    
+                    <p>Thank you for choosing Stibe! We look forward to serving you.</p>
+                    
+                    <p>Best regards,<br>
+                    <strong>Team Stibe</strong></p>
+                </div>
+                <div class='footer'>
+                    <p>This is an automated email. Please do not reply to this message.</p>
+                    <p>&copy; {DateTime.Now.Year} Stibe. All rights reserved.</p>
+                    <p>Contact us: info.pydart@gmail.com | +91 9876543210</p>
+                </div>
+            </div>
+        </body>
+        </html>";
+
+            return await SendEmailWithAttachmentAsync(to, subject, body, receiptPdf, receiptFileName, true);
         }
     }
 }

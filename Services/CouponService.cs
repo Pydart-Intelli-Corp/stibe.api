@@ -58,6 +58,10 @@ namespace stibe.api.Services.Implementations
                             };
                         }
 
+                        // Calculate percentage for user-specific coupon
+                        var userCouponSavings = request.OriginalAmount - 5;
+                        var userCouponPercentage = request.OriginalAmount > 0 ? Math.Round((userCouponSavings / request.OriginalAmount) * 100, 1) : 0;
+                        
                         // Return success for user-specific coupon
                         return new CouponValidationResponseDto
                         {
@@ -65,11 +69,12 @@ namespace stibe.api.Services.Implementations
                             CouponCode = request.CouponCode,
                             Description = "Exclusive Shop Registration Coupon",
                             DiscountType = "FIXED",
-                            DiscountValue = request.OriginalAmount - 5,
+                            DiscountValue = userCouponSavings,
                             OriginalAmount = request.OriginalAmount,
-                            DiscountedAmount = request.OriginalAmount - 5,
+                            DiscountedAmount = userCouponSavings,
                             FinalAmount = 5,
-                            Savings = request.OriginalAmount - 5,
+                            Savings = userCouponSavings,
+                            DiscountPercentage = userCouponPercentage,
                             RemainingUsage = userCoupon.MaxUsageLimit - userCoupon.UsageCount
                         };
                     }
@@ -88,6 +93,23 @@ namespace stibe.api.Services.Implementations
                         ErrorMessage = "Invalid coupon code"
                     };
                 }
+
+                // Check UserType restrictions
+                if (coupon.UserType == "NEW_USER" && request.UserEmail != null)
+                {
+                    // For ACCOUNT99 and other NEW_USER coupons, check if user hasn't reached the 2-shop limit
+                    var hasReachedLimit = await _userCouponService.HasUserReachedShopLimitAsync(request.UserEmail, request.PhoneNumber ?? "");
+                    if (hasReachedLimit)
+                    {
+                        return new CouponValidationResponseDto
+                        {
+                            IsValid = false,
+                            CouponCode = request.CouponCode,
+                            ErrorMessage = "You have reached the maximum usage limit for this coupon (2 shops per account)"
+                        };
+                    }
+                }
+                // For UserType "ALL", no additional restrictions apply
 
                 // Check if coupon is active
                 if (!coupon.IsActive)
@@ -123,6 +145,17 @@ namespace stibe.api.Services.Implementations
                     };
                 }
 
+                // Check minimum order amount
+                if (coupon.MinimumOrderAmount > 0 && request.OriginalAmount < coupon.MinimumOrderAmount)
+                {
+                    return new CouponValidationResponseDto
+                    {
+                        IsValid = false,
+                        CouponCode = request.CouponCode,
+                        ErrorMessage = $"Minimum order amount of ₹{coupon.MinimumOrderAmount:F0} required for this coupon"
+                    };
+                }
+
                 // Check usage count
                 var currentUsage = await _context.CouponUsages
                     .Where(cu => cu.CouponCode.ToLower() == request.CouponCode.ToLower())
@@ -141,6 +174,7 @@ namespace stibe.api.Services.Implementations
                 // Calculate discounted amount
                 decimal finalAmount = await CalculateDiscountedAmountAsync(request.CouponCode, request.OriginalAmount, request.Purpose);
                 decimal savings = request.OriginalAmount - finalAmount;
+                decimal discountPercentage = request.OriginalAmount > 0 ? Math.Round((savings / request.OriginalAmount) * 100, 1) : 0;
 
                 return new CouponValidationResponseDto
                 {
@@ -153,6 +187,7 @@ namespace stibe.api.Services.Implementations
                     DiscountedAmount = coupon.DiscountValue,
                     FinalAmount = finalAmount,
                     Savings = savings,
+                    DiscountPercentage = discountPercentage,
                     ValidUntil = coupon.ValidUntil,
                     RemainingUsage = coupon.MaxUsageCount - currentUsage
                 };
@@ -231,6 +266,9 @@ namespace stibe.api.Services.Implementations
                     _context.CouponUsages.Add(userCouponUsage);
                     await _context.SaveChangesAsync();
 
+                    var appliedSavings = request.OriginalAmount - 5;
+                    var appliedPercentage = request.OriginalAmount > 0 ? Math.Round((appliedSavings / request.OriginalAmount) * 100, 1) : 0;
+                    
                     return new CouponApplicationResponseDto
                     {
                         Applied = true,
@@ -238,7 +276,8 @@ namespace stibe.api.Services.Implementations
                         Description = "Exclusive Shop Registration Coupon",
                         OriginalAmount = request.OriginalAmount,
                         FinalAmount = 5,
-                        Savings = request.OriginalAmount - 5,
+                        Savings = appliedSavings,
+                        DiscountPercentage = appliedPercentage,
                         AppliedAt = DateTime.UtcNow,
                         UserId = request.UserId,
                         Purpose = request.Purpose
@@ -290,6 +329,7 @@ namespace stibe.api.Services.Implementations
                     OriginalAmount = request.OriginalAmount,
                     FinalAmount = validation.FinalAmount,
                     Savings = validation.Savings,
+                    DiscountPercentage = validation.DiscountPercentage,
                     AppliedAt = couponUsage.AppliedAt,
                     UserId = request.UserId,
                     Purpose = request.Purpose
@@ -311,6 +351,7 @@ namespace stibe.api.Services.Implementations
         {
             try
             {
+                // First, handle regular coupon usage tracking
                 var couponUsage = await _context.CouponUsages
                     .FirstOrDefaultAsync(cu => cu.CouponCode.ToLower() == couponCode.ToLower() 
                                             && cu.UserId == userId 
@@ -327,11 +368,47 @@ namespace stibe.api.Services.Implementations
                     
                     _logger.LogInformation("Coupon marked as used: {CouponCode} for user: {UserId}, PaymentId: {PaymentId}", 
                         couponCode, userId, paymentId);
-                    
-                    return true;
                 }
 
-                return false;
+                // For predefined coupons like ACCOUNT99, also handle shop usage increment and restriction
+                if (couponCode.Equals("ACCOUNT99", StringComparison.OrdinalIgnoreCase) || 
+                    !couponCode.StartsWith("STIBE-")) // Predefined coupons don't start with STIBE-
+                {
+                    // Get user info to handle shop usage tracking
+                    var user = await _context.Users.FindAsync(userId);
+                    if (user != null)
+                    {
+                        // Increment shop usage for this predefined coupon
+                        var incrementSuccess = await _userCouponService.IncrementShopUsageAsync(
+                            couponCode, user.Email, user.PhoneNumber ?? "");
+                        
+                        if (incrementSuccess)
+                        {
+                            _logger.LogInformation("Shop usage incremented for predefined coupon: {CouponCode} for user: {UserId}", 
+                                couponCode, userId);
+                            
+                            // Check if user has reached the 2-shop limit and needs to be restricted
+                            var hasReachedLimit = await _userCouponService.HasUserReachedShopLimitAsync(
+                                user.Email, user.PhoneNumber ?? "");
+                            
+                            if (hasReachedLimit)
+                            {
+                                await _userCouponService.RestrictUserFromCouponAsync(
+                                    user.Email, user.PhoneNumber ?? "", couponCode);
+                                
+                                _logger.LogInformation("User {Email} restricted from using coupon {CouponCode} - reached 2 shop limit", 
+                                    user.Email, couponCode);
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to increment shop usage for predefined coupon: {CouponCode} for user: {UserId}", 
+                                couponCode, userId);
+                        }
+                    }
+                }
+                
+                return couponUsage != null;
             }
             catch (Exception ex)
             {
@@ -424,11 +501,20 @@ namespace stibe.api.Services.Implementations
                 switch (coupon.DiscountType.ToUpper())
                 {
                     case "FIXED_AMOUNT":
-                        finalAmount = Math.Max(0, originalAmount - coupon.DiscountValue);
+                        var fixedDiscount = coupon.DiscountValue;
+                        if (coupon.MaximumDiscount > 0)
+                        {
+                            fixedDiscount = Math.Min(fixedDiscount, coupon.MaximumDiscount);
+                        }
+                        finalAmount = Math.Max(0, originalAmount - fixedDiscount);
                         break;
                     case "PERCENTAGE":
-                        var discountAmount = (originalAmount * coupon.DiscountValue) / 100;
-                        finalAmount = Math.Max(0, originalAmount - discountAmount);
+                        var percentageDiscount = (originalAmount * coupon.DiscountValue) / 100;
+                        if (coupon.MaximumDiscount > 0)
+                        {
+                            percentageDiscount = Math.Min(percentageDiscount, coupon.MaximumDiscount);
+                        }
+                        finalAmount = Math.Max(0, originalAmount - percentageDiscount);
                         break;
                     case "SET_AMOUNT":
                         // Set to a specific amount (like ₹5 for shop registration)

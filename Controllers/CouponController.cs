@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using stibe.api.Models.DTOs;
 using stibe.api.Services.Interfaces;
+using stibe.api.Services;
 using System.Security.Claims;
 
 namespace stibe.api.Controllers
@@ -11,11 +12,13 @@ namespace stibe.api.Controllers
     public class CouponController : ControllerBase
     {
         private readonly ICouponService _couponService;
+        private readonly IUserCouponService _userCouponService;
         private readonly ILogger<CouponController> _logger;
 
-        public CouponController(ICouponService couponService, ILogger<CouponController> logger)
+        public CouponController(ICouponService couponService, IUserCouponService userCouponService, ILogger<CouponController> logger)
         {
             _couponService = couponService;
+            _userCouponService = userCouponService;
             _logger = logger;
         }
 
@@ -197,6 +200,94 @@ namespace stibe.api.Controllers
         }
 
         /// <summary>
+        /// Generate account registration coupon for new users (99% OFF)
+        /// </summary>
+        [HttpPost("generate-account-registration")]
+        [Authorize]
+        public async Task<ActionResult<AccountRegistrationCouponResponseDto>> GenerateAccountRegistrationCoupon()
+        {
+            try
+            {
+                // Get user ID from JWT token
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+                {
+                    _logger.LogWarning("Invalid or missing user ID in token when generating account registration coupon");
+                    return Unauthorized(new { message = "Invalid user authentication" });
+                }
+
+                // Get user email and phone from claims
+                var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+                var userPhone = User.FindFirst("phone_number")?.Value;
+
+                if (string.IsNullOrEmpty(userEmail))
+                {
+                    _logger.LogWarning("User email not found in token for account registration coupon generation");
+                    return BadRequest(new { message = "User email is required for coupon generation" });
+                }
+
+                _logger.LogInformation("Generating account registration coupon for user: {UserId} ({Email})", userId, userEmail);
+
+                // Check if user can receive coupon
+                var canReceiveCoupon = await _userCouponService.CanUserReceiveCouponAsync(userEmail, userPhone ?? "");
+                if (!canReceiveCoupon)
+                {
+                    return BadRequest(new AccountRegistrationCouponResponseDto
+                    {
+                        Success = false,
+                        Message = "You already have an account registration coupon",
+                        CouponCode = null
+                    });
+                }
+
+                // Generate user-specific coupon
+                var userCoupon = await _userCouponService.GenerateUserCouponAsync(userId, userEmail, userPhone ?? "");
+                if (userCoupon == null)
+                {
+                    return StatusCode(500, new AccountRegistrationCouponResponseDto
+                    {
+                        Success = false,
+                        Message = "Failed to generate account registration coupon",
+                        CouponCode = null
+                    });
+                }
+
+                // Send coupon email
+                var emailSent = await _userCouponService.SendCouponEmailAsync(userCoupon);
+                if (!emailSent)
+                {
+                    _logger.LogWarning("Failed to send coupon email to {Email} for account registration", userEmail);
+                }
+
+                _logger.LogInformation("Account registration coupon generated successfully: {CouponCode} for user: {UserId}", 
+                    userCoupon.CouponCode, userId);
+
+                return Ok(new AccountRegistrationCouponResponseDto
+                {
+                    Success = true,
+                    Message = "Account registration coupon generated successfully! Check your email for details.",
+                    CouponCode = userCoupon.CouponCode,
+                    DiscountPercentage = 99.9m,
+                    OriginalAmount = 3999.0m,
+                    FinalAmount = 5.0m,
+                    SavingsAmount = 3994.0m,
+                    MaxShops = 2,
+                    EmailSent = emailSent
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating account registration coupon");
+                return StatusCode(500, new AccountRegistrationCouponResponseDto
+                {
+                    Success = false,
+                    Message = "An error occurred while generating the account registration coupon",
+                    CouponCode = null
+                });
+            }
+        }
+
+        /// <summary>
         /// Calculate discounted amount for a coupon and original amount
         /// </summary>
         [HttpPost("calculate-discount")]
@@ -245,5 +336,18 @@ namespace stibe.api.Controllers
         public string CouponCode { get; set; } = string.Empty;
         public decimal OriginalAmount { get; set; }
         public string Purpose { get; set; } = "SHOP_REGISTRATION";
+    }
+
+    public class AccountRegistrationCouponResponseDto
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public string? CouponCode { get; set; }
+        public decimal? DiscountPercentage { get; set; }
+        public decimal? OriginalAmount { get; set; }
+        public decimal? FinalAmount { get; set; }
+        public decimal? SavingsAmount { get; set; }
+        public int? MaxShops { get; set; }
+        public bool? EmailSent { get; set; }
     }
 }

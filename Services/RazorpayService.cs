@@ -28,6 +28,9 @@ namespace stibe.api.Services
         private readonly ILogger<RazorpayService> _logger;
         private readonly IConfiguration _configuration;
         private readonly ICouponService _couponService;
+        private readonly IPdfService _pdfService;
+        private readonly IEmailService _emailService;
+        private readonly IGstService _gstService;
         private readonly RazorpayClient _razorpayClient;
         private readonly string _keyId;
         private readonly string _keySecret;
@@ -37,12 +40,18 @@ namespace stibe.api.Services
             ApplicationDbContext context, 
             ILogger<RazorpayService> logger,
             IConfiguration configuration,
-            ICouponService couponService)
+            ICouponService couponService,
+            IPdfService pdfService,
+            IEmailService emailService,
+            IGstService gstService)
         {
             _context = context;
             _logger = logger;
             _configuration = configuration;
             _couponService = couponService;
+            _pdfService = pdfService;
+            _emailService = emailService;
+            _gstService = gstService;
             
             _keyId = _configuration["Razorpay:KeyId"] ?? throw new ArgumentException("Razorpay KeyId not configured");
             _keySecret = _configuration["Razorpay:KeySecret"] ?? throw new ArgumentException("Razorpay KeySecret not configured");
@@ -62,7 +71,8 @@ namespace stibe.api.Services
                 var paymentId = $"STIBE_{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid():N}"[..50];
                 
                 // Apply coupon discount if provided
-                decimal finalAmount = request.Amount;
+                decimal baseAmount = request.Amount;
+                decimal discountAmount = 0;
                 string? appliedCouponCode = null;
                 
                 if (!string.IsNullOrEmpty(request.CouponCode))
@@ -73,18 +83,20 @@ namespace stibe.api.Services
                         {
                             CouponCode = request.CouponCode,
                             Purpose = request.Purpose,
-                            OriginalAmount = request.Amount
+                            OriginalAmount = request.Amount,
+                            UserEmail = request.ShopData?.Email,
+                            PhoneNumber = request.ShopData?.PhoneNumber
                         };
                         
                         var couponValidation = await _couponService.ValidateCouponAsync(validationRequest);
                         
                         if (couponValidation.IsValid)
                         {
-                            finalAmount = couponValidation.FinalAmount;
+                            discountAmount = request.Amount - couponValidation.FinalAmount;
                             appliedCouponCode = request.CouponCode;
                             
-                            _logger.LogInformation("Coupon applied successfully: {CouponCode}, Original: {OriginalAmount}, Final: {FinalAmount}", 
-                                request.CouponCode, request.Amount, finalAmount);
+                            _logger.LogInformation("Coupon applied successfully: {CouponCode}, Original: {OriginalAmount}, Discount: {DiscountAmount}", 
+                                request.CouponCode, request.Amount, discountAmount);
                         }
                         else
                         {
@@ -100,8 +112,40 @@ namespace stibe.api.Services
                     }
                 }
                 
+                // Calculate GST breakdown for the payment
+                var gstBreakdown = _gstService.GetPaymentGstBreakdown(baseAmount, discountAmount, appliedCouponCode);
+                var finalAmountWithGst = gstBreakdown.FinalAmount;
+                
+                _logger.LogInformation("GST Calculation: Base={BaseAmount}, Discount={DiscountAmount}, GST={GstAmount}, Final={FinalAmount}", 
+                    gstBreakdown.BaseAmount, gstBreakdown.DiscountAmount, gstBreakdown.GstAmount, gstBreakdown.FinalAmount);
+                
                 // Convert amount to paisa (Razorpay expects amount in smallest currency unit)
-                var amountInPaisa = (int)(finalAmount * 100);
+                var amountInPaisa = (int)(finalAmountWithGst * 100);
+                
+                // Prepare notes with GST breakdown
+                var orderNotes = new Dictionary<string, object>();
+                
+                // Add existing notes if any
+                if (request.Notes != null)
+                {
+                    foreach (var note in request.Notes)
+                    {
+                        orderNotes[note.Key] = note.Value;
+                    }
+                }
+                
+                // Add GST breakdown
+                orderNotes["original_amount"] = request.Amount.ToString("F2");
+                orderNotes["base_amount"] = gstBreakdown.BaseAmount.ToString("F2");
+                orderNotes["discount_applied"] = discountAmount.ToString("F2");
+                orderNotes["gst_rate"] = gstBreakdown.GstRate.ToString("F1");
+                orderNotes["gst_amount"] = gstBreakdown.GstAmount.ToString("F2");
+                orderNotes["final_amount_with_gst"] = finalAmountWithGst.ToString("F2");
+                
+                if (!string.IsNullOrEmpty(appliedCouponCode))
+                {
+                    orderNotes["coupon_code"] = appliedCouponCode;
+                }
                 
                 // Create Razorpay order
                 var orderRequest = new Dictionary<string, object>
@@ -109,7 +153,7 @@ namespace stibe.api.Services
                     { "amount", amountInPaisa },
                     { "currency", request.Currency },
                     { "receipt", request.Receipt ?? paymentId },
-                    { "notes", request.Notes }
+                    { "notes", orderNotes }
                 };
 
                 var order = _razorpayClient.Order.Create(orderRequest);
@@ -119,7 +163,7 @@ namespace stibe.api.Services
                 {
                     PaymentId = paymentId,
                     UserId = request.UserId,
-                    Amount = finalAmount, // Store the final amount after discount
+                    Amount = finalAmountWithGst, // Store the final amount with GST
                     Currency = request.Currency,
                     Purpose = request.Purpose,
                     Description = request.Description,
@@ -136,25 +180,43 @@ namespace stibe.api.Services
                 _context.Payments.Add(payment);
                 await _context.SaveChangesAsync();
 
+                // Prepare response notes with GST breakdown
+                var responseNotes = new Dictionary<string, string>();
+                
+                // Add existing notes if any
+                if (request.Notes != null)
+                {
+                    foreach (var note in request.Notes)
+                    {
+                        responseNotes[note.Key] = note.Value;
+                    }
+                }
+                
+                // Always add GST breakdown to response
+                responseNotes["original_amount"] = request.Amount.ToString("F2");
+                responseNotes["base_amount"] = gstBreakdown.BaseAmount.ToString("F2");
+                responseNotes["discount_applied"] = discountAmount.ToString("F2");
+                responseNotes["gst_rate"] = gstBreakdown.GstRate.ToString("F1");
+                responseNotes["gst_amount"] = gstBreakdown.GstAmount.ToString("F2");
+                responseNotes["final_amount_with_gst"] = finalAmountWithGst.ToString("F2");
+                
+                if (!string.IsNullOrEmpty(appliedCouponCode))
+                {
+                    responseNotes["coupon_code"] = appliedCouponCode;
+                }
+
                 var response = new RazorpayOrderResponseDto
                 {
                     PaymentId = paymentId,
                     RazorpayOrderId = order["id"].ToString()!,
-                    Amount = finalAmount, // Return the final amount after discount
+                    Amount = finalAmountWithGst, // Return the final amount with GST
                     Currency = request.Currency,
                     Status = "CREATED",
                     Receipt = payment.Receipt!,
                     Purpose = request.Purpose,
                     CreatedAt = payment.CreatedAt,
                     ExpiresAt = payment.ExpiresAt,
-                    Notes = appliedCouponCode != null 
-                        ? new Dictionary<string, string>(request.Notes)
-                        {
-                            ["coupon_code"] = appliedCouponCode,
-                            ["original_amount"] = request.Amount.ToString("F2"),
-                            ["discount_applied"] = (request.Amount - finalAmount).ToString("F2")
-                        }
-                        : request.Notes,
+                    Notes = responseNotes,
                     RazorpayConfig = new RazorpayConfigDto
                     {
                         KeyId = _keyId,
@@ -285,6 +347,9 @@ namespace stibe.api.Services
                             // Don't fail the payment verification if coupon marking fails
                         }
                     }
+
+                    // Generate PDF receipt and send email for successful payment
+                    await GenerateAndSendPaymentReceiptAsync(payment, couponCode);
                 }
                 else
                 {
@@ -656,6 +721,133 @@ namespace stibe.api.Services
                     ? JsonSerializer.Deserialize<List<string>>(shop.ImageUrls) ?? new List<string>()
                     : new List<string>()
             };
+        }
+
+        private async Task GenerateAndSendPaymentReceiptAsync(stibe.api.Models.Entities.Payment payment, string? couponCode = null)
+        {
+            try
+            {
+                _logger.LogInformation("Generating payment receipt for PaymentId: {PaymentId}", payment.PaymentId);
+
+                // Get user information
+                var user = await _context.Users.FindAsync(payment.UserId);
+                if (user == null)
+                {
+                    _logger.LogWarning("User not found for PaymentId: {PaymentId}, UserId: {UserId}", payment.PaymentId, payment.UserId);
+                    return;
+                }
+
+                // Get shop information if this is a shop registration
+                Shop? shop = null;
+                if (payment.CreatedShopId.HasValue)
+                {
+                    shop = await _context.Shops.FindAsync(payment.CreatedShopId.Value);
+                }
+
+                // Get coupon information if coupon was applied
+                decimal originalAmount = payment.Amount;
+                decimal savings = 0;
+                decimal discountPercentage = 0;
+                string? couponDescription = null;
+
+                if (!string.IsNullOrEmpty(couponCode))
+                {
+                    // Try to get coupon details for display
+                    try
+                    {
+                        var validationRequest = new ValidateCouponRequestDto
+                        {
+                            CouponCode = couponCode,
+                            Purpose = payment.Purpose,
+                            OriginalAmount = payment.Amount,
+                            UserEmail = user.Email,
+                            PhoneNumber = user.PhoneNumber
+                        };
+                        
+                        var couponValidation = await _couponService.ValidateCouponAsync(validationRequest);
+                        if (couponValidation.IsValid)
+                        {
+                            originalAmount = couponValidation.OriginalAmount;
+                            savings = couponValidation.Savings;
+                            discountPercentage = couponValidation.DiscountPercentage;
+                            couponDescription = couponValidation.Description;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not retrieve coupon details for receipt: {CouponCode}", couponCode);
+                    }
+                }
+
+                // Calculate GST breakdown for receipt
+                var baseAmountForGst = originalAmount - savings; // Amount after discount, before GST
+                var gstBreakdown = _gstService.GetPaymentGstBreakdown(originalAmount, savings, couponCode);
+
+                // Create receipt data
+                var receiptData = new PaymentReceiptData
+                {
+                    PaymentId = payment.PaymentId,
+                    RazorpayPaymentId = payment.RazorpayPaymentId ?? "",
+                    RazorpayOrderId = payment.RazorpayOrderId ?? "",
+                    Amount = payment.Amount, // Final amount including GST
+                    BaseAmount = gstBreakdown.BaseAmount, // Amount before GST
+                    GstRate = gstBreakdown.GstRate,
+                    GstAmount = gstBreakdown.GstAmount,
+                    CompanyGstNumber = gstBreakdown.CompanyGstNumber,
+                    CustomerGstNumber = shop?.GSTNumber, // Get customer GST from shop data
+                    OriginalAmount = originalAmount,
+                    Savings = savings,
+                    Currency = payment.Currency,
+                    PaymentMethod = payment.MethodType ?? "Online",
+                    CompletedAt = payment.CompletedAt ?? DateTime.UtcNow,
+                    Purpose = payment.Purpose,
+                    
+                    // Customer Info
+                    CustomerName = $"{user.FirstName} {user.LastName}".Trim(),
+                    CustomerEmail = user.Email ?? "",
+                    CustomerPhone = user.PhoneNumber ?? "",
+                    
+                    // Shop Info (if applicable)
+                    ShopName = shop?.Name,
+                    ShopAddress = shop?.Address,
+                    ShopCity = shop?.City,
+                    ShopState = shop?.State,
+                    ShopZipCode = shop?.ZipCode,
+                    
+                    // Coupon Info (if applicable)
+                    CouponCode = couponCode,
+                    CouponDescription = couponDescription,
+                    DiscountPercentage = discountPercentage
+                };
+
+                // Generate PDF
+                var pdfBytes = await _pdfService.GeneratePaymentReceiptAsync(receiptData);
+                var receiptFileName = $"Stibe_Receipt_{payment.PaymentId}_{DateTime.Now:yyyyMMdd}.pdf";
+
+                // Send email with PDF attachment
+                var emailSent = await _emailService.SendPaymentReceiptEmailAsync(
+                    receiptData.CustomerEmail,
+                    receiptData.CustomerName,
+                    pdfBytes,
+                    receiptFileName
+                );
+
+                if (emailSent)
+                {
+                    _logger.LogInformation("Payment receipt sent successfully to {Email} for PaymentId: {PaymentId}", 
+                        receiptData.CustomerEmail, payment.PaymentId);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to send payment receipt email to {Email} for PaymentId: {PaymentId}", 
+                        receiptData.CustomerEmail, payment.PaymentId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating and sending payment receipt for PaymentId: {PaymentId}", payment.PaymentId);
+                // Don't throw - we don't want to fail the payment verification if receipt generation fails
+            }
         }
     }
 }

@@ -47,6 +47,18 @@ namespace stibe.api.Models.Entities
         
         public bool IsDeleted { get; set; } = false;
         
+        // Enhanced coupon fields
+        [StringLength(50)]
+        public string? CouponType { get; set; } // PERCENTAGE, FIXED_AMOUNT, SET_AMOUNT
+        
+        public decimal? DiscountValue { get; set; } // The discount value (percentage or amount)
+        
+        public decimal? OriginalAmount { get; set; } // Original price (e.g., 3999)
+        
+        public decimal? FinalAmount { get; set; } // Final amount to pay (e.g., 5)
+        
+        public decimal? SavingsAmount { get; set; } // Total savings (e.g., 3994)
+        
         // Navigation property
         public virtual User User { get; set; } = null!;
     }

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using stibe.api.Data;
 using stibe.api.Models.DTOs.Features;
 using stibe.api.Services.Interfaces;
+using stibe.api.Services.Implementations.General;
 using System.Security.Claims;
 
 namespace stibe.api.Controllers
@@ -74,6 +75,67 @@ namespace stibe.api.Controllers
         {
             var result = await emailService.SendEmailAsync("info.pydart@gmail.com", "Test", "This is a test email.");
             return Ok(result ? "Email sent successfully" : "Email failed");
+        }
+
+        [HttpGet("test-pdf-email")]
+        public async Task<IActionResult> TestPdfEmail(
+            [FromServices] IPdfService pdfService,
+            [FromServices] IEmailService emailService)
+        {
+            try
+            {
+                // Create sample receipt data
+                var receiptData = new PaymentReceiptData
+                {
+                    PaymentId = "STIBE_TEST_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"),
+                    RazorpayPaymentId = "pay_TEST123456789",
+                    RazorpayOrderId = "order_TEST123456789",
+                    Amount = 5.00m,
+                    OriginalAmount = 3999.00m,
+                    Currency = "INR",
+                    PaymentMethod = "upi",
+                    CompletedAt = DateTime.Now,
+                    Purpose = "SHOP_REGISTRATION",
+                    CustomerName = "Test Customer",
+                    CustomerEmail = "abcdqrst404@gmail.com",
+                    CustomerPhone = "+91 9876543210",
+                    ShopName = "Modern Test Salon & Spa",
+                    ShopAddress = "123 Business Street, Tech Park",
+                    ShopCity = "Mumbai",
+                    ShopState = "Maharashtra",
+                    ShopZipCode = "400001",
+                    CouponCode = "PERCENT75",
+                    CouponDescription = "75% mega discount for limited time",
+                    Savings = 2994.00m,
+                    DiscountPercentage = 75.0m
+                };
+
+                // Generate PDF
+                var pdfBytes = await pdfService.GeneratePaymentReceiptAsync(receiptData);
+
+                // Send email with PDF attachment
+                await emailService.SendPaymentReceiptEmailAsync(
+                    receiptData.CustomerEmail,
+                    receiptData.CustomerName,
+                    pdfBytes,
+                    $"Stibe_Receipt_{receiptData.PaymentId}_{DateTime.Now:yyyyMMdd}.pdf"
+                );
+
+                return Ok(new { 
+                    message = "Test PDF generated and email sent successfully!",
+                    recipient = receiptData.CustomerEmail,
+                    pdfSize = pdfBytes.Length,
+                    paymentId = receiptData.PaymentId
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { 
+                    message = "Test failed", 
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
         }
 
         [HttpGet("debug-claims")]

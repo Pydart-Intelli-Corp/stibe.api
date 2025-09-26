@@ -58,6 +58,7 @@ namespace stibe.api.Models.DTOs
         public decimal DiscountedAmount { get; set; }
         public decimal FinalAmount { get; set; }
         public decimal Savings { get; set; }
+        public decimal DiscountPercentage { get; set; }
         public string? ErrorMessage { get; set; }
         public DateTime? ValidUntil { get; set; }
         public int RemainingUsage { get; set; }
@@ -71,6 +72,7 @@ namespace stibe.api.Models.DTOs
         public decimal OriginalAmount { get; set; }
         public decimal FinalAmount { get; set; }
         public decimal Savings { get; set; }
+        public decimal DiscountPercentage { get; set; }
         public string? ErrorMessage { get; set; }
         public DateTime AppliedAt { get; set; }
         public int UserId { get; set; }
@@ -90,6 +92,12 @@ namespace stibe.api.Models.DTOs
         public int MaxUsageCount { get; set; }
         public int CurrentUsageCount { get; set; }
         public List<string> ApplicableFor { get; set; } = new();
+        public decimal MinimumOrderAmount { get; set; } = 0;
+        public decimal MaximumDiscount { get; set; } = 0;
+        public string UserType { get; set; } = "ALL"; // ALL, NEW_USER, PREMIUM_USER
+        public int Priority { get; set; } = 5; // 1-5 (1 is highest priority)
+        public bool AutoApply { get; set; } = false;
+        public string? TermsAndConditions { get; set; }
     }
 
     public class CouponSystemConfigDto
