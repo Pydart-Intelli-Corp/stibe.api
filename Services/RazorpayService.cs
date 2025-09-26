@@ -112,8 +112,8 @@ namespace stibe.api.Services
                     }
                 }
                 
-                // Calculate GST breakdown for the payment
-                var gstBreakdown = _gstService.GetPaymentGstBreakdown(baseAmount, discountAmount, appliedCouponCode);
+                // Calculate GST breakdown for the payment  
+                var gstBreakdown = _gstService.GetPaymentGstBreakdown(request.Amount, discountAmount, appliedCouponCode);
                 var finalAmountWithGst = gstBreakdown.FinalAmount;
                 
                 _logger.LogInformation("GST Calculation: Base={BaseAmount}, Discount={DiscountAmount}, GST={GstAmount}, Final={FinalAmount}", 
@@ -194,8 +194,9 @@ namespace stibe.api.Services
                 
                 // Always add GST breakdown to response
                 responseNotes["original_amount"] = request.Amount.ToString("F2");
-                responseNotes["base_amount"] = gstBreakdown.BaseAmount.ToString("F2");
+                responseNotes["base_amount"] = gstBreakdown.OriginalAmount.ToString("F2"); // Original amount before discount
                 responseNotes["discount_applied"] = discountAmount.ToString("F2");
+                responseNotes["subtotal_amount"] = gstBreakdown.BaseAmount.ToString("F2"); // Amount after discount, before GST
                 responseNotes["gst_rate"] = gstBreakdown.GstRate.ToString("F1");
                 responseNotes["gst_amount"] = gstBreakdown.GstAmount.ToString("F2");
                 responseNotes["final_amount_with_gst"] = finalAmountWithGst.ToString("F2");
