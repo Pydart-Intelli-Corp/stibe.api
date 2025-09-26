@@ -308,11 +308,24 @@ startupLogger.LogInformation("   📂 Profile Images: {ProfileImagesPath}", prof
 // Default static files (wwwroot) - should be first
 app.UseStaticFiles(new StaticFileOptions
 {
+    ServeUnknownFileTypes = true,
     OnPrepareResponse = ctx =>
     {
         // Set cache headers for static files
         ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=86400");
-        startupLogger.LogDebug("📄 Serving static file: {FileName}", ctx.File.Name);
+        
+        // Handle APK files specifically
+        var extension = Path.GetExtension(ctx.File.Name).ToLowerInvariant();
+        if (extension == ".apk")
+        {
+            ctx.Context.Response.ContentType = "application/vnd.android.package-archive";
+            ctx.Context.Response.Headers.Append("Content-Disposition", $"attachment; filename=\"{ctx.File.Name}\"");
+            startupLogger.LogInformation("📱 Serving APK file: {FileName}", ctx.File.Name);
+        }
+        else
+        {
+            startupLogger.LogDebug("📄 Serving static file: {FileName}", ctx.File.Name);
+        }
     }
 });
 
