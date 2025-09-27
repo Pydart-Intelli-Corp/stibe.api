@@ -218,8 +218,7 @@ namespace stibe.api.Controllers
                 UpdateSize = updateConfig[$"{platform}:UpdateSize"] ?? "25 MB",
                 ReleaseDate = DateTime.TryParse(updateConfig[$"{platform}:ReleaseDate"], out var date) ? date : DateTime.UtcNow,
                 DownloadUrl = updateConfig[$"{platform}:DownloadUrl"] ?? "",
-                PlayStoreUrl = updateConfig["Android:PlayStoreUrl"] ?? "",
-                AppStoreUrl = updateConfig["iOS:AppStoreUrl"] ?? ""
+                PlayStoreUrl = updateConfig["Android:PlayStoreUrl"] ?? ""
             });
         }
 
@@ -287,7 +286,6 @@ namespace stibe.api.Controllers
             return platform.ToLower() switch
             {
                 "android" => updateInfo.DownloadUrl, // Always use direct download URL for Android
-                "ios" => updateInfo.AppStoreUrl,
                 _ => updateInfo.DownloadUrl
             };
         }
@@ -598,7 +596,6 @@ namespace stibe.api.Controllers
             public DateTime ReleaseDate { get; set; }
             public string DownloadUrl { get; set; } = string.Empty;
             public string PlayStoreUrl { get; set; } = string.Empty;
-            public string AppStoreUrl { get; set; } = string.Empty;
         }
 
         #endregion

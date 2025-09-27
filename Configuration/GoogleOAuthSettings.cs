@@ -7,7 +7,6 @@ namespace stibe.api.Configuration
         public string RedirectUri { get; set; } = string.Empty;
         public bool Enabled { get; set; } = true;
         public string AndroidClientId { get; set; } = string.Empty;
-        public string IosClientId { get; set; } = string.Empty;
         public List<string> SupportedClientTypes { get; set; } = new List<string> { "web" };
     }
 }

@@ -33,17 +33,12 @@ namespace stibe.api.Services.Implementations.SecurityServices
                     return null;
                 }
 
-                // Build audience list with all supported client IDs
+                // Build audience list with supported client IDs
                 var audiences = new List<string> { _googleSettings.ClientId };
                 
                 if (!string.IsNullOrEmpty(_googleSettings.AndroidClientId))
                 {
                     audiences.Add(_googleSettings.AndroidClientId);
-                }
-                
-                if (!string.IsNullOrEmpty(_googleSettings.IosClientId))
-                {
-                    audiences.Add(_googleSettings.IosClientId);
                 }
 
                 _logger.LogInformation($"Validating Google token with audiences: {string.Join(", ", audiences)}");

@@ -13,7 +13,7 @@ namespace stibe.api.Models.DTOs.VersionManagement
 
         [Required]
         [StringLength(10)]
-        public string Platform { get; set; } = string.Empty; // "Android", "iOS"
+        public string Platform { get; set; } = string.Empty; // "Android" only
 
         [StringLength(50)]
         public string? DeviceModel { get; set; }
@@ -59,7 +59,7 @@ namespace stibe.api.Models.DTOs.VersionManagement
 
         [Required]
         [StringLength(10)]
-        public string Platform { get; set; } = string.Empty;
+        public string Platform { get; set; } = string.Empty; // "Android" only
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
