@@ -22,15 +22,17 @@ namespace stibe.api.Controllers
         private readonly IWebHostEnvironment _environment;
         private readonly IFileService _fileService;
         private readonly IOtpService _otpService;
+        private readonly IConfiguration _configuration;
 
 
-        public ShopController(ApplicationDbContext context, ILogger<ShopController> logger, IWebHostEnvironment environment, IFileService fileService, IOtpService otpService)
+        public ShopController(ApplicationDbContext context, ILogger<ShopController> logger, IWebHostEnvironment environment, IFileService fileService, IOtpService otpService, IConfiguration configuration)
         {
             _context = context;
             _logger = logger;
             _environment = environment;
             _fileService = fileService;
             _otpService = otpService;
+            _configuration = configuration;
         }        [HttpPost]
         [Authorize(Roles = "ShopOwner")]
         public async Task<ActionResult<ApiResponse<ShopResponseDto>>> CreateShop([FromBody] CreateShopRequestDto request)
@@ -480,60 +482,123 @@ namespace stibe.api.Controllers
         {
             try
             {
+                _logger.LogInformation("=== SHOP IMAGE UPLOAD STARTED ===");
+                _logger.LogInformation("Request Content-Type: {ContentType}", Request.ContentType);
+                _logger.LogInformation("Request Content-Length: {ContentLength}", Request.ContentLength);
+
                 var currentUserId = GetCurrentUserId();
                 if (currentUserId == null)
                 {
+                    _logger.LogWarning("Shop image upload failed: Invalid token");
                     return Unauthorized(ApiResponse<object>.ErrorResponse("Invalid token"));
                 }
 
+                _logger.LogInformation("Shop image upload for user ID: {UserId}", currentUserId);
+
                 if (image == null || image.Length == 0)
                 {
+                    _logger.LogWarning("Shop image upload failed: No image file provided");
                     return BadRequest(ApiResponse<object>.ErrorResponse("No image file provided"));
                 }
+
+                _logger.LogInformation("Image file details - Name: {FileName}, Size: {FileSize} bytes, ContentType: {ContentType}", 
+                    image.FileName, image.Length, image.ContentType);
 
                 // Validate file type
                 var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
                 var fileExtension = Path.GetExtension(image.FileName).ToLowerInvariant();
+                
+                _logger.LogInformation("File extension: {FileExtension}", fileExtension);
+                
                 if (!allowedExtensions.Contains(fileExtension))
                 {
+                    _logger.LogWarning("Shop image upload failed: Invalid file type {FileExtension}", fileExtension);
                     return BadRequest(ApiResponse<object>.ErrorResponse("Invalid file type. Only JPG, PNG, and GIF files are allowed."));
                 }
 
                 // Validate file size (max 5MB)
                 if (image.Length > 5 * 1024 * 1024)
                 {
+                    _logger.LogWarning("Shop image upload failed: File too large {FileSize} bytes", image.Length);
                     return BadRequest(ApiResponse<object>.ErrorResponse("File size must be less than 5MB"));
+                }
+
+                // Check WebRootPath
+                _logger.LogInformation("WebRootPath: {WebRootPath}", _environment.WebRootPath);
+                
+                if (string.IsNullOrEmpty(_environment.WebRootPath))
+                {
+                    _logger.LogError("WebRootPath is null or empty!");
+                    return StatusCode(500, ApiResponse<object>.ErrorResponse("Server configuration error: WebRootPath not set"));
                 }
 
                 // Create uploads directory if it doesn't exist
                 var uploadsDir = Path.Combine(_environment.WebRootPath, "uploads", "shop-images");
+                _logger.LogInformation("Uploads directory path: {UploadsDir}", uploadsDir);
+                
                 if (!Directory.Exists(uploadsDir))
                 {
+                    _logger.LogInformation("Creating uploads directory: {UploadsDir}", uploadsDir);
                     Directory.CreateDirectory(uploadsDir);
+                    _logger.LogInformation("Uploads directory created successfully");
+                }
+                else
+                {
+                    _logger.LogInformation("Uploads directory already exists");
                 }
 
                 // Generate unique filename
                 var fileName = $"{Guid.NewGuid()}{fileExtension}";
                 var filePath = Path.Combine(uploadsDir, fileName);
+                
+                _logger.LogInformation("Generated file name: {FileName}", fileName);
+                _logger.LogInformation("Full file path: {FilePath}", filePath);
 
                 // Save the file
+                _logger.LogInformation("Starting file save operation...");
                 using (var stream = new FileStream(filePath, FileMode.Create))
                 {
                     await image.CopyToAsync(stream);
                 }
+                _logger.LogInformation("File saved successfully to: {FilePath}", filePath);
 
-                // Generate the URL
-                var request = HttpContext.Request;
-                var baseUrl = $"{request.Scheme}://{request.Host}";
-                var imageUrl = $"{baseUrl}/uploads/shop-images/{fileName}";
+                // Verify file was created
+                if (!System.IO.File.Exists(filePath))
+                {
+                    _logger.LogError("File was not created at path: {FilePath}", filePath);
+                    return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to save file"));
+                }
 
-                _logger.LogInformation($"✅ Shop image uploaded: {imageUrl}");
+                var fileInfo = new FileInfo(filePath);
+                _logger.LogInformation("Saved file size: {FileSize} bytes", fileInfo.Length);
+
+                // Generate URL for the file using configured base URL (same as profile image)
+                var configuredBaseUrl = _configuration["FileStorage:BaseUrl"] ?? "/uploads";
+                _logger.LogInformation("DEBUG: Configuration FileStorage:BaseUrl = '{ConfiguredBaseUrl}'", configuredBaseUrl);
+                _logger.LogInformation("DEBUG: Environment.EnvironmentName = '{EnvironmentName}'", _environment.EnvironmentName);
+                string imageUrl;
+                
+                // If configured base URL is absolute, use it directly
+                if (configuredBaseUrl.StartsWith("http"))
+                {
+                    imageUrl = $"{configuredBaseUrl}/shop-images/{fileName}";
+                }
+                else
+                {
+                    // Fallback to request-based URL for local development
+                    var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                    imageUrl = $"{baseUrl}{configuredBaseUrl}/shop-images/{fileName}";
+                }
+                
+                _logger.LogInformation("Generated image URL: {ImageUrl}", imageUrl);
+                _logger.LogInformation("=== SHOP IMAGE UPLOAD COMPLETED SUCCESSFULLY ===");
 
                 return Ok(ApiResponse<object>.SuccessResponse(new { imageUrl }, "Image uploaded successfully"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error uploading shop image");
+                _logger.LogError(ex, "=== SHOP IMAGE UPLOAD ERROR === {ErrorMessage}", ex.Message);
+                _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while uploading shop image"));
             }
         }
