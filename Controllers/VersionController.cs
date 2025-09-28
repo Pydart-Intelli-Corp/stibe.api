@@ -55,7 +55,8 @@ namespace stibe.api.Controllers
 
                 // Compare versions
                 var isUpdateAvailable = IsUpdateRequired(request.CurrentVersion, updateInfo.LatestVersion);
-                var isForceUpdate = IsForceUpdateRequired(request.CurrentVersion, updateInfo.MinRequiredVersion);
+                // MANDATORY UPDATES: If any update is available, make it mandatory
+                var isForceUpdate = isUpdateAvailable ? true : IsForceUpdateRequired(request.CurrentVersion, updateInfo.MinRequiredVersion);
 
                 var response = new CheckUpdateResponseDto
                 {
