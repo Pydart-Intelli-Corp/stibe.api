@@ -1634,21 +1634,31 @@ namespace stibe.api.Controllers
                 var configuredBaseUrl = _configuration["FileStorage:BaseUrl"] ?? "/uploads";
                 _logger.LogInformation("DEBUG: Configuration FileStorage:BaseUrl = '{ConfiguredBaseUrl}'", configuredBaseUrl);
                 _logger.LogInformation("DEBUG: Environment.EnvironmentName = '{EnvironmentName}'", _environment.EnvironmentName);
+                _logger.LogInformation("DEBUG: Request.Scheme = '{Scheme}'", Request.Scheme);
+                _logger.LogInformation("DEBUG: Request.Host = '{Host}'", Request.Host);
+                
                 string imageUrl;
                 
-                // If configured base URL is absolute, use it directly
+                // Always use relative URLs - let the client resolve them based on environment
+                // This is more reliable than trying to construct absolute URLs on the server
                 if (configuredBaseUrl.StartsWith("http"))
                 {
+                    // If somehow configured as absolute, use it directly  
                     imageUrl = $"{configuredBaseUrl}/profile-images/{fileName}";
+                    _logger.LogInformation("Using absolute configured URL: {ImageUrl}", imageUrl);
                 }
                 else
                 {
-                    // Fallback to request-based URL for local development
-                    var baseUrl = $"{Request.Scheme}://{Request.Host}";
-                    imageUrl = $"{baseUrl}{configuredBaseUrl}/profile-images/{fileName}";
+                    // Use relative URL - client will resolve it properly
+                    imageUrl = $"{configuredBaseUrl}/profile-images/{fileName}";
+                    _logger.LogInformation("Using relative URL for client resolution: {ImageUrl}", imageUrl);
+                    
+                    // Also log what the full URL would be for debugging
+                    var fullUrl = $"{Request.Scheme}://{Request.Host}{imageUrl}";
+                    _logger.LogInformation("Full URL would be: {FullUrl}", fullUrl);
                 }
                 
-                _logger.LogInformation("Generated image URL: {ImageUrl}", imageUrl);
+                _logger.LogInformation("Final generated image URL: {ImageUrl}", imageUrl);
 
                 // Update user profile image in database
                 _logger.LogInformation("Updating user profile image in database...");
@@ -2031,6 +2041,37 @@ namespace stibe.api.Controllers
                 _logger.LogError(ex, "Error deleting old profile image: {ImageUrl}", imageUrl);
                 throw; // Re-throw to let the caller handle it
             }
+        }
+
+        [HttpGet("debug/photo-urls")]
+        [AllowAnonymous]
+        public ActionResult<object> DebugPhotoUrls()
+        {
+            var configuredBaseUrl = _configuration["FileStorage:BaseUrl"] ?? "/uploads";
+            var testFileName = "test-profile-image.jpg";
+            var relativeUrl = $"{configuredBaseUrl}/profile-images/{testFileName}";
+            var fullUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
+            
+            return Ok(new
+            {
+                success = true,
+                message = "Photo URL debug information",
+                data = new
+                {
+                    environment = _environment.EnvironmentName,
+                    requestScheme = Request.Scheme,
+                    requestHost = Request.Host.ToString(),
+                    configuredBaseUrl = configuredBaseUrl,
+                    testFileName = testFileName,
+                    generatedRelativeUrl = relativeUrl,
+                    generatedFullUrl = fullUrl,
+                    fileStorageConfig = new
+                    {
+                        localPath = _configuration["FileStorage:LocalPath"],
+                        baseUrl = _configuration["FileStorage:BaseUrl"]
+                    }
+                }
+            });
         }
     }
 
