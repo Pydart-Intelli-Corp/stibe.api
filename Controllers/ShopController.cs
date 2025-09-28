@@ -505,29 +505,15 @@ namespace stibe.api.Controllers
                     return BadRequest(ApiResponse<object>.ErrorResponse("File size must be less than 5MB"));
                 }
 
-                // Create uploads directory if it doesn't exist
-                var uploadsDir = Path.Combine(_environment.WebRootPath, "uploads", "shop-images");
-                if (!Directory.Exists(uploadsDir))
+                // Use FileService for consistent file handling
+                var imageUrl = await _fileService.UploadFileAsync(image, "shop-images");
+                
+                if (string.IsNullOrEmpty(imageUrl))
                 {
-                    Directory.CreateDirectory(uploadsDir);
+                    return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to upload image"));
                 }
 
-                // Generate unique filename
-                var fileName = $"{Guid.NewGuid()}{fileExtension}";
-                var filePath = Path.Combine(uploadsDir, fileName);
-
-                // Save the file
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await image.CopyToAsync(stream);
-                }
-
-                // Generate the URL
-                var request = HttpContext.Request;
-                var baseUrl = $"{request.Scheme}://{request.Host}";
-                var imageUrl = $"{baseUrl}/uploads/shop-images/{fileName}";
-
-                _logger.LogInformation($"✅ Shop image uploaded: {imageUrl}");
+                _logger.LogInformation($"✅ Shop image uploaded via FileService: {imageUrl}");
 
                 return Ok(ApiResponse<object>.SuccessResponse(new { imageUrl }, "Image uploaded successfully"));
             }
@@ -694,8 +680,15 @@ namespace stibe.api.Controllers
                     ? new List<string>() 
                     : JsonSerializer.Deserialize<List<string>>(shop.ImageUrls) ?? new List<string>();
 
-                // Remove the specified images from the shop's image list
-                var updatedImageUrls = currentImageUrls.Where(url => !imageUrls.Contains(url)).ToList();
+                // Normalize URLs for comparison
+                var normalizedUrlsToDelete = imageUrls.Select(NormalizeUrl).ToList();
+                
+                _logger.LogInformation("Current images: {CurrentImages}", string.Join(", ", currentImageUrls));
+                _logger.LogInformation("URLs to delete: {UrlsToDelete}", string.Join(", ", imageUrls));
+
+                // Remove the specified images from the shop's image list using normalized comparison
+                var updatedImageUrls = currentImageUrls.Where(url => 
+                    !normalizedUrlsToDelete.Contains(NormalizeUrl(url))).ToList();
                 
                 // Update the shop record
                 shop.ImageUrls = JsonSerializer.Serialize(updatedImageUrls);
@@ -1215,18 +1208,38 @@ namespace stibe.api.Controllers
                         }
                     }
 
+                    // Normalize URLs for comparison
+                    var normalizedCurrentUrls = currentImageUrls.Select(NormalizeUrl).ToList();
+                    var normalizedNewUrls = request.ImageUrls.Select(NormalizeUrl).ToList();
+                    
                     // Delete old gallery images that are not in the new list
-                    var imagesToDelete = currentImageUrls.Where(oldUrl => !request.ImageUrls.Contains(oldUrl)).ToList();
+                    var imagesToDelete = currentImageUrls.Where(oldUrl => 
+                        !normalizedNewUrls.Contains(NormalizeUrl(oldUrl))).ToList();
+                        
                     if (imagesToDelete.Any())
                     {
                         try
                         {
-                            _logger.LogInformation("Deleting {Count} old gallery images", imagesToDelete.Count);
-                            await _fileService.DeleteMultipleFilesAsync(imagesToDelete, "shop-images");
+                            _logger.LogInformation("🗑️ Deleting {Count} old gallery images in UpdateShop", imagesToDelete.Count);
+                            _logger.LogInformation("Images to delete: {ImagesToDelete}", string.Join(", ", imagesToDelete));
+                            
+                            // Delete each file individually with logging
+                            foreach (var imageUrl in imagesToDelete)
+                            {
+                                try
+                                {
+                                    await _fileService.DeleteFileAsync(imageUrl, "shop-images");
+                                    _logger.LogInformation("✅ Successfully deleted gallery image: {ImageUrl}", imageUrl);
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogError(ex, "❌ Failed to delete gallery image: {ImageUrl}", imageUrl);
+                                }
+                            }
                         }
                         catch (Exception deleteEx)
                         {
-                            _logger.LogWarning(deleteEx, "Failed to delete some old gallery images");
+                            _logger.LogWarning(deleteEx, "❌ Failed to delete some old gallery images");
                             // Continue with update even if deletion fails
                         }
                     }
@@ -1523,22 +1536,60 @@ namespace stibe.api.Controllers
                     }
                 }
 
+                // Normalize URLs for comparison (remove trailing slashes, convert to lowercase)
+                var normalizedCurrentUrls = currentImageUrls.Select(NormalizeUrl).ToList();
+                var normalizedNewUrls = request.ImageUrls.Select(NormalizeUrl).ToList();
+                
+                _logger.LogInformation("Current gallery images ({Count}): {CurrentUrls}", 
+                    normalizedCurrentUrls.Count, string.Join(", ", normalizedCurrentUrls));
+                _logger.LogInformation("New gallery images ({Count}): {NewUrls}", 
+                    normalizedNewUrls.Count, string.Join(", ", normalizedNewUrls));
+                
                 // Determine which images to delete (old images not in new list)
-                var imagesToDelete = currentImageUrls.Where(oldUrl => !request.ImageUrls.Contains(oldUrl)).ToList();
+                var imagesToDelete = currentImageUrls.Where(oldUrl => 
+                    !normalizedNewUrls.Contains(NormalizeUrl(oldUrl))).ToList();
+                
+                _logger.LogInformation("Images to delete ({Count}): {ImagesToDelete}", 
+                    imagesToDelete.Count, string.Join(", ", imagesToDelete));
                 
                 // Delete old images that are no longer needed
                 if (imagesToDelete.Any())
                 {
                     try
                     {
-                        _logger.LogInformation("Deleting {Count} old gallery images for shop {ShopId}", imagesToDelete.Count, shopId);
-                        await _fileService.DeleteMultipleFilesAsync(imagesToDelete, "shop-images");
+                        _logger.LogInformation("🗑️ Deleting {Count} old gallery images for shop {ShopId}", imagesToDelete.Count, shopId);
+                        
+                        // Delete each file individually with logging
+                        var deletedCount = 0;
+                        var failedCount = 0;
+                        
+                        foreach (var imageUrl in imagesToDelete)
+                        {
+                            try
+                            {
+                                await _fileService.DeleteFileAsync(imageUrl, "shop-images");
+                                deletedCount++;
+                                _logger.LogInformation("✅ Successfully deleted gallery image: {ImageUrl}", imageUrl);
+                            }
+                            catch (Exception ex)
+                            {
+                                failedCount++;
+                                _logger.LogError(ex, "❌ Failed to delete gallery image: {ImageUrl}", imageUrl);
+                            }
+                        }
+                        
+                        _logger.LogInformation("Gallery deletion summary: {DeletedCount} deleted, {FailedCount} failed", 
+                            deletedCount, failedCount);
                     }
                     catch (Exception deleteEx)
                     {
-                        _logger.LogWarning(deleteEx, "Failed to delete some old gallery images for shop {ShopId}", shopId);
+                        _logger.LogWarning(deleteEx, "❌ Failed to delete some old gallery images for shop {ShopId}", shopId);
                         // Continue with update even if deletion fails
                     }
+                }
+                else
+                {
+                    _logger.LogInformation("No old gallery images to delete for shop {ShopId}", shopId);
                 }
 
                 // Update shop with new gallery images
@@ -1807,6 +1858,33 @@ namespace stibe.api.Controllers
             }
         }
 
+        /// <summary>
+        /// Normalizes URL for consistent comparisons by removing protocol, host, and trailing slashes
+        /// </summary>
+        private string NormalizeUrl(string url)
+        {
+            if (string.IsNullOrEmpty(url))
+                return string.Empty;
+                
+            try
+            {
+                // Remove protocol and host if present, keep only the path
+                if (url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                {
+                    var uri = new Uri(url);
+                    url = uri.PathAndQuery;
+                }
+                
+                // Normalize path separators and remove trailing slashes
+                return url.Replace("\\", "/").Trim('/').ToLowerInvariant();
+            }
+            catch
+            {
+                // If parsing fails, just normalize the string as-is
+                return url.Replace("\\", "/").Trim('/').ToLowerInvariant();
+            }
+        }
+        
         private void DeleteOldShopImage(string imageUrl)
         {
             try

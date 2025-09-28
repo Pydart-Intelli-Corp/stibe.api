@@ -155,43 +155,86 @@ namespace stibe.api.Services.Implementations.FileService
         {
             if (string.IsNullOrEmpty(fileUrl))
             {
+                _logger.LogWarning("DeleteFileAsync: Empty file URL provided");
                 return Task.CompletedTask;
             }
 
             try
             {
+                _logger.LogInformation("=== DELETE FILE STARTED === URL: {FileUrl}, Container: {ContainerName}", fileUrl, containerName);
+                
                 // Parse the URL to get the filename
-                var uri = new Uri(fileUrl, UriKind.RelativeOrAbsolute);
                 string fileName;
-
-                if (uri.IsAbsoluteUri)
+                
+                try
                 {
-                    fileName = Path.GetFileName(uri.LocalPath);
+                    var uri = new Uri(fileUrl, UriKind.RelativeOrAbsolute);
+                    
+                    if (uri.IsAbsoluteUri)
+                    {
+                        fileName = Path.GetFileName(uri.LocalPath);
+                        _logger.LogInformation("Parsed absolute URI - FileName: {FileName}", fileName);
+                    }
+                    else
+                    {
+                        // Handle relative URLs like "/uploads/shop-images/filename.jpg"
+                        var pathParts = fileUrl.Trim('/').Split('/').Where(p => !string.IsNullOrEmpty(p)).ToArray();
+                        fileName = pathParts.LastOrDefault() ?? string.Empty;
+                        _logger.LogInformation("Parsed relative URI - FileName: {FileName}", fileName);
+                    }
                 }
-                else
+                catch (UriFormatException)
                 {
-                    var segments = uri.Segments.ToList();
-                    fileName = segments.Last();
+                    // If URI parsing fails, try to extract filename from the end of the string
+                    var pathParts = fileUrl.Replace("\\", "/").Split('/').Where(p => !string.IsNullOrEmpty(p)).ToArray();
+                    fileName = pathParts.LastOrDefault() ?? string.Empty;
+                    _logger.LogInformation("Fallback parsing - FileName: {FileName}", fileName);
+                }
+
+                if (string.IsNullOrEmpty(fileName))
+                {
+                    _logger.LogWarning("Could not extract filename from URL: {FileUrl}", fileUrl);
+                    return Task.CompletedTask;
                 }
 
                 var filePath = Path.Combine(_baseStoragePath, containerName, fileName);
+                _logger.LogInformation("Attempting to delete file at path: {FilePath}", filePath);
 
                 if (File.Exists(filePath))
                 {
                     File.Delete(filePath);
-                    _logger.LogInformation("File {FilePath} deleted successfully", filePath);
+                    _logger.LogInformation("✅ File deleted successfully: {FilePath}", filePath);
                 }
                 else
                 {
-                    _logger.LogWarning("File {FilePath} not found for deletion", filePath);
+                    _logger.LogWarning("⚠️ File not found for deletion: {FilePath}", filePath);
+                    
+                    // Try to find the file with different casing (case-insensitive search)
+                    var directory = Path.GetDirectoryName(filePath);
+                    if (Directory.Exists(directory))
+                    {
+                        var files = Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly);
+                        var matchingFile = files.FirstOrDefault(f => 
+                            string.Equals(Path.GetFileName(f), fileName, StringComparison.OrdinalIgnoreCase));
+                        
+                        if (!string.IsNullOrEmpty(matchingFile))
+                        {
+                            File.Delete(matchingFile);
+                            _logger.LogInformation("✅ File deleted with case-insensitive match: {FilePath}", matchingFile);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("File not found even with case-insensitive search in directory: {Directory}", directory);
+                        }
+                    }
                 }
 
                 return Task.CompletedTask;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting file {FileUrl} from container {ContainerName}",
-                    fileUrl, containerName);
+                _logger.LogError(ex, "❌ Error deleting file {FileUrl} from container {ContainerName}: {ErrorMessage}",
+                    fileUrl, containerName, ex.Message);
                 return Task.CompletedTask;
             }
         }
@@ -232,26 +275,46 @@ namespace stibe.api.Services.Implementations.FileService
             }
         }
 
-        public Task DeleteMultipleFilesAsync(IEnumerable<string> fileUrls, string containerName)
+        public async Task DeleteMultipleFilesAsync(IEnumerable<string> fileUrls, string containerName)
         {
             if (fileUrls == null || !fileUrls.Any())
             {
-                return Task.CompletedTask;
+                _logger.LogInformation("DeleteMultipleFilesAsync: No files to delete");
+                return;
             }
 
+            var fileUrlsList = fileUrls.ToList();
+            
             try
             {
                 _logger.LogInformation("=== BATCH FILE DELETION STARTED ===");
-                _logger.LogInformation("Deleting {Count} files from container: {ContainerName}", fileUrls.Count(), containerName);
+                _logger.LogInformation("Deleting {Count} files from container: {ContainerName}", fileUrlsList.Count, containerName);
+                _logger.LogInformation("Files to delete: {FileUrls}", string.Join(", ", fileUrlsList));
 
-                var deletionTasks = fileUrls.Select(fileUrl => DeleteFileAsync(fileUrl, containerName));
+                var deletedCount = 0;
+                var failedCount = 0;
                 
-                return Task.WhenAll(deletionTasks);
+                // Delete files sequentially for better error tracking
+                foreach (var fileUrl in fileUrlsList)
+                {
+                    try
+                    {
+                        await DeleteFileAsync(fileUrl, containerName);
+                        deletedCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        failedCount++;
+                        _logger.LogError(ex, "Failed to delete individual file: {FileUrl}", fileUrl);
+                    }
+                }
+                
+                _logger.LogInformation("=== BATCH FILE DELETION COMPLETED === Deleted: {DeletedCount}, Failed: {FailedCount}", 
+                    deletedCount, failedCount);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during batch file deletion in container {ContainerName}", containerName);
-                return Task.CompletedTask;
+                _logger.LogError(ex, "❌ Error during batch file deletion in container {ContainerName}", containerName);
             }
         }
 
