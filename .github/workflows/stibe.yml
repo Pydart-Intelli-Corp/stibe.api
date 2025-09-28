@@ -11,6 +11,7 @@ env:
   CONFIGURATION: Release
   DOTNET_CORE_VERSION: 8.0.x
   WORKING_DIRECTORY: .
+  PROJECT_PATH: ./stibe.api.csproj
 
 jobs:
   build:
@@ -24,16 +25,16 @@ jobs:
           dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
 
       - name: Restore
-        run: dotnet restore "${{ env.WORKING_DIRECTORY }}"
+        run: dotnet restore "${{ env.PROJECT_PATH }}" --runtime win-x64
 
       - name: Build
-        run: dotnet build "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-restore
+        run: dotnet build "${{ env.PROJECT_PATH }}" --configuration ${{ env.CONFIGURATION }} --no-restore --runtime win-x64
 
       - name: Test
-        run: dotnet test "${{ env.WORKING_DIRECTORY }}" --no-build
+        run: dotnet test "${{ env.PROJECT_PATH }}" --no-build
 
       - name: Publish
-        run: dotnet publish "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}" --runtime win-x64 --self-contained false
+        run: dotnet publish "${{ env.PROJECT_PATH }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}" --runtime win-x64 --self-contained false
 
       - name: List published files
         run: |
