@@ -50,6 +50,12 @@ try
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Debug configuration loading
+Log.Information("Environment: {Environment}", builder.Environment.EnvironmentName);
+Log.Information("Content Root: {ContentRoot}", builder.Environment.ContentRootPath);
+Log.Information("Configuration Sources: {Sources}", 
+    string.Join(", ", ((IConfigurationRoot)builder.Configuration).Providers.Select(p => p.GetType().Name)));
+
 // Use Serilog
 builder.Host.UseSerilog();
 
@@ -71,24 +77,49 @@ builder.Services.Configure<FormOptions>(options =>
 });
 
 // Configure Entity Framework with MySQL and Production Optimizations
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+try 
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 40)), mySqlOptions =>
-    {
-        mySqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 3,
-            maxRetryDelay: TimeSpan.FromSeconds(5),
-            errorNumbersToAdd: null);
-    });
+    Log.Information("Database connection string loaded: {HasConnection}", !string.IsNullOrEmpty(connectionString));
     
-    // Standard optimizations
-    options.EnableSensitiveDataLogging(false);
-    options.EnableDetailedErrors(false);
-});
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        Log.Error("Database connection string is missing!");
+        throw new InvalidOperationException("Database connection string 'DefaultConnection' is not configured");
+    }
+    
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    {
+        options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 40)), mySqlOptions =>
+        {
+            mySqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorNumbersToAdd: null);
+        });
+        
+        // Standard optimizations
+        options.EnableSensitiveDataLogging(false);
+        options.EnableDetailedErrors(false);
+    });
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Failed to configure database");
+    throw;
+}
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
+Log.Information("JWT Settings loaded: {HasJwtSettings}", jwtSettings != null);
+Log.Information("JWT Secret Key present: {HasSecretKey}", !string.IsNullOrEmpty(jwtSettings?.SecretKey));
+
+if (jwtSettings == null || string.IsNullOrEmpty(jwtSettings.SecretKey))
+{
+    Log.Error("JWT settings are missing or incomplete!");
+    throw new InvalidOperationException("JWT settings are not properly configured");
+}
+
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
 builder.Services.Configure<PaymentSettings>(builder.Configuration.GetSection("Payment"));
 
@@ -261,7 +292,14 @@ app.UseSwaggerUI(c =>
 app.MapGet("/health", () => Results.Ok(new { 
     status = "healthy", 
     timestamp = DateTime.UtcNow,
-    version = "1.0.0"
+    version = "1.0.0",
+    environment = app.Environment.EnvironmentName
+}));
+
+// Simple ping endpoint
+app.MapGet("/api/ping", () => Results.Ok(new { 
+    message = "pong", 
+    timestamp = DateTime.UtcNow 
 }));
 
 // Standard error handling
@@ -285,20 +323,27 @@ app.UseHttpsRedirection();
 var wwwrootPath = app.Environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
 var uploadsPath = Path.Combine(wwwrootPath, "uploads");
 
-// Ensure directories exist
-Directory.CreateDirectory(wwwrootPath);
-Directory.CreateDirectory(uploadsPath);
-
 // Create subdirectories for uploads
 var profileImagesPath = Path.Combine(uploadsPath, "profile-images");
 var serviceImagesPath = Path.Combine(uploadsPath, "service-images");
 var shopImagesPath = Path.Combine(uploadsPath, "shop-images");
 var productImagesPath = Path.Combine(uploadsPath, "product-images");
 
-Directory.CreateDirectory(profileImagesPath);
-Directory.CreateDirectory(serviceImagesPath);
-Directory.CreateDirectory(shopImagesPath);
-Directory.CreateDirectory(productImagesPath);
+// Ensure directories exist with error handling
+try
+{
+    Directory.CreateDirectory(wwwrootPath);
+    Directory.CreateDirectory(uploadsPath);
+    Directory.CreateDirectory(profileImagesPath);
+    Directory.CreateDirectory(serviceImagesPath);
+    Directory.CreateDirectory(shopImagesPath);
+    Directory.CreateDirectory(productImagesPath);
+}
+catch (Exception ex)
+{
+    startupLogger.LogError(ex, "Failed to create upload directories");
+    // Don't throw - this shouldn't prevent startup
+}
 
 startupLogger.LogInformation("📁 Upload directories created/verified:");
 startupLogger.LogInformation("   📂 WWW Root: {WwwRootPath}", wwwrootPath);
