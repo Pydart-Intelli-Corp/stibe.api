@@ -55,8 +55,22 @@ namespace stibe.api.Controllers
 
                 // Compare versions
                 var isUpdateAvailable = IsUpdateRequired(request.CurrentVersion, updateInfo.LatestVersion);
-                // MANDATORY UPDATES: If any update is available, make it mandatory
-                var isForceUpdate = isUpdateAvailable ? true : IsForceUpdateRequired(request.CurrentVersion, updateInfo.MinRequiredVersion);
+                
+                // Check if mandatory updates are enabled
+                var enableMandatoryUpdates = _configuration.GetValue<bool>("AppUpdates:EnableMandatoryUpdateCheck", true);
+                
+                // Determine if this should be a force update
+                bool isForceUpdate;
+                if (enableMandatoryUpdates)
+                {
+                    // MANDATORY UPDATES: If any update is available, make it mandatory
+                    isForceUpdate = isUpdateAvailable ? true : IsForceUpdateRequired(request.CurrentVersion, updateInfo.MinRequiredVersion);
+                }
+                else
+                {
+                    // OPTIONAL UPDATES: Only force update if below minimum required version
+                    isForceUpdate = IsForceUpdateRequired(request.CurrentVersion, updateInfo.MinRequiredVersion);
+                }
 
                 var response = new CheckUpdateResponseDto
                 {
@@ -72,8 +86,8 @@ namespace stibe.api.Controllers
                     ReleaseDate = updateInfo.ReleaseDate
                 };
 
-                _logger.LogInformation("Update check result: UpdateAvailable={UpdateAvailable}, IsForceUpdate={IsForceUpdate}", 
-                    isUpdateAvailable, isForceUpdate);
+                _logger.LogInformation("Update check result: UpdateAvailable={UpdateAvailable}, IsForceUpdate={IsForceUpdate}, MandatoryUpdateCheck={EnableMandatoryUpdates}", 
+                    isUpdateAvailable, isForceUpdate, enableMandatoryUpdates);
 
                 return Ok(new
                 {
@@ -156,6 +170,44 @@ namespace stibe.api.Controllers
                 {
                     success = false,
                     message = "Failed to record update completion",
+                    errors = new[] { ex.Message }
+                });
+            }
+        }
+
+        /// <summary>
+        /// Get update configuration settings
+        /// </summary>
+        /// <returns>Update configuration</returns>
+        [HttpGet("update-config")]
+        public IActionResult GetUpdateConfig()
+        {
+            try
+            {
+                var updateConfig = _configuration.GetSection("AppUpdates");
+                
+                var config = new
+                {
+                    enableMandatoryUpdateCheck = updateConfig.GetValue<bool>("EnableMandatoryUpdateCheck", true),
+                    updateCheckIntervalHours = updateConfig.GetValue<int>("UpdateCheckIntervalHours", 24),
+                    enableUpdateNotifications = updateConfig.GetValue<bool>("EnableUpdateNotifications", true),
+                    supportedVersions = updateConfig.GetSection("SupportedVersions").Get<List<string>>() ?? new List<string>()
+                };
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Update configuration retrieved",
+                    data = config
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting update configuration");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Failed to get update configuration",
                     errors = new[] { ex.Message }
                 });
             }
