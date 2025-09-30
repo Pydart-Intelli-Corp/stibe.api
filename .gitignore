@@ -371,6 +371,7 @@ config/secrets/*.json
 config/secrets/*.key
 config/secrets/*.pem
 
-# Large binary files - APK files
-*.apk
-wwwroot/apk/
+# Large binary files - APK files (allow specific versions)
+# *.apk
+# wwwroot/apk/
+!wwwroot/apk/stibe-one-v*.apk
