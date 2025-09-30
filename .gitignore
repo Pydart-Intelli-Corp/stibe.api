@@ -366,9 +366,7 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # Configuration files with secrets
-appsettings.Production.json
-appsettings.Staging.json
-appsettings.Development.json
+appsettings.json
 
 # Large binary files - APK files
 *.apk
