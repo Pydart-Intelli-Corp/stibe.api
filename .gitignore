@@ -367,6 +367,9 @@ FodyWeavers.xsd
 
 # Configuration files with secrets
 appsettings.Secrets.json
+config/secrets/*.json
+config/secrets/*.key
+config/secrets/*.pem
 
 # Large binary files - APK files
 *.apk

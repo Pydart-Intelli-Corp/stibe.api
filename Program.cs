@@ -50,11 +50,16 @@ try
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load secrets configuration for development
-if (builder.Environment.IsDevelopment())
+// Load secrets configuration from config/secrets directory
+var secretsPath = Path.Combine("config", "secrets", "appsettings.Secrets.json");
+if (File.Exists(secretsPath))
 {
-    builder.Configuration.AddJsonFile("appsettings.Secrets.json", optional: true, reloadOnChange: true);
-    Log.Information("🔐 Loading secrets from appsettings.Secrets.json for development environment");
+    builder.Configuration.AddJsonFile(secretsPath, optional: true, reloadOnChange: true);
+    Log.Information("🔐 Loading secrets from {SecretPath}", secretsPath);
+}
+else
+{
+    Log.Warning("⚠️ Secrets file not found at {SecretPath}", secretsPath);
 }
 
 // Use Serilog
