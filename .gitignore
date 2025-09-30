@@ -364,3 +364,12 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Configuration files with secrets
+appsettings.Production.json
+appsettings.Staging.json
+appsettings.Development.json
+
+# Large binary files - APK files
+*.apk
+wwwroot/apk/

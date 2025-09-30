@@ -1,148 +1,292 @@
-# 🏗️ Stibe.API - Professional Shop Management Backend
+# Stibe API - Professional Architecture# 🏗️ Stibe.API - Professional Shop Management Backend
 
-<div align="center">
 
-![Stibe API](https://img.shields.io/badge/Stibe-API-blue.svg)
+
+## 🏗️ Project Structure<div align="center">
+
+
+
+This project follows a **Clean Architecture** pattern with clear separation of concerns and professional organization.![Stibe API](https://img.shields.io/badge/Stibe-API-blue.svg)
+
 [![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-8.0-purple.svg)](https://dotnet.microsoft.com/)
-[![Entity Framework](https://img.shields.io/badge/Entity%20Framework-Core-green.svg)](https://docs.microsoft.com/en-us/ef/)
-[![MySQL](https://img.shields.io/badge/MySQL-8.0-orange.svg)](https://mysql.com/)
-[![JWT](https://img.shields.io/badge/Auth-JWT-red.svg)](https://jwt.io/)
 
-**🌟 Enterprise-Grade RESTful API for Modern Shop Operations 🌟**
+```[![Entity Framework](https://img.shields.io/badge/Entity%20Framework-Core-green.svg)](https://docs.microsoft.com/en-us/ef/)
 
-*Powering the Stibe One Flutter application with secure, scalable backend services*
+stibe.api/[![MySQL](https://img.shields.io/badge/MySQL-8.0-orange.svg)](https://mysql.com/)
 
-**📅 Version:** 1.0.0 | **🔄 Last Updated:** August 15, 2025
+├── 📁 src/                              # Source code (core application)[![JWT](https://img.shields.io/badge/Auth-JWT-red.svg)](https://jwt.io/)
 
-</div>
+│   ├── 📁 Core/                         # Business logic & domain models
 
----
+│   │   ├── 📁 Configuration/            # Application configurations**🌟 Enterprise-Grade RESTful API for Modern Shop Operations 🌟**
 
-## 🎯 **Project Overview**
+│   │   ├── 📁 DTOs/                     # Data Transfer Objects
 
-Stibe.API is a comprehensive ASP.NET Core 8.0 RESTful API designed to power professional shop management operations. Built with enterprise-grade architecture, it provides secure, scalable backend services for the Stibe One Flutter application.
+│   │   ├── 📁 Entities/                 # Domain entities*Powering the Stibe One Flutter application with secure, scalable backend services*
 
-### ✨ **Core Features**
-- **🔐 JWT Authentication**: Secure user authentication with token refresh
-- **👥 User Management**: Complete registration, profile management, and roles
-- **🏪 Shop Operations**: Multi-shop support with comprehensive business data
-- **👨‍💼 Staff Management**: Employee scheduling, profiles, and service assignments
-- **🛍️ Service Management**: Service catalog, pricing, and category organization
-- **📧 Email Services**: Automated notifications and verification emails
-- **🌐 Google OAuth**: Social authentication integration
-- **🔒 Security First**: Comprehensive validation, encryption, and access control
+│   │   ├── 📁 Enums/                    # Enumeration types
 
-### 🏗️ **Architecture Highlights**
-- **Clean Architecture**: Domain-driven design with proper separation of concerns
-- **Entity Framework Core**: MySQL database with comprehensive migrations
-- **Dependency Injection**: Professional IoC container usage throughout
-- **OpenAPI/Swagger**: Complete API documentation and testing interface
-- **Error Handling**: Comprehensive exception handling and logging
-- **Configuration**: Environment-based settings with secure credential management
+│   │   └── 📁 Interfaces/               # Service contracts**📅 Version:** 1.0.0 | **🔄 Last Updated:** August 15, 2025
 
----
+│   ├── 📁 Infrastructure/               # External concerns & implementations
 
-## 🚀 **Getting Started**
+│   │   ├── 📁 Data/                     # Database context & migrations</div>
 
-### 📋 **Prerequisites**
-```bash
-.NET 8.0 SDK
-MySQL 8.0+
-Visual Studio 2022 / VS Code
+│   │   ├── 📁 External/                 # Third-party integrations
+
+│   │   └── 📁 Services/                 # Service implementations---
+
+│   ├── 📁 Application/                  # Application services & logic
+
+│   │   ├── 📁 Services/                 # Business services## 🎯 **Project Overview**
+
+│   │   └── 📁 Validators/               # Input validation logic
+
+│   └── 📁 Web/                          # HTTP layer (controllers, middleware)Stibe.API is a comprehensive ASP.NET Core 8.0 RESTful API designed to power professional shop management operations. Built with enterprise-grade architecture, it provides secure, scalable backend services for the Stibe One Flutter application.
+
+│       ├── 📁 Controllers/              # API controllers
+
+│       ├── 📁 Extensions/               # Service registration extensions### ✨ **Core Features**
+
+│       └── 📁 Middleware/               # Custom middleware- **🔐 JWT Authentication**: Secure user authentication with token refresh
+
+├── 📁 config/                           # Configuration files- **👥 User Management**: Complete registration, profile management, and roles
+
+│   ├── 📁 certificates/                 # SSL certificates & security files- **🏪 Shop Operations**: Multi-shop support with comprehensive business data
+
+│   ├── 📁 environments/                 # Environment-specific configs- **👨‍💼 Staff Management**: Employee scheduling, profiles, and service assignments
+
+│   ├── 📁 secrets/                      # Sensitive credentials (git-ignored)- **🛍️ Service Management**: Service catalog, pricing, and category organization
+
+│   └── appsettings.json                 # Main application settings- **📧 Email Services**: Automated notifications and verification emails
+
+├── 📁 tests/                            # Test projects- **🌐 Google OAuth**: Social authentication integration
+
+│   ├── 📁 Unit/                         # Unit tests- **🔒 Security First**: Comprehensive validation, encryption, and access control
+
+│   └── 📁 Integration/                  # Integration tests
+
+├── 📁 scripts/                          # Utility scripts### 🏗️ **Architecture Highlights**
+
+│   ├── 📁 database/                     # Database scripts & migrations- **Clean Architecture**: Domain-driven design with proper separation of concerns
+
+│   └── 📁 deployment/                   # Deployment scripts- **Entity Framework Core**: MySQL database with comprehensive migrations
+
+├── 📁 docker/                           # Docker configuration- **Dependency Injection**: Professional IoC container usage throughout
+
+├── 📁 docs/                             # Documentation- **OpenAPI/Swagger**: Complete API documentation and testing interface
+
+├── 📁 logs/                             # Application logs (git-ignored)- **Error Handling**: Comprehensive exception handling and logging
+
+├── 📁 wwwroot/                          # Static web files- **Configuration**: Environment-based settings with secure credential management
+
+└── 📄 Program.cs                        # Application entry point
+
+```---
+
+
+
+## 🎯 Architecture Benefits## 🚀 **Getting Started**
+
+
+
+### ✅ Professional Organization### 📋 **Prerequisites**
+
+- **Clear separation of concerns** between layers```bash
+
+- **Clean Architecture** principles with dependency inversion.NET 8.0 SDK
+
+- **Testable** structure with proper abstraction layersMySQL 8.0+
+
+- **Maintainable** codebase with logical groupingsVisual Studio 2022 / VS Code
+
 Git
-```
 
-### ⚡ **Quick Setup**
-```bash
-# 1. Clone the repository
+### 🔒 Security & Configuration```
+
+- **Sensitive files** isolated in `config/secrets/` (git-ignored)
+
+- **Environment-specific** configurations in dedicated folders### ⚡ **Quick Setup**
+
+- **Certificate management** in secure location```bash
+
+- **Configuration hierarchy** for different environments# 1. Clone the repository
+
 git clone https://github.com/Pydart-Intelli-Corp/stibe.api.git
-cd stibe.api
 
-# 2. Restore dependencies
-dotnet restore
+### 🚀 Development Experiencecd stibe.api
+
+- **Intuitive navigation** - developers can quickly find what they need
+
+- **Consistent structure** across different concerns# 2. Restore dependencies
+
+- **Scalable organization** - easy to add new featuresdotnet restore
+
+- **Professional standards** following industry best practices
 
 # 3. Configure database connection in appsettings.json
-# Update ConnectionStrings:DefaultConnection with your MySQL settings
 
-# 4. Run database migrations
-dotnet ef database update
+## 🔧 Layer Responsibilities# Update ConnectionStrings:DefaultConnection with your MySQL settings
 
-# 5. Run the application
-dotnet run
+
+
+### 🎯 Core Layer (`src/Core/`)# 4. Run database migrations
+
+- **Domain entities** - Pure business objectsdotnet ef database update
+
+- **DTOs** - Data contracts for API communication
+
+- **Interfaces** - Service contracts and abstractions# 5. Run the application
+
+- **Configuration** - Application settings modelsdotnet run
+
+- **Enums** - Type-safe constants
 
 # 6. Access API documentation
-https://localhost:7147/swagger
-```
 
-### 🔧 **Configuration**
-Update `appsettings.json` with your settings:
+### 🏗️ Infrastructure Layer (`src/Infrastructure/`)https://localhost:7147/swagger
+
+- **Data access** - Entity Framework context & migrations```
+
+- **External services** - Third-party API integrations
+
+- **Service implementations** - Concrete implementations of core interfaces### 🔧 **Configuration**
+
+- **File storage** - Azure Blob, local file systemsUpdate `appsettings.json` with your settings:
+
 ```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Database=StibeDB;User=root;Password=your_password;"
-  },
+
+### 📋 Application Layer (`src/Application/`){
+
+- **Business services** - Orchestrate domain logic  "ConnectionStrings": {
+
+- **Validation logic** - Input validation and business rules    "DefaultConnection": "Server=localhost;Database=StibeDB;User=root;Password=your_password;"
+
+- **Use cases** - Application-specific workflows  },
+
   "JwtSettings": {
-    "Key": "your-super-secure-jwt-signing-key",
-    "Issuer": "Stibe.API",
-    "Audience": "Stibe.Client",
-    "ExpiryMinutes": 60
+
+### 🌐 Web Layer (`src/Web/`)    "Key": "your-super-secure-jwt-signing-key",
+
+- **Controllers** - HTTP endpoints and request handling    "Issuer": "Stibe.API",
+
+- **Middleware** - Cross-cutting concerns (logging, auth, etc.)    "Audience": "Stibe.Client",
+
+- **Extensions** - Service registration and configuration    "ExpiryMinutes": 60
+
   },
-  "EmailConfiguration": {
+
+## 🔄 Migration Guide  "EmailConfiguration": {
+
     "SmtpServer": "smtp.gmail.com",
-    "SmtpPort": 587,
+
+The project has been reorganized from the previous flat structure. Key changes:    "SmtpPort": 587,
+
     "SenderEmail": "noreply@stibe.com",
-    "Username": "your-email@gmail.com",
-    "Password": "your-app-password"
-  }
-}
-```
+
+1. **Models** → `src/Core/` (Entities, DTOs)    "Username": "your-email@gmail.com",
+
+2. **Services** → `src/Infrastructure/Services/`    "Password": "your-app-password"
+
+3. **Controllers** → `src/Web/Controllers/`  }
+
+4. **Data** → `src/Infrastructure/Data/`}
+
+5. **Configuration** → `src/Core/Configuration/````
+
+6. **Sensitive files** → `config/secrets/`
 
 ---
+
+## 🚀 Getting Started
 
 ## 📚 **Complete Documentation**
 
-### 📖 **Master Reference**
-**[COMPREHENSIVE_API_DOCUMENTATION.md](./COMPREHENSIVE_API_DOCUMENTATION.md)** - Complete technical documentation covering:
-- **Architecture & Project Structure** - Detailed system design and file organization
+1. **Restore packages**: `dotnet restore`
+
+2. **Update database**: `dotnet ef database update`### 📖 **Master Reference**
+
+3. **Run application**: `dotnet run`**[COMPREHENSIVE_API_DOCUMENTATION.md](./COMPREHENSIVE_API_DOCUMENTATION.md)** - Complete technical documentation covering:
+
+4. **Access Swagger**: `https://localhost:5001/swagger`- **Architecture & Project Structure** - Detailed system design and file organization
+
 - **Authentication System** - JWT implementation, Google OAuth, and security features
-- **Data Models & Entities** - Database schema, relationships, and DTOs
+
+## 📝 Environment Configuration- **Data Models & Entities** - Database schema, relationships, and DTOs
+
 - **Controllers & Endpoints** - Complete API reference with examples
-- **Services & Business Logic** - Service layer architecture and implementations
-- **Configuration System** - Environment setup and feature flags
-- **Database & Migrations** - Entity Framework setup and database management
+
+- **Development**: Uses `config/appsettings.json`- **Services & Business Logic** - Service layer architecture and implementations
+
+- **Production**: Override via environment variables- **Configuration System** - Environment setup and feature flags
+
+- **Secrets**: Store in `config/secrets/` (git-ignored)- **Database & Migrations** - Entity Framework setup and database management
+
 - **Testing & Quality** - Unit testing, integration testing, and best practices
 
+## 🔒 Security Notes
+
 ### 🚀 **Deployment & Setup**
-**[docs/DEPLOYMENT_GUIDE.md](./docs/DEPLOYMENT_GUIDE.md)** - Comprehensive deployment guide covering:
-- **Multiple Deployment Strategies** - FTP, GitHub Actions, Self-hosted runners, Web Deploy
-- **IIS Configuration** - Complete server setup and configuration
+
+- Never commit files in `config/secrets/`**[docs/DEPLOYMENT_GUIDE.md](./docs/DEPLOYMENT_GUIDE.md)** - Comprehensive deployment guide covering:
+
+- Certificate files are now in `config/certificates/`- **Multiple Deployment Strategies** - FTP, GitHub Actions, Self-hosted runners, Web Deploy
+
+- Sensitive credentials use environment variables in production- **IIS Configuration** - Complete server setup and configuration
+
 - **Security Configuration** - Production security best practices
-- **Troubleshooting** - Common issues and diagnostic procedures
+
+## 📊 Features- **Troubleshooting** - Common issues and diagnostic procedures
+
 - **Local Development** - Development environment setup
 
-### 🔧 **Specialized Documentation**
-**[OTP_SERVICE_DOCUMENTATION.md](./OTP_SERVICE_DOCUMENTATION.md)** - OTP service implementation and usage guide
+- ✅ **Clean Architecture** implementation
 
-### 📊 **Documentation Quality**
-- **Complete Coverage**: Every controller, service, and entity documented
-- **Current Information**: All content reflects actual implementation (v1.0.0)
-- **Production Ready**: Enterprise-grade documentation standards
-- **Practical Examples**: Real code samples and implementation patterns
+- ✅ **JWT Authentication** with Google OAuth### 🔧 **Specialized Documentation**
+
+- ✅ **Azure Blob Storage** integration**[OTP_SERVICE_DOCUMENTATION.md](./OTP_SERVICE_DOCUMENTATION.md)** - OTP service implementation and usage guide
+
+- ✅ **Payment processing** with Razorpay
+
+- ✅ **PDF generation** and receipts### 📊 **Documentation Quality**
+
+- ✅ **Email notifications** (configurable mock/real)- **Complete Coverage**: Every controller, service, and entity documented
+
+- ✅ **Location services** with Google Maps- **Current Information**: All content reflects actual implementation (v1.0.0)
+
+- ✅ **Comprehensive logging** with Serilog- **Production Ready**: Enterprise-grade documentation standards
+
+- ✅ **API documentation** with Swagger- **Practical Examples**: Real code samples and implementation patterns
+
+- ✅ **Multi-environment** configuration support
 
 ---
 
+## 🎯 Next Steps
+
 ## 🌐 **API Endpoints Overview**
 
-### 🔐 **Authentication**
-```http
-POST /api/auth/login              # User login with JWT response
+1. Set up CI/CD pipelines using `scripts/deployment/`
+
+2. Add comprehensive unit tests in `tests/Unit/`### 🔐 **Authentication**
+
+3. Implement integration tests in `tests/Integration/````http
+
+4. Configure Docker deployment using `docker/`POST /api/auth/login              # User login with JWT response
+
 POST /api/auth/register           # New user registration
-POST /api/auth/forgot-password    # Password reset initiation
+
+## 📚 Original DocumentationPOST /api/auth/forgot-password    # Password reset initiation
+
 POST /api/auth/reset-password     # Password reset completion
-POST /api/auth/refresh-token      # JWT token refresh
-POST /api/auth/google-auth        # Google OAuth authentication
-GET  /api/auth/profile            # User profile retrieval
-PUT  /api/auth/profile            # User profile updates
+
+For detailed API documentation, see the existing documentation files:POST /api/auth/refresh-token      # JWT token refresh
+
+- `COMPREHENSIVE_API_DOCUMENTATION.md` - Complete API referencePOST /api/auth/google-auth        # Google OAuth authentication
+
+- `docs/DEPLOYMENT_GUIDE.md` - Deployment instructionsGET  /api/auth/profile            # User profile retrieval
+
+- `OTP_SERVICE_DOCUMENTATION.md` - OTP service documentationPUT  /api/auth/profile            # User profile updates
 ```
 
 ### 🏪 **Shop Management**

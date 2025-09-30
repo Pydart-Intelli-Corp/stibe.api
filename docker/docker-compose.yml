@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  stibe-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "5000:80"
+      - "5001:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=https://+:443;http://+:80
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+    volumes:
+      - ./logs:/app/logs
+      - ./config/secrets:/app/config/secrets:ro
+    depends_on:
+      - mysql
+    networks:
+      - stibe-network
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: StibeDB
+      MYSQL_USER: stibe_user
+      MYSQL_PASSWORD: stibe_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/database:/docker-entrypoint-initdb.d:ro
+    networks:
+      - stibe-network
+
+networks:
+  stibe-network:
+    driver: bridge
+
+volumes:
+  mysql_data:

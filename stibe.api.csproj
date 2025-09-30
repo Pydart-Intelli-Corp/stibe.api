@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.25.1" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Google.Apis.Auth" Version="1.68.0" />
     <PackageReference Include="MailKit" Version="4.12.1" />
@@ -46,13 +47,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Data\" />
-    <Folder Include="Utilities\" />
+    <Folder Include="src\Core\Enums\" />
+    <Folder Include="src\Application\Validators\" />
+    <Folder Include="src\Infrastructure\External\" />
+    <Folder Include="src\Web\Middleware\" />
+    <Folder Include="tests\Unit\" />
+    <Folder Include="tests\Integration\" />
+    <Folder Include="config\environments\" />
+    <Folder Include="scripts\deployment\" />
     <Folder Include="wwwroot\js\" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="DigiCertGlobalRootCA.crt.pem">
+    <Content Include="config/certificates/DigiCertGlobalRootCA.crt.pem">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>

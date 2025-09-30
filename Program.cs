@@ -156,7 +156,27 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddScoped<IStaffWorkService, StaffWorkService>();
 builder.Services.Configure<EmailConfiguration>(builder.Configuration.GetSection("SmtpSettings"));
 builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("FeatureFlags"));
-builder.Services.AddScoped<IFileService, LocalFileService>();
+
+// Register file services
+builder.Services.AddScoped<LocalFileService>();
+builder.Services.AddScoped<AzureBlobFileService>();
+builder.Services.AddScoped<HybridFileService>();
+
+// Register the active file service based on configuration
+var fileStorageProvider = builder.Configuration["FileStorage:Provider"]?.ToLowerInvariant() ?? "local";
+if (fileStorageProvider == "azure")
+{
+    builder.Services.AddScoped<IFileService, AzureBlobFileService>();
+}
+else if (fileStorageProvider == "hybrid")
+{
+    builder.Services.AddScoped<IFileService, HybridFileService>();
+}
+else
+{
+    builder.Services.AddScoped<IFileService, LocalFileService>();
+}
+
 builder.Services.AddScoped<IPdfService, PdfService>();
 builder.Services.AddScoped<IGstService, GstService>();
 
@@ -281,29 +301,29 @@ app.Use(async (context, next) =>
 
 app.UseHttpsRedirection();
 
-// Configure static files and uploads directory with improved production support
+// Configure static files with Azure Blob Storage integration
 var wwwrootPath = app.Environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-var uploadsPath = Path.Combine(wwwrootPath, "uploads");
 
-// Ensure directories exist
+// Azure Blob Storage Configuration
+// Note: All file uploads now use Azure Blob Storage containers:
+// - profile-images: User profile pictures
+// - service-images: Service-related images  
+// - shop-images: Shop gallery and profile images
+// - product-images: Product catalog images
+// - receipts: PDF receipts and documents
+// - apk-files: Application APK files
+
+// Create minimal local directories only for temporary operations
 Directory.CreateDirectory(wwwrootPath);
-Directory.CreateDirectory(uploadsPath);
 
-// Create subdirectories for uploads
-var profileImagesPath = Path.Combine(uploadsPath, "profile-images");
-var serviceImagesPath = Path.Combine(uploadsPath, "service-images");
-var shopImagesPath = Path.Combine(uploadsPath, "shop-images");
-var productImagesPath = Path.Combine(uploadsPath, "product-images");
-
-Directory.CreateDirectory(profileImagesPath);
-Directory.CreateDirectory(serviceImagesPath);
-Directory.CreateDirectory(shopImagesPath);
-Directory.CreateDirectory(productImagesPath);
-
-startupLogger.LogInformation("📁 Upload directories created/verified:");
-startupLogger.LogInformation("   📂 WWW Root: {WwwRootPath}", wwwrootPath);
-startupLogger.LogInformation("   📂 Uploads: {UploadsPath}", uploadsPath);
-startupLogger.LogInformation("   📂 Profile Images: {ProfileImagesPath}", profileImagesPath);
+// Log Azure Blob Storage readiness
+startupLogger.LogInformation("🔵 Azure Blob Storage containers configured for:");
+startupLogger.LogInformation("   📸 profile-images: User profile pictures");
+startupLogger.LogInformation("   🏪 shop-images: Shop gallery and profile images");
+startupLogger.LogInformation("   🛍️ service-images: Service-related images");
+startupLogger.LogInformation("   � product-images: Product catalog images");
+startupLogger.LogInformation("   � receipts: PDF receipts and documents");
+startupLogger.LogInformation("   � apk-files: Application APK files");
 
 // Default static files (wwwroot) - should be first
 app.UseStaticFiles(new StaticFileOptions
@@ -329,61 +349,23 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
-// Static files for uploads with enhanced configuration
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(uploadsPath),
-    RequestPath = "/uploads",
-    ServeUnknownFileTypes = false,
-    OnPrepareResponse = ctx =>
-    {
-        // Set cache headers for uploaded files
-        ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=3600");
-        
-        // Ensure proper MIME types for images
-        var extension = Path.GetExtension(ctx.File.Name).ToLowerInvariant();
-        switch (extension)
-        {
-            case ".jpg":
-            case ".jpeg":
-                ctx.Context.Response.ContentType = "image/jpeg";
-                break;
-            case ".png":
-                ctx.Context.Response.ContentType = "image/png";
-                break;
-            case ".gif":
-                ctx.Context.Response.ContentType = "image/gif";
-                break;
-            case ".webp":
-                ctx.Context.Response.ContentType = "image/webp";
-                break;
-            case ".svg":
-                ctx.Context.Response.ContentType = "image/svg+xml";
-                break;
-        }
-        
-        startupLogger.LogDebug("📸 Serving upload file: {FileName} ({ContentType})", ctx.File.Name, ctx.Context.Response.ContentType);
-    }
-});
+// Note: Static file serving removed - using Azure Blob Storage
+// All file uploads now go directly to Azure containers:
+// - profile-images, service-images, shop-images, product-images, receipts, apk-files
+app.Logger.LogInformation("Azure Blob Storage configuration active - no local static files");
 
 // Add a diagnostic endpoint to check uploads directory
 app.MapGet("/api/test/uploads-info", () =>
 {
     var result = new
     {
-        uploadsPath,
-        uploadsExists = Directory.Exists(uploadsPath),
-        profileImagesExists = Directory.Exists(profileImagesPath),
+        storageType = "Azure Blob Storage",
+        containers = new[] { "profile-images", "service-images", "shop-images", "product-images", "receipts", "apk-files" },
         wwwrootPath,
         wwwrootExists = Directory.Exists(wwwrootPath),
-        files = Directory.Exists(uploadsPath) ? 
-            Directory.GetFiles(uploadsPath, "*", SearchOption.AllDirectories)
-                .Select(f => new { 
-                    path = f.Replace(uploadsPath, "").Replace("\\", "/"),
-                    exists = File.Exists(f),
-                    size = new FileInfo(f).Length 
-                }).Take(10).ToArray() : 
-            Array.Empty<object>()
+        azureEnabled = true,
+        localUploadsDisabled = true,
+        note = "All file operations now use Azure Blob Storage containers"
     };
     return Results.Ok(result);
 });
