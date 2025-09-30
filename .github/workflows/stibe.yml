@@ -23,40 +23,6 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
 
-      - name: Replace secrets in appsettings.json
-        run: |
-          sed -i 's|#{ConnectionString}#|${{ secrets.CONNECTION_STRING }}|g' appsettings.json
-          sed -i 's|#{JwtSecretKey}#|${{ secrets.JWT_SECRET_KEY }}|g' appsettings.json
-          sed -i 's|#{GoogleClientId}#|${{ secrets.GOOGLE_CLIENT_ID }}|g' appsettings.json
-          sed -i 's|#{GoogleClientSecret}#|${{ secrets.GOOGLE_CLIENT_SECRET }}|g' appsettings.json
-          sed -i 's|#{GoogleAndroidClientId}#|${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}|g' appsettings.json
-          sed -i 's|#{GoogleWebClientId}#|${{ secrets.GOOGLE_WEB_CLIENT_ID }}|g' appsettings.json
-          sed -i 's|#{AzureStorageConnectionString}#|${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}|g' appsettings.json
-          sed -i 's|#{AzureStorageSasToken}#|${{ secrets.AZURE_STORAGE_SAS_TOKEN }}|g' appsettings.json
-          sed -i 's|#{SmtpUsername}#|${{ secrets.SMTP_USERNAME }}|g' appsettings.json
-          sed -i 's|#{SmtpPassword}#|${{ secrets.SMTP_PASSWORD }}|g' appsettings.json
-          sed -i 's|#{SmtpSenderEmail}#|${{ secrets.SMTP_SENDER_EMAIL }}|g' appsettings.json
-          sed -i 's|#{RazorpayKeyId}#|${{ secrets.RAZORPAY_KEY_ID }}|g' appsettings.json
-          sed -i 's|#{RazorpayKeySecret}#|${{ secrets.RAZORPAY_KEY_SECRET }}|g' appsettings.json
-          sed -i 's|#{RazorpayWebhookSecret}#|${{ secrets.RAZORPAY_WEBHOOK_SECRET }}|g' appsettings.json
-
-      - name: Replace secrets in appsettings.Production.json
-        run: |
-          sed -i 's|#{ConnectionString}#|${{ secrets.CONNECTION_STRING }}|g' appsettings.Production.json
-          sed -i 's|#{JwtSecretKey}#|${{ secrets.JWT_SECRET_KEY }}|g' appsettings.Production.json
-          sed -i 's|#{GoogleClientId}#|${{ secrets.GOOGLE_CLIENT_ID }}|g' appsettings.Production.json
-          sed -i 's|#{GoogleClientSecret}#|${{ secrets.GOOGLE_CLIENT_SECRET }}|g' appsettings.Production.json
-          sed -i 's|#{GoogleAndroidClientId}#|${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}|g' appsettings.Production.json
-          sed -i 's|#{GoogleWebClientId}#|${{ secrets.GOOGLE_WEB_CLIENT_ID }}|g' appsettings.Production.json
-          sed -i 's|#{AzureStorageConnectionString}#|${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}|g' appsettings.Production.json
-          sed -i 's|#{AzureStorageSasToken}#|${{ secrets.AZURE_STORAGE_SAS_TOKEN }}|g' appsettings.Production.json
-          sed -i 's|#{SmtpUsername}#|${{ secrets.SMTP_USERNAME }}|g' appsettings.Production.json
-          sed -i 's|#{SmtpPassword}#|${{ secrets.SMTP_PASSWORD }}|g' appsettings.Production.json
-          sed -i 's|#{SmtpSenderEmail}#|${{ secrets.SMTP_SENDER_EMAIL }}|g' appsettings.Production.json
-          sed -i 's|#{RazorpayKeyId}#|${{ secrets.RAZORPAY_KEY_ID }}|g' appsettings.Production.json
-          sed -i 's|#{RazorpayKeySecret}#|${{ secrets.RAZORPAY_KEY_SECRET }}|g' appsettings.Production.json
-          sed -i 's|#{RazorpayWebhookSecret}#|${{ secrets.RAZORPAY_WEBHOOK_SECRET }}|g' appsettings.Production.json
-
       - name: Restore
         run: dotnet restore "${{ env.WORKING_DIRECTORY }}"
 
