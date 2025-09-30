@@ -23,6 +23,40 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
 
+      - name: Replace secrets in appsettings.json
+        run: |
+          sed -i 's|#{ConnectionString}#|${{ secrets.CONNECTION_STRING }}|g' appsettings.json
+          sed -i 's|#{JwtSecretKey}#|${{ secrets.JWT_SECRET_KEY }}|g' appsettings.json
+          sed -i 's|#{GoogleClientId}#|${{ secrets.GOOGLE_CLIENT_ID }}|g' appsettings.json
+          sed -i 's|#{GoogleClientSecret}#|${{ secrets.GOOGLE_CLIENT_SECRET }}|g' appsettings.json
+          sed -i 's|#{GoogleAndroidClientId}#|${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}|g' appsettings.json
+          sed -i 's|#{GoogleWebClientId}#|${{ secrets.GOOGLE_WEB_CLIENT_ID }}|g' appsettings.json
+          sed -i 's|#{AzureStorageConnectionString}#|${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}|g' appsettings.json
+          sed -i 's|#{AzureStorageSasToken}#|${{ secrets.AZURE_STORAGE_SAS_TOKEN }}|g' appsettings.json
+          sed -i 's|#{SmtpUsername}#|${{ secrets.SMTP_USERNAME }}|g' appsettings.json
+          sed -i 's|#{SmtpPassword}#|${{ secrets.SMTP_PASSWORD }}|g' appsettings.json
+          sed -i 's|#{SmtpSenderEmail}#|${{ secrets.SMTP_SENDER_EMAIL }}|g' appsettings.json
+          sed -i 's|#{RazorpayKeyId}#|${{ secrets.RAZORPAY_KEY_ID }}|g' appsettings.json
+          sed -i 's|#{RazorpayKeySecret}#|${{ secrets.RAZORPAY_KEY_SECRET }}|g' appsettings.json
+          sed -i 's|#{RazorpayWebhookSecret}#|${{ secrets.RAZORPAY_WEBHOOK_SECRET }}|g' appsettings.json
+
+      - name: Replace secrets in appsettings.Production.json
+        run: |
+          sed -i 's|#{ConnectionString}#|${{ secrets.CONNECTION_STRING }}|g' appsettings.Production.json
+          sed -i 's|#{JwtSecretKey}#|${{ secrets.JWT_SECRET_KEY }}|g' appsettings.Production.json
+          sed -i 's|#{GoogleClientId}#|${{ secrets.GOOGLE_CLIENT_ID }}|g' appsettings.Production.json
+          sed -i 's|#{GoogleClientSecret}#|${{ secrets.GOOGLE_CLIENT_SECRET }}|g' appsettings.Production.json
+          sed -i 's|#{GoogleAndroidClientId}#|${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}|g' appsettings.Production.json
+          sed -i 's|#{GoogleWebClientId}#|${{ secrets.GOOGLE_WEB_CLIENT_ID }}|g' appsettings.Production.json
+          sed -i 's|#{AzureStorageConnectionString}#|${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}|g' appsettings.Production.json
+          sed -i 's|#{AzureStorageSasToken}#|${{ secrets.AZURE_STORAGE_SAS_TOKEN }}|g' appsettings.Production.json
+          sed -i 's|#{SmtpUsername}#|${{ secrets.SMTP_USERNAME }}|g' appsettings.Production.json
+          sed -i 's|#{SmtpPassword}#|${{ secrets.SMTP_PASSWORD }}|g' appsettings.Production.json
+          sed -i 's|#{SmtpSenderEmail}#|${{ secrets.SMTP_SENDER_EMAIL }}|g' appsettings.Production.json
+          sed -i 's|#{RazorpayKeyId}#|${{ secrets.RAZORPAY_KEY_ID }}|g' appsettings.Production.json
+          sed -i 's|#{RazorpayKeySecret}#|${{ secrets.RAZORPAY_KEY_SECRET }}|g' appsettings.Production.json
+          sed -i 's|#{RazorpayWebhookSecret}#|${{ secrets.RAZORPAY_WEBHOOK_SECRET }}|g' appsettings.Production.json
+
       - name: Restore
         run: dotnet restore "${{ env.WORKING_DIRECTORY }}"
 
@@ -50,59 +84,6 @@ jobs:
         with:
           name: webapp
           path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Set Azure App Service Configuration
-        uses: azure/appservice-settings@v1
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          app-settings-json: |
-            [
-              {
-                "name": "FileStorage__Azure__ConnectionString",
-                "value": "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}",
-                "slotSetting": false
-              },
-              {
-                "name": "FileStorage__Azure__ContainerSasToken", 
-                "value": "${{ secrets.AZURE_CONTAINER_SAS_TOKEN }}",
-                "slotSetting": false
-              },
-              {
-                "name": "ConnectionStrings__DefaultConnection",
-                "value": "${{ secrets.DATABASE_CONNECTION_STRING }}",
-                "slotSetting": false
-              },
-              {
-                "name": "JwtSettings__SecretKey",
-                "value": "${{ secrets.JWT_SECRET_KEY }}",
-                "slotSetting": false
-              },
-              {
-                "name": "GoogleOAuth__ClientSecret",
-                "value": "${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}",
-                "slotSetting": false
-              },
-              {
-                "name": "SmtpSettings__Password",
-                "value": "${{ secrets.SMTP_PASSWORD }}",
-                "slotSetting": false
-              },
-              {
-                "name": "Razorpay__KeySecret",
-                "value": "${{ secrets.RAZORPAY_KEY_SECRET }}",
-                "slotSetting": false
-              },
-              {
-                "name": "Razorpay__WebhookSecret",
-                "value": "${{ secrets.RAZORPAY_WEBHOOK_SECRET }}",
-                "slotSetting": false
-              }
-            ]
 
       - name: Deploy to Azure WebApp
         uses: azure/webapps-deploy@v2

@@ -50,6 +50,13 @@ try
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load secrets configuration for development
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddJsonFile("appsettings.Secrets.json", optional: true, reloadOnChange: true);
+    Log.Information("🔐 Loading secrets from appsettings.Secrets.json for development environment");
+}
+
 // Use Serilog
 builder.Host.UseSerilog();
 
