@@ -20,6 +20,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.IIS;
 using Serilog;
+using stibe.api.Web.Filters;
 
 // ===== SIMPLIFIED CONFIGURATION =====
 // Using single appsettings.json file for all environments
@@ -213,6 +214,9 @@ builder.Services.AddSwaggerGen(c =>
         Version = "v1",
         Description = "Shop Booking Management System API"
     });
+
+    // Add operation filter for file uploads
+    c.OperationFilter<FileUploadOperationFilter>();
 
     // Add JWT Authentication to Swagger
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using stibe.api.Data;
 using stibe.api.Services.Interfaces;
+using stibe.api.DTOs.FileUpload;
 using System.Security.Claims;
 
 namespace stibe.api.Controllers
@@ -26,7 +27,7 @@ namespace stibe.api.Controllers
 
         [HttpPost("profile-image")]
         [Authorize]
-        public async Task<IActionResult> UploadProfileImage([FromForm] IFormFile file)
+        public async Task<IActionResult> UploadProfileImage([FromForm] ProfileImageUploadDto request)
         {
             try
             {
@@ -51,6 +52,7 @@ namespace stibe.api.Controllers
                     return NotFound(new { success = false, message = "User not found" });
                 }
 
+                var file = request.File;
                 if (file == null || file.Length == 0)
                 {
                     _logger.LogWarning("File upload failed: No file provided");
@@ -122,14 +124,14 @@ namespace stibe.api.Controllers
 
         [HttpPost("staff-image")]
         [Authorize]
-        public async Task<IActionResult> UploadStaffImage([FromForm] IFormFile file, [FromForm] int staffId)
+        public async Task<IActionResult> UploadStaffImage([FromForm] StaffImageUploadDto request)
         {
             try
             {
                 _logger.LogInformation("=== FILE UPLOAD CONTROLLER - STAFF IMAGE UPLOAD STARTED ===");
                 _logger.LogInformation("Request Content-Type: {ContentType}", Request.ContentType);
                 _logger.LogInformation("Request Content-Length: {ContentLength}", Request.ContentLength);
-                _logger.LogInformation("Staff ID: {StaffId}", staffId);
+                _logger.LogInformation("Staff ID: {StaffId}", request.StaffId);
                 
                 var userId = GetCurrentUserId();
                 if (userId == null)
@@ -139,6 +141,7 @@ namespace stibe.api.Controllers
                 }
 
                 // Find the staff member and verify ownership/permission
+                var staffId = request.StaffId;
                 var staff = await _context.Staff
                     .Include(s => s.Shop)
                     .FirstOrDefaultAsync(s => s.Id == staffId);
@@ -166,6 +169,7 @@ namespace stibe.api.Controllers
                     return Forbid();
                 }
 
+                var file = request.File;
                 if (file == null || file.Length == 0)
                 {
                     _logger.LogWarning("File upload failed: No file provided");
@@ -237,10 +241,11 @@ namespace stibe.api.Controllers
 
         [HttpPost("service-image")]
         [Authorize]
-        public async Task<IActionResult> UploadServiceImage([FromForm] IFormFile file)
+        public async Task<IActionResult> UploadServiceImage([FromForm] ServiceImageUploadDto request)
         {
             try
             {
+                var file = request.File;
                 if (file == null || file.Length == 0)
                 {
                     return BadRequest(new { success = false, message = "No file provided" });
@@ -296,14 +301,14 @@ namespace stibe.api.Controllers
 
         [HttpPost("shop-image")]
         [Authorize]
-        public async Task<IActionResult> UploadShopImage([FromForm] IFormFile file, [FromForm] int shopId, [FromForm] bool isProfileImage = true)
+        public async Task<IActionResult> UploadShopImage([FromForm] ShopImageUploadDto request)
         {
             try
             {
                 _logger.LogInformation("=== FILE UPLOAD CONTROLLER - SHOP IMAGE UPLOAD STARTED ===");
                 _logger.LogInformation("Request Content-Type: {ContentType}", Request.ContentType);
                 _logger.LogInformation("Request Content-Length: {ContentLength}", Request.ContentLength);
-                _logger.LogInformation("Shop ID: {ShopId}, IsProfileImage: {IsProfileImage}", shopId, isProfileImage);
+                _logger.LogInformation("Shop ID: {ShopId}, IsProfileImage: {IsProfileImage}", request.ShopId, request.IsProfileImage);
                 
                 var userId = GetCurrentUserId();
                 if (userId == null)
@@ -313,6 +318,8 @@ namespace stibe.api.Controllers
                 }
 
                 // Find the shop and verify ownership/permission
+                var shopId = request.ShopId;
+                var isProfileImage = request.IsProfileImage;
                 var shop = await _context.Shops.FirstOrDefaultAsync(s => s.Id == shopId);
                 if (shop == null)
                 {
@@ -336,6 +343,7 @@ namespace stibe.api.Controllers
                     return Forbid();
                 }
 
+                var file = request.File;
                 if (file == null || file.Length == 0)
                 {
                     return BadRequest(new { success = false, message = "No file provided" });

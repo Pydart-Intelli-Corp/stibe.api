@@ -18,6 +18,7 @@ using stibe.api.Services.Implementations.PartnerServices.StaffServices;
 using stibe.api.Services.Implementations.FileService;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.IIS;
+using stibe.api.Web.Filters;
 
 namespace stibe.api.Extensions
 {
@@ -180,6 +181,9 @@ namespace stibe.api.Extensions
                     Version = "v1",
                     Description = "Shop Booking Management System API"
                 });
+
+                // Add operation filter for file uploads
+                c.OperationFilter<FileUploadOperationFilter>();
 
                 // Add JWT Authentication to Swagger
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
