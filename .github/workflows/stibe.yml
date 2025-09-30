@@ -70,6 +70,17 @@ jobs:
           sed -i 's|"KeySecret": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"KeySecret": "${{ secrets.RAZORPAY_KEY_SECRET }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
           sed -i 's|"WebhookSecret": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"WebhookSecret": "${{ secrets.RAZORPAY_WEBHOOK_SECRET }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
 
+      - name: Display final appsettings.json for verification
+        run: |
+          echo "=============================================="
+          echo "📋 FINAL APPSETTINGS.JSON FOR DEPLOYMENT:"
+          echo "=============================================="
+          cat ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
+          echo ""
+          echo "=============================================="
+          echo "✅ Configuration verification complete"
+          echo "=============================================="
+
       - name: Deploy to Azure WebApp
         uses: azure/webapps-deploy@v2
         with:
