@@ -45,11 +45,30 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
+      - uses: actions/checkout@v4
+      
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: webapp
           path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+      - name: Create production appsettings.json with secrets
+        run: |
+          # Replace placeholders with actual secrets from GitHub repository secrets
+          sed -i 's|"DefaultConnection": "Server=localhost;Port=3306;UserID=user;Password=\*\*\*REPLACED_BY_SECRETS\*\*\*;Database=Stibe_db;SslMode=None"|"DefaultConnection": "${{ secrets.DB_CONNECTION_STRING }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
+          sed -i 's|"SecretKey": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"SecretKey": "${{ secrets.JWT_SECRET_KEY }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
+          sed -i 's|"ClientId": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"ClientId": "${{ secrets.GOOGLE_CLIENT_ID }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
+          sed -i 's|"ClientSecret": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"ClientSecret": "${{ secrets.GOOGLE_CLIENT_SECRET }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
+          sed -i 's|"AndroidClientId": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"AndroidClientId": "${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
+          sed -i 's|"WebClientId": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"WebClientId": "${{ secrets.GOOGLE_WEB_CLIENT_ID }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
+          sed -i 's|"ConnectionString": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"ConnectionString": "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
+          sed -i 's|"ContainerSasToken": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"ContainerSasToken": "${{ secrets.AZURE_STORAGE_SAS_TOKEN }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
+          sed -i 's|"Username": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"Username": "${{ secrets.SMTP_USERNAME }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
+          sed -i 's|"Password": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"Password": "${{ secrets.SMTP_PASSWORD }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
+          sed -i 's|"KeyId": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"KeyId": "${{ secrets.RAZORPAY_KEY_ID }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
+          sed -i 's|"KeySecret": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"KeySecret": "${{ secrets.RAZORPAY_KEY_SECRET }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
+          sed -i 's|"WebhookSecret": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"WebhookSecret": "${{ secrets.RAZORPAY_WEBHOOK_SECRET }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
 
       - name: Deploy to Azure WebApp
         uses: azure/webapps-deploy@v2
