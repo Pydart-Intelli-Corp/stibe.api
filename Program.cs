@@ -51,16 +51,17 @@ try
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load secrets configuration from config/secrets directory
+// Load secrets configuration from config/secrets directory for all environments
 var secretsPath = Path.Combine("config", "secrets", "appsettings.Secrets.json");
 if (File.Exists(secretsPath))
 {
-    builder.Configuration.AddJsonFile(secretsPath, optional: true, reloadOnChange: true);
-    Log.Information("🔐 Loading secrets from {SecretPath}", secretsPath);
+    builder.Configuration.AddJsonFile(secretsPath, optional: false, reloadOnChange: true);
+    Log.Information("🔐 Loading secrets from {SecretPath} for {Environment}", secretsPath, builder.Environment.EnvironmentName);
 }
 else
 {
-    Log.Warning("⚠️ Secrets file not found at {SecretPath}", secretsPath);
+    Log.Error("❌ Secrets file not found at {SecretPath}. This file is required for all environments.", secretsPath);
+    throw new FileNotFoundException($"Required secrets file not found: {secretsPath}");
 }
 
 // Use Serilog

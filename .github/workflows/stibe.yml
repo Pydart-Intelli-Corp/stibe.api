@@ -3,6 +3,11 @@ name: Build and deploy .NET Core application to Web App stibe
 on:
   push:
     branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
       - master
 
 env:
@@ -14,7 +19,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest   # switched to Linux (faster, cheaper)
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -23,19 +28,19 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
 
-      - name: Restore
+      - name: Restore packages
         run: dotnet restore "${{ env.WORKING_DIRECTORY }}"
 
-      - name: Build
+      - name: Build application
         run: dotnet build "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-restore
 
-      - name: Test
-        run: dotnet test "${{ env.WORKING_DIRECTORY }}" --no-build
+      - name: Run tests
+        run: dotnet test "${{ env.WORKING_DIRECTORY }}" --no-build --configuration ${{ env.CONFIGURATION }}
 
-      - name: Publish
+      - name: Publish application
         run: dotnet publish "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
 
-      - name: Upload artifact
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: webapp
@@ -44,46 +49,78 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    environment: production
     steps:
       - uses: actions/checkout@v4
       
-      - name: Download artifact
+      - name: Create secrets directory
+        run: mkdir -p config/secrets
+
+      - name: Create secrets file for deployment
+        run: |
+          cat > config/secrets/appsettings.Secrets.json << 'EOF'
+          {
+            "ConnectionStrings": {
+              "DefaultConnection": "${{ secrets.DB_CONNECTION_STRING }}"
+            },
+            "JwtSettings": {
+              "SecretKey": "${{ secrets.JWT_SECRET_KEY }}"
+            },
+            "GoogleOAuth": {
+              "ClientId": "${{ secrets.GOOGLE_CLIENT_ID }}",
+              "ClientSecret": "${{ secrets.GOOGLE_CLIENT_SECRET }}",
+              "AndroidClientId": "${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}",
+              "WebClientId": "${{ secrets.GOOGLE_WEB_CLIENT_ID }}"
+            },
+            "FileStorage": {
+              "Azure": {
+                "ConnectionString": "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}",
+                "ContainerSasToken": "${{ secrets.AZURE_STORAGE_SAS_TOKEN }}",
+                "BaseUrl": "${{ secrets.AZURE_STORAGE_BASE_URL }}"
+              }
+            },
+            "SmtpSettings": {
+              "Username": "${{ secrets.SMTP_USERNAME }}",
+              "Password": "${{ secrets.SMTP_PASSWORD }}",
+              "SenderEmail": "${{ secrets.SMTP_SENDER_EMAIL }}"
+            },
+            "Razorpay": {
+              "KeyId": "${{ secrets.RAZORPAY_KEY_ID }}",
+              "KeySecret": "${{ secrets.RAZORPAY_KEY_SECRET }}",
+              "WebhookSecret": "${{ secrets.RAZORPAY_WEBHOOK_SECRET }}",
+              "CompanyLogo": "${{ secrets.RAZORPAY_COMPANY_LOGO }}"
+            }
+          }
+          EOF
+
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           name: webapp
           path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
-      - name: Create production appsettings.json with secrets
+      - name: Copy secrets to deployment package
         run: |
-          # Replace placeholders with actual secrets from GitHub repository secrets
-          sed -i 's|"DefaultConnection": "Server=localhost;Port=3306;UserID=user;Password=\*\*\*REPLACED_BY_SECRETS\*\*\*;Database=Stibe_db;SslMode=None"|"DefaultConnection": "${{ secrets.DB_CONNECTION_STRING }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
-          sed -i 's|"SecretKey": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"SecretKey": "${{ secrets.JWT_SECRET_KEY }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
-          sed -i 's|"ClientId": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"ClientId": "${{ secrets.GOOGLE_CLIENT_ID }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
-          sed -i 's|"ClientSecret": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"ClientSecret": "${{ secrets.GOOGLE_CLIENT_SECRET }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
-          sed -i 's|"AndroidClientId": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"AndroidClientId": "${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
-          sed -i 's|"WebClientId": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"WebClientId": "${{ secrets.GOOGLE_WEB_CLIENT_ID }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
-          sed -i 's|"ConnectionString": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"ConnectionString": "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
-          sed -i 's|"ContainerSasToken": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"ContainerSasToken": "${{ secrets.AZURE_STORAGE_SAS_TOKEN }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
-          sed -i 's|"Username": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"Username": "${{ secrets.SMTP_USERNAME }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
-          sed -i 's|"Password": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"Password": "${{ secrets.SMTP_PASSWORD }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
-          sed -i 's|"KeyId": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"KeyId": "${{ secrets.RAZORPAY_KEY_ID }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
-          sed -i 's|"KeySecret": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"KeySecret": "${{ secrets.RAZORPAY_KEY_SECRET }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
-          sed -i 's|"WebhookSecret": "\*\*\*REPLACED_BY_SECRETS\*\*\*"|"WebhookSecret": "${{ secrets.RAZORPAY_WEBHOOK_SECRET }}"|g' ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
+          mkdir -p ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/config/secrets
+          cp config/secrets/appsettings.Secrets.json ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/config/secrets/
 
-      - name: Display final appsettings.json for verification
-        run: |
-          echo "=============================================="
-          echo "📋 FINAL APPSETTINGS.JSON FOR DEPLOYMENT:"
-          echo "=============================================="
-          cat ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/appsettings.json
-          echo ""
-          echo "=============================================="
-          echo "✅ Configuration verification complete"
-          echo "=============================================="
-
-      - name: Deploy to Azure WebApp
-        uses: azure/webapps-deploy@v2
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+      - name: Set Environment Variable
+        uses: azure/appservice-settings@v1
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          app-settings-json: |
+            [
+              {
+                "name": "ASPNETCORE_ENVIRONMENT",
+                "value": "Production"
+              }
+            ]
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
