@@ -40,6 +40,10 @@ namespace stibe.api.Data
         public DbSet<ServiceOfferItem> ServiceOfferItems { get; set; } = null!;
         public DbSet<ServiceAvailability> ServiceAvailabilities { get; set; } = null!;
 
+        // KYC Management
+        public DbSet<KycVerification> KycVerifications { get; set; } = null!;
+        public DbSet<KycAuditLog> KycAuditLogs { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Existing configurations
@@ -213,6 +217,16 @@ namespace stibe.api.Data
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
+
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.AadhaarNumber)
+                .IsUnique()
+                .HasFilter("AadhaarNumber IS NOT NULL");
+
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.PanNumber)
+                .IsUnique()
+                .HasFilter("PanNumber IS NOT NULL");
 
             modelBuilder.Entity<User>()
                 .HasOne(u => u.StaffProfile)

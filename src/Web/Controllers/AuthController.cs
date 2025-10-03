@@ -1545,7 +1545,16 @@ namespace stibe.api.Controllers
                     Role = user.Role,
                     IsEmailVerified = user.IsEmailVerified,
                     CreatedAt = user.CreatedAt,
-                    ProfilePictureUrl = user.ProfilePictureUrl
+                    ProfilePictureUrl = user.ProfilePictureUrl,
+                    IsKycVerified = user.IsKycVerified,
+                    KycStatus = user.KycStatus,
+                    AadhaarNumber = user.AadhaarNumber,
+                    AadhaarImageUrl = user.AadhaarImageUrl,
+                    PanNumber = user.PanNumber,
+                    PanImageUrl = user.PanImageUrl,
+                    KycSubmittedAt = user.KycSubmittedAt,
+                    KycVerifiedAt = user.KycVerifiedAt,
+                    KycRejectionReason = user.KycRejectionReason
                 }));
             }
             catch (Exception ex)
@@ -1668,7 +1677,16 @@ namespace stibe.api.Controllers
                     Role = user.Role,
                     IsEmailVerified = user.IsEmailVerified,
                     CreatedAt = user.CreatedAt,
-                    ProfilePictureUrl = user.ProfilePictureUrl
+                    ProfilePictureUrl = user.ProfilePictureUrl,
+                    IsKycVerified = user.IsKycVerified,
+                    KycStatus = user.KycStatus,
+                    AadhaarNumber = user.AadhaarNumber,
+                    AadhaarImageUrl = user.AadhaarImageUrl,
+                    PanNumber = user.PanNumber,
+                    PanImageUrl = user.PanImageUrl,
+                    KycSubmittedAt = user.KycSubmittedAt,
+                    KycVerifiedAt = user.KycVerifiedAt,
+                    KycRejectionReason = user.KycRejectionReason
                 }));
             }
             catch (Exception ex)

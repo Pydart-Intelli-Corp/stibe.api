@@ -21,6 +21,9 @@ namespace stibe.api.Models.Entities.PartnersEntity
         [StringLength(100)]
         public string City { get; set; } = string.Empty;
 
+        [StringLength(100)]
+        public string? District { get; set; }
+
         [Required]
         [StringLength(50)]
         public string State { get; set; } = string.Empty;
@@ -75,6 +78,23 @@ namespace stibe.api.Models.Entities.PartnersEntity
         // Tax Details
         [StringLength(15)]
         public string? GSTNumber { get; set; }
+        
+        [StringLength(2)]
+        public string? GSTStateCode { get; set; }
+        
+        [StringLength(100)]
+        public string? GSTStateName { get; set; }
+        
+        [StringLength(10)]
+        public string? GSTPANNumber { get; set; }
+        
+        [StringLength(1)]
+        public string? GSTEntityNumber { get; set; }
+        
+        [StringLength(50)]
+        public string? GSTEntityType { get; set; }
+        
+        public DateTime? GSTValidatedAt { get; set; }
 
         [StringLength(10)]
         public string? PANNumber { get; set; }

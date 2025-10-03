@@ -6,6 +6,7 @@ using Microsoft.OpenApi.Models;
 using stibe.api.Configuration;
 using stibe.api.Data;
 using stibe.api.Services.Interfaces;
+using stibe.api.Infrastructure.Services.Implementations;
 using stibe.api.Services.Implementations.General;
 using stibe.api.Services.Implementations;
 using stibe.api.Services;
@@ -193,6 +194,8 @@ else
 
 builder.Services.AddScoped<IPdfService, PdfService>();
 builder.Services.AddScoped<IGstService, GstService>();
+builder.Services.AddScoped<IGSTValidationService, stibe.api.Infrastructure.Services.Implementations.GSTValidationService>();
+builder.Services.AddHttpClient<IGSTValidationService, stibe.api.Infrastructure.Services.Implementations.GSTValidationService>();
 
 if (builder.Configuration.GetValue<bool>("FeatureFlags:UseRealEmailService"))
 {

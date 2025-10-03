@@ -93,6 +93,118 @@ namespace stibe.api.Migrations
                     b.ToTable("CouponUsages");
                 });
 
+            modelBuilder.Entity("stibe.api.Models.Entities.KycAuditLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int?>("AdminUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Details")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminUserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("KycAuditLogs");
+                });
+
+            modelBuilder.Entity("stibe.api.Models.Entities.KycVerification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdminNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("BackImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("DocumentNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("ExtractedData")
+                        .HasColumnType("json");
+
+                    b.Property<string>("FrontImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("SelfieImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<float>("VerificationScore")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("VerifiedBy")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("VerifiedBy");
+
+                    b.ToTable("KycVerifications");
+                });
+
             modelBuilder.Entity("stibe.api.Models.Entities.OtpEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -595,14 +707,41 @@ namespace stibe.api.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("varchar(1000)");
 
+                    b.Property<string>("District")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
 
+                    b.Property<string>("GSTEntityNumber")
+                        .HasMaxLength(1)
+                        .HasColumnType("varchar(1)");
+
+                    b.Property<string>("GSTEntityType")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
                     b.Property<string>("GSTNumber")
                         .HasMaxLength(15)
                         .HasColumnType("varchar(15)");
+
+                    b.Property<string>("GSTPANNumber")
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<string>("GSTStateCode")
+                        .HasMaxLength(2)
+                        .HasColumnType("varchar(2)");
+
+                    b.Property<string>("GSTStateName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime?>("GSTValidatedAt")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("GenderServices")
                         .HasMaxLength(500)
@@ -954,6 +1093,12 @@ namespace stibe.api.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AadhaarImageUrl")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("AadhaarNumber")
+                        .HasColumnType("varchar(255)");
+
                     b.Property<int?>("AdminRoleAssignedBy")
                         .HasColumnType("int");
 
@@ -1000,11 +1145,29 @@ namespace stibe.api.Migrations
                     b.Property<bool>("IsEmailVerified")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<bool>("IsKycVerified")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<bool>("IsStaffActive")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsSystemAdmin")
                         .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("KycRejectionReason")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("KycStatus")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("KycSubmittedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("KycVerifiedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("KycVerifiedBy")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("LastLoginDate")
                         .HasColumnType("datetime(6)");
@@ -1016,6 +1179,12 @@ namespace stibe.api.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
+
+                    b.Property<string>("PanImageUrl")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("PanNumber")
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -1048,8 +1217,16 @@ namespace stibe.api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AadhaarNumber")
+                        .IsUnique()
+                        .HasFilter("AadhaarNumber IS NOT NULL");
+
                     b.HasIndex("Email")
                         .IsUnique();
+
+                    b.HasIndex("PanNumber")
+                        .IsUnique()
+                        .HasFilter("PanNumber IS NOT NULL");
 
                     b.HasIndex("ShopId");
 
@@ -1301,6 +1478,40 @@ namespace stibe.api.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("stibe.api.Models.Entities.KycAuditLog", b =>
+                {
+                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.User", "AdminUser")
+                        .WithMany()
+                        .HasForeignKey("AdminUserId");
+
+                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AdminUser");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("stibe.api.Models.Entities.KycVerification", b =>
+                {
+                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.User", "VerifiedByUser")
+                        .WithMany()
+                        .HasForeignKey("VerifiedBy");
+
+                    b.Navigation("User");
+
+                    b.Navigation("VerifiedByUser");
                 });
 
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.Booking", b =>

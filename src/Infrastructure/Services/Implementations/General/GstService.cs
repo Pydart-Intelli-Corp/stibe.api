@@ -63,29 +63,63 @@ namespace stibe.api.Services.Implementations.General
             try
             {
                 var gstRate = GetGstRate();
-                var discount = discountAmount ?? 0;
-                var discountedBaseAmount = baseAmount - discount;
                 
-                if (discountedBaseAmount < 0) discountedBaseAmount = 0;
-
-                var gstCalculation = CalculateGst(discountedBaseAmount, gstRate);
-
-                var breakdown = new PaymentGstBreakdown
+                if (discountAmount.HasValue && discountAmount.Value > 0)
                 {
-                    OriginalAmount = baseAmount,
-                    BaseAmount = discountedBaseAmount,
-                    DiscountAmount = discount,
-                    GstRate = gstRate,
-                    GstAmount = gstCalculation.GstAmount,
-                    FinalAmount = gstCalculation.TotalAmount,
-                    CouponCode = couponCode,
-                    CompanyGstNumber = GetCompanyGstNumber()
-                };
+                    // When discount is provided, it represents the total discount from original total to final total
+                    // We need to work with base amounts
+                    
+                    // Original amounts
+                    var originalBaseAmount = baseAmount;
+                    var originalGstAmount = originalBaseAmount * (gstRate / 100);
+                    var originalTotalAmount = originalBaseAmount + originalGstAmount;
+                    
+                    // Final total after discount
+                    var finalTotalAmount = originalTotalAmount - discountAmount.Value;
+                    
+                    // Extract final base amount from final total
+                    var finalBaseAmount = finalTotalAmount / (1 + gstRate / 100);
+                    var finalGstAmount = finalTotalAmount - finalBaseAmount;
+                    
+                    var breakdown = new PaymentGstBreakdown
+                    {
+                        OriginalAmount = originalBaseAmount, // Original base amount
+                        BaseAmount = finalBaseAmount, // Final base amount after discount
+                        DiscountAmount = discountAmount.Value, // Total discount amount
+                        GstRate = gstRate,
+                        GstAmount = finalGstAmount, // GST on final base amount
+                        FinalAmount = finalTotalAmount, // Final total amount
+                        CouponCode = couponCode,
+                        CompanyGstNumber = GetCompanyGstNumber()
+                    };
 
-                _logger.LogInformation("Payment GST Breakdown: Original={OriginalAmount}, Base={BaseAmount}, Discount={DiscountAmount}, GST={GstAmount}, Final={FinalAmount}", 
-                    breakdown.OriginalAmount, breakdown.BaseAmount, breakdown.DiscountAmount, breakdown.GstAmount, breakdown.FinalAmount);
+                    _logger.LogInformation("Payment GST Breakdown (Base-First Discount): OriginalBase={OriginalBase}, OriginalGST={OriginalGST}, OriginalTotal={OriginalTotal}, TotalDiscount={TotalDiscount}, FinalBase={FinalBase}, FinalGST={FinalGST}, FinalTotal={FinalTotal}", 
+                        originalBaseAmount, originalGstAmount, originalTotalAmount, discountAmount.Value, finalBaseAmount, finalGstAmount, finalTotalAmount);
 
-                return breakdown;
+                    return breakdown;
+                }
+                else
+                {
+                    // No discount applied - standard GST calculation
+                    var gstCalculation = CalculateGst(baseAmount, gstRate);
+
+                    var breakdown = new PaymentGstBreakdown
+                    {
+                        OriginalAmount = baseAmount,
+                        BaseAmount = baseAmount,
+                        DiscountAmount = 0,
+                        GstRate = gstRate,
+                        GstAmount = gstCalculation.GstAmount,
+                        FinalAmount = gstCalculation.TotalAmount,
+                        CouponCode = couponCode,
+                        CompanyGstNumber = GetCompanyGstNumber()
+                    };
+
+                    _logger.LogInformation("Payment GST Breakdown (No Discount): Base={BaseAmount}, GST={GstAmount}, Total={TotalAmount}", 
+                        baseAmount, gstCalculation.GstAmount, gstCalculation.TotalAmount);
+
+                    return breakdown;
+                }
             }
             catch (Exception ex)
             {

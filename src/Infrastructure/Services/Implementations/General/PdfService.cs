@@ -170,7 +170,7 @@ namespace stibe.api.Services.Implementations.General
                                         ["Shop Name"] = data.ShopName,
                                         ["Address"] = $"{data.ShopAddress}, {data.ShopCity}",
                                         ["State"] = $"{data.ShopState} - {data.ShopZipCode}",
-                                        ["Purpose"] = data.Purpose.Replace("_", " ").ToTitleCase()
+                                        ["Service"] = "Shop Registration Fee",
                                     }));
 
                                     rightCol.Item().PaddingTop(12);
@@ -180,29 +180,29 @@ namespace stibe.api.Services.Implementations.General
                                 rightCol.Item().Background("#F8F9FA").Border(1).BorderColor("#DEE2E6")
                                     .Padding(12).Column(amountCol =>
                                     {
-                                        amountCol.Item().Text("Amount Breakdown")
+                                        amountCol.Item().Text("Fee Breakdown")
                                             .FontSize(12).FontColor("#495057");
 
                                         amountCol.Item().PaddingTop(8);
 
-                                        // Base Amount
-                                        amountCol.Item().Element(container => AddAmountRow(container, "Base Amount", $"₹ {data.BaseAmount:N2}"));
+                                        // Registration Fee
+                                        amountCol.Item().Element(container => AddAmountRow(container, "Registration Fee", $"₹ {data.BaseAmount:N2}"));
 
                                         // Discount (if applicable)
                                         if (data.Savings > 0)
                                         {
-                                            amountCol.Item().Element(container => AddAmountRow(container, "Discount", $"- ₹ {data.Savings:N2}", "#28A745"));
+                                            amountCol.Item().Element(container => AddAmountRow(container, "Coupon Discount", $"- ₹ {data.Savings:N2}", "#28A745"));
                                         }
 
                                         // GST Calculation
-                                        amountCol.Item().Element(container => AddAmountRow(container, $"GST ({data.GstRate:F1}%)", $"₹ {data.GstAmount:N2}"));
+                                        amountCol.Item().Element(container => AddAmountRow(container, $"Service Tax ({data.GstRate:F1}%)", $"₹ {data.GstAmount:N2}"));
                                         
                                         amountCol.Item().PaddingVertical(3).LineHorizontal(1).LineColor("#DEE2E6");
 
                                         // Final Amount
                                         amountCol.Item().Row(row =>
                                         {
-                                            row.RelativeItem().Text("Total Amount (Incl. GST)").FontSize(12).FontColor("#495057");
+                                            row.RelativeItem().Text("Amount Payable").FontSize(12).FontColor("#495057");
                                             row.ConstantItem(80).AlignRight().Text($"₹ {data.Amount:N2}")
                                                 .FontSize(16).FontColor("#0F4C75");
                                         });
@@ -210,7 +210,7 @@ namespace stibe.api.Services.Implementations.General
                                         if (data.Savings > 0)
                                         {
                                             amountCol.Item().PaddingTop(5).AlignCenter()
-                                                .Text($"You saved ₹ {data.Savings:N2}")
+                                                .Text($"Discount Applied: ₹ {data.Savings:N2}")
                                                 .FontSize(10).FontColor("#28A745");
                                         }
                                     });

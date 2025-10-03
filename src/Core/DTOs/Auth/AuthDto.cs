@@ -119,6 +119,31 @@ namespace stibe.api.Models.DTOs.Auth
         public bool IsEmailVerified { get; set; }
         public DateTime CreatedAt { get; set; }
         public string? ProfilePictureUrl { get; set; }
+        
+        // KYC Verification fields
+        public bool IsKycVerified { get; set; }
+        public string? KycStatus { get; set; }
+        public string? AadhaarNumber { get; set; }
+        public string? AadhaarImageUrl { get; set; }
+        public string? PanNumber { get; set; }
+        public string? PanImageUrl { get; set; }
+        public DateTime? KycSubmittedAt { get; set; }
+        public DateTime? KycVerifiedAt { get; set; }
+        public string? KycRejectionReason { get; set; }
+    }
+
+    public class KycVerificationDto
+    {
+        [Required]
+        [StringLength(12, MinimumLength = 12)]
+        public string AadhaarNumber { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(10, MinimumLength = 10)]
+        public string PanNumber { get; set; } = string.Empty;
+
+        public string? AadhaarImageUrl { get; set; }
+        public string? PanImageUrl { get; set; }
     }
 
     public class ChangePasswordRequestDto

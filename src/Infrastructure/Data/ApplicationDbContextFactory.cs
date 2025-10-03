@@ -18,6 +18,7 @@ namespace stibe.api.Data
             var configuration = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json", optional: false)
+                .AddJsonFile("config/secrets/appsettings.Secrets.json", optional: false)
                 .AddJsonFile("appsettings.Development.json", optional: true)
                 .AddJsonFile("appsettings.Production.json", optional: true)
                 .AddEnvironmentVariables()

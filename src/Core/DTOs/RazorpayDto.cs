@@ -54,6 +54,9 @@ namespace stibe.api.Models.DTOs
         [StringLength(100)]
         public string City { get; set; } = string.Empty;
 
+        [StringLength(100)]
+        public string? District { get; set; }
+
         [Required]
         [StringLength(50)]
         public string State { get; set; } = string.Empty;

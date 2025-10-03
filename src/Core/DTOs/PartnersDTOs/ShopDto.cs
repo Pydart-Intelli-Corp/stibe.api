@@ -20,6 +20,9 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         [StringLength(100)]
         public string City { get; set; } = string.Empty;
 
+        [StringLength(100)]
+        public string? District { get; set; }
+
         [Required]
         [StringLength(50)]
         public string State { get; set; } = string.Empty;
@@ -95,6 +98,9 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         [StringLength(100)]
         public string? City { get; set; }
 
+        [StringLength(100)]
+        public string? District { get; set; }
+
         [StringLength(50)]
         public string? State { get; set; }
 
@@ -139,6 +145,21 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         // Tax Details
         [StringLength(15)]
         public string? GSTNumber { get; set; }
+        
+        [StringLength(2)]
+        public string? GSTStateCode { get; set; }
+        
+        [StringLength(100)]
+        public string? GSTStateName { get; set; }
+        
+        [StringLength(10)]
+        public string? GSTPANNumber { get; set; }
+        
+        [StringLength(1)]
+        public string? GSTEntityNumber { get; set; }
+        
+        [StringLength(50)]
+        public string? GSTEntityType { get; set; }
 
         [StringLength(10)]
         public string? PANNumber { get; set; }
@@ -170,6 +191,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         public string Description { get; set; } = string.Empty;
         public string Address { get; set; } = string.Empty;
         public string City { get; set; } = string.Empty;
+        public string? District { get; set; }
         public string State { get; set; } = string.Empty;
         public string ZipCode { get; set; } = string.Empty;
         public decimal? Latitude { get; set; }
@@ -193,6 +215,12 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         
         // Tax Details
         public string? GSTNumber { get; set; }
+        public string? GSTStateCode { get; set; }
+        public string? GSTStateName { get; set; }
+        public string? GSTPANNumber { get; set; }
+        public string? GSTEntityNumber { get; set; }
+        public string? GSTEntityType { get; set; }
+        public DateTime? GSTValidatedAt { get; set; }
         public string? PANNumber { get; set; }
         
         public bool IsActive { get; set; }
@@ -212,6 +240,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
     {
         public string? Name { get; set; }
         public string? City { get; set; }
+        public string? District { get; set; }
         public string? State { get; set; }
         public decimal? Latitude { get; set; }
         public decimal? Longitude { get; set; }
@@ -256,6 +285,9 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         [Required]
         [StringLength(100)]
         public string City { get; set; } = string.Empty;
+
+        [StringLength(100)]
+        public string? District { get; set; }
 
         [Required]
         [StringLength(50)]
@@ -305,6 +337,21 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         // Tax Details
         [StringLength(15)]
         public string? GSTNumber { get; set; }
+        
+        [StringLength(2)]
+        public string? GSTStateCode { get; set; }
+        
+        [StringLength(100)]
+        public string? GSTStateName { get; set; }
+        
+        [StringLength(10)]
+        public string? GSTPANNumber { get; set; }
+        
+        [StringLength(1)]
+        public string? GSTEntityNumber { get; set; }
+        
+        [StringLength(50)]
+        public string? GSTEntityType { get; set; }
 
         [StringLength(10)]
         public string? PANNumber { get; set; }
@@ -371,5 +418,17 @@ namespace stibe.api.Models.DTOs.PartnersDTOs
         
         [StringLength(500)]
         public string? ProfilePictureUrl { get; set; }
+    }
+
+    public class SavedBankDetailsDto
+    {
+        public string? BankAccountNumber { get; set; }
+        public string? IFSCCode { get; set; }
+        public string? BankName { get; set; }
+        public string? AccountHolderName { get; set; }
+        public string? GSTNumber { get; set; }
+        public string? PANNumber { get; set; }
+        public string ShopName { get; set; } = string.Empty;
+        public int ShopId { get; set; }
     }
 }

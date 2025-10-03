@@ -32,6 +32,18 @@ namespace stibe.api.Models.Entities.PartnersEntity
         public string? RegistrationIP { get; set; }
         public DateTime? LastLoginDate { get; set; }
         public string? LastLoginIP { get; set; }
+
+        // KYC Verification fields
+        public bool IsKycVerified { get; set; } = false;
+        public string? KycStatus { get; set; } = "Pending"; // Pending, InProgress, Verified, Rejected
+        public string? AadhaarNumber { get; set; }
+        public string? AadhaarImageUrl { get; set; }
+        public string? PanNumber { get; set; }
+        public string? PanImageUrl { get; set; }
+        public DateTime? KycSubmittedAt { get; set; }
+        public DateTime? KycVerifiedAt { get; set; }
+        public string? KycRejectionReason { get; set; }
+        public int? KycVerifiedBy { get; set; } // Admin user ID who verified
         // Add these properties to the existing User entity
         public int? ShopId { get; set; } // For staff members
         public bool IsStaffActive { get; set; } = false;

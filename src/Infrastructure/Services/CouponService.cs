@@ -58,9 +58,18 @@ namespace stibe.api.Services.Implementations
                             };
                         }
 
-                        // Calculate percentage for user-specific coupon
-                        var userCouponSavings = request.OriginalAmount - 5;
-                        var userCouponPercentage = request.OriginalAmount > 0 ? Math.Round((userCouponSavings / request.OriginalAmount) * 100, 1) : 0;
+                        // Calculate percentage for user-specific coupon with correct GST flow
+                        decimal userCouponGstRate = 18.0m;
+                        decimal userCouponBaseAmount = request.OriginalAmount; // ₹3999
+                        decimal originalWithGst = userCouponBaseAmount * (1 + userCouponGstRate / 100); // ₹4718.82
+                        
+                        // For user coupons: final base amount is ₹5
+                        decimal finalBaseAmount = 5.0m;
+                        decimal finalGstAmount = finalBaseAmount * (userCouponGstRate / 100); // ₹0.90
+                        decimal finalTotalAmount = finalBaseAmount + finalGstAmount; // ₹5.90
+                        
+                        decimal userCouponSavings = originalWithGst - finalTotalAmount; // ₹4712.92
+                        decimal effectivePercentage = originalWithGst > 0 ? Math.Round((userCouponSavings / originalWithGst) * 100, 1) : 0;
                         
                         // Return success for user-specific coupon
                         return new CouponValidationResponseDto
@@ -70,11 +79,11 @@ namespace stibe.api.Services.Implementations
                             Description = "Exclusive Shop Registration Coupon",
                             DiscountType = "FIXED",
                             DiscountValue = userCouponSavings,
-                            OriginalAmount = request.OriginalAmount,
+                            OriginalAmount = originalWithGst,
                             DiscountedAmount = userCouponSavings,
-                            FinalAmount = 5,
+                            FinalAmount = finalTotalAmount,
                             Savings = userCouponSavings,
-                            DiscountPercentage = userCouponPercentage,
+                            DiscountPercentage = effectivePercentage,
                             RemainingUsage = userCoupon.MaxUsageLimit - userCoupon.UsageCount
                         };
                     }
@@ -171,10 +180,48 @@ namespace stibe.api.Services.Implementations
                     };
                 }
 
-                // Calculate discounted amount
-                decimal finalAmount = await CalculateDiscountedAmountAsync(request.CouponCode, request.OriginalAmount, request.Purpose);
-                decimal savings = request.OriginalAmount - finalAmount;
-                decimal discountPercentage = request.OriginalAmount > 0 ? Math.Round((savings / request.OriginalAmount) * 100, 1) : 0;
+                // Calculate discounted amount with correct GST flow
+                // Step 1: Determine if originalAmount is base or total with GST
+                decimal gstRate = 18.0m; // 18% GST
+                decimal baseAmount;
+                decimal originalAmountWithGst;
+                
+                // Check if the original amount appears to be base amount (₹3999) or total with GST (₹4718.82)
+                // If it's approximately equal to ₹3999, treat as base amount
+                // If it's approximately equal to ₹4718.82, treat as total with GST
+                var expectedBaseAmount = _configuration.GetValue<decimal>("Payment:ShopRegistrationFee", 3999.0m);
+                var expectedTotalWithGst = expectedBaseAmount * (1 + gstRate / 100);
+                
+                if (Math.Abs(request.OriginalAmount - expectedBaseAmount) < 1.0m)
+                {
+                    // Original amount is base amount
+                    baseAmount = request.OriginalAmount;
+                    originalAmountWithGst = baseAmount * (1 + gstRate / 100);
+                }
+                else if (Math.Abs(request.OriginalAmount - expectedTotalWithGst) < 1.0m)
+                {
+                    // Original amount is total with GST, extract base amount
+                    originalAmountWithGst = request.OriginalAmount;
+                    baseAmount = originalAmountWithGst / (1 + gstRate / 100);
+                }
+                else
+                {
+                    // Default: treat as base amount
+                    baseAmount = request.OriginalAmount;
+                    originalAmountWithGst = baseAmount * (1 + gstRate / 100);
+                }
+                
+                // Step 2: Apply discount to BASE amount only
+                decimal discountOnBase = await CalculateBaseDiscountAsync(request.CouponCode, baseAmount, request.Purpose);
+                decimal newBaseAmount = baseAmount - discountOnBase;
+                
+                // Step 3: Calculate GST on the new base amount
+                decimal newGstAmount = newBaseAmount * (gstRate / 100);
+                decimal finalAmountWithGst = newBaseAmount + newGstAmount;
+                
+                // Step 4: Calculate total savings and effective discount percentage
+                decimal totalSavings = originalAmountWithGst - finalAmountWithGst;
+                decimal effectiveDiscountPercentage = originalAmountWithGst > 0 ? Math.Round((totalSavings / originalAmountWithGst) * 100, 1) : 0;
 
                 return new CouponValidationResponseDto
                 {
@@ -183,11 +230,11 @@ namespace stibe.api.Services.Implementations
                     Description = coupon.Description,
                     DiscountType = coupon.DiscountType,
                     DiscountValue = coupon.DiscountValue,
-                    OriginalAmount = request.OriginalAmount,
-                    DiscountedAmount = coupon.DiscountValue,
-                    FinalAmount = finalAmount,
-                    Savings = savings,
-                    DiscountPercentage = discountPercentage,
+                    OriginalAmount = originalAmountWithGst, // Total with GST
+                    DiscountedAmount = totalSavings, // Total discount amount
+                    FinalAmount = finalAmountWithGst, // Final amount with GST
+                    Savings = totalSavings,
+                    DiscountPercentage = effectiveDiscountPercentage,
                     ValidUntil = coupon.ValidUntil,
                     RemainingUsage = coupon.MaxUsageCount - currentUsage
                 };
@@ -249,33 +296,35 @@ namespace stibe.api.Services.Implementations
                         };
                     }
 
-                    // Create standard coupon usage record for tracking
+                    // Create standard coupon usage record for tracking with GST-inclusive amounts
+                    var originalAmountWithGst = request.OriginalAmount * 1.18m;
+                    var finalAmountWithGst = 5.0m * 1.18m; // ₹5 + GST
                     var userCouponUsage = new CouponUsage
                     {
                         CouponCode = request.CouponCode,
                         UserId = request.UserId,
                         Purpose = request.Purpose,
-                        OriginalAmount = request.OriginalAmount,
-                        FinalAmount = 5, // User-specific coupon always results in ₹5
-                        Savings = request.OriginalAmount - 5,
+                        OriginalAmount = originalAmountWithGst,
+                        FinalAmount = finalAmountWithGst,
+                        Savings = originalAmountWithGst - finalAmountWithGst,
                         Status = "APPLIED",
                         AppliedAt = DateTime.UtcNow,
-                        Notes = "User-specific shop registration coupon applied"
+                        Notes = "User-specific shop registration coupon applied (GST-inclusive)"
                     };
 
                     _context.CouponUsages.Add(userCouponUsage);
                     await _context.SaveChangesAsync();
 
-                    var appliedSavings = request.OriginalAmount - 5;
-                    var appliedPercentage = request.OriginalAmount > 0 ? Math.Round((appliedSavings / request.OriginalAmount) * 100, 1) : 0;
+                    var appliedSavings = originalAmountWithGst - finalAmountWithGst;
+                    var appliedPercentage = originalAmountWithGst > 0 ? Math.Round((appliedSavings / originalAmountWithGst) * 100, 1) : 0;
                     
                     return new CouponApplicationResponseDto
                     {
                         Applied = true,
                         CouponCode = request.CouponCode,
                         Description = "Exclusive Shop Registration Coupon",
-                        OriginalAmount = request.OriginalAmount,
-                        FinalAmount = 5,
+                        OriginalAmount = originalAmountWithGst,
+                        FinalAmount = finalAmountWithGst,
                         Savings = appliedSavings,
                         DiscountPercentage = appliedPercentage,
                         AppliedAt = DateTime.UtcNow,
@@ -301,18 +350,18 @@ namespace stibe.api.Services.Implementations
                     };
                 }
 
-                // Create coupon usage record
+                // Create coupon usage record with GST-inclusive amounts
                 var couponUsage = new CouponUsage
                 {
                     CouponCode = validation.CouponCode,
                     UserId = request.UserId,
                     Purpose = request.Purpose,
-                    OriginalAmount = request.OriginalAmount,
-                    FinalAmount = validation.FinalAmount,
-                    Savings = validation.Savings,
+                    OriginalAmount = validation.OriginalAmount, // Already includes GST from validation
+                    FinalAmount = validation.FinalAmount, // Already includes GST from validation
+                    Savings = validation.Savings, // Already calculated with GST
                     Status = "APPLIED",
                     AppliedAt = DateTime.UtcNow,
-                    Notes = $"Coupon applied: {validation.Description}"
+                    Notes = $"Coupon applied (GST-inclusive): {validation.Description}"
                 };
 
                 _context.CouponUsages.Add(couponUsage);
@@ -326,9 +375,9 @@ namespace stibe.api.Services.Implementations
                     Applied = true,
                     CouponCode = validation.CouponCode,
                     Description = validation.Description,
-                    OriginalAmount = request.OriginalAmount,
-                    FinalAmount = validation.FinalAmount,
-                    Savings = validation.Savings,
+                    OriginalAmount = validation.OriginalAmount, // GST-inclusive from validation
+                    FinalAmount = validation.FinalAmount, // GST-inclusive from validation
+                    Savings = validation.Savings, // GST-inclusive from validation
                     DiscountPercentage = validation.DiscountPercentage,
                     AppliedAt = couponUsage.AppliedAt,
                     UserId = request.UserId,
@@ -484,7 +533,7 @@ namespace stibe.api.Services.Implementations
             }
         }
 
-        public Task<decimal> CalculateDiscountedAmountAsync(string couponCode, decimal originalAmount, string purpose)
+        public async Task<decimal> CalculateBaseDiscountAsync(string couponCode, decimal baseAmount, string purpose)
         {
             try
             {
@@ -493,44 +542,75 @@ namespace stibe.api.Services.Implementations
 
                 if (coupon == null)
                 {
-                    return Task.FromResult(originalAmount);
+                    return 0; // No discount
                 }
 
-                decimal finalAmount;
+                decimal discountAmount;
 
                 switch (coupon.DiscountType.ToUpper())
                 {
                     case "FIXED_AMOUNT":
+                        // Apply fixed discount to base amount
                         var fixedDiscount = coupon.DiscountValue;
                         if (coupon.MaximumDiscount > 0)
                         {
                             fixedDiscount = Math.Min(fixedDiscount, coupon.MaximumDiscount);
                         }
-                        finalAmount = Math.Max(0, originalAmount - fixedDiscount);
+                        discountAmount = Math.Min(fixedDiscount, baseAmount); // Don't discount more than base amount
                         break;
                     case "PERCENTAGE":
-                        var percentageDiscount = (originalAmount * coupon.DiscountValue) / 100;
+                        // Apply percentage discount to base amount
+                        var percentageDiscount = (baseAmount * coupon.DiscountValue) / 100;
                         if (coupon.MaximumDiscount > 0)
                         {
                             percentageDiscount = Math.Min(percentageDiscount, coupon.MaximumDiscount);
                         }
-                        finalAmount = Math.Max(0, originalAmount - percentageDiscount);
+                        discountAmount = percentageDiscount;
                         break;
                     case "SET_AMOUNT":
-                        // Set to a specific amount (like ₹5 for shop registration)
-                        finalAmount = _configuration.GetValue<decimal>("Coupons:DefaultDiscountedAmount", 5.0m);
+                        // Set to a specific base amount (discount = original base - set amount)
+                        var setAmount = _configuration.GetValue<decimal>("Coupons:DefaultDiscountedAmount", 5.0m);
+                        discountAmount = Math.Max(0, baseAmount - setAmount);
                         break;
                     default:
-                        finalAmount = originalAmount;
+                        discountAmount = 0;
                         break;
                 }
 
-                return Task.FromResult(finalAmount);
+                _logger.LogInformation("Base discount calculation for {CouponCode}: BaseAmount={BaseAmount}, DiscountType={DiscountType}, DiscountValue={DiscountValue}, CalculatedDiscount={CalculatedDiscount}", 
+                    couponCode, baseAmount, coupon.DiscountType, coupon.DiscountValue, discountAmount);
+
+                return discountAmount;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calculating base discount for coupon: {CouponCode}", couponCode);
+                return 0;
+            }
+        }
+
+        public async Task<decimal> CalculateDiscountedAmountAsync(string couponCode, decimal originalAmountWithGst, string purpose)
+        {
+            try
+            {
+                // This method is kept for backward compatibility but now uses base-first calculation
+                decimal gstRate = 18.0m;
+                decimal baseAmount = originalAmountWithGst / (1 + gstRate / 100); // Extract base from total
+                
+                decimal baseDiscount = await CalculateBaseDiscountAsync(couponCode, baseAmount, purpose);
+                decimal newBaseAmount = baseAmount - baseDiscount;
+                decimal newGstAmount = newBaseAmount * (gstRate / 100);
+                decimal finalAmountWithGst = newBaseAmount + newGstAmount;
+                
+                _logger.LogInformation("Backward compatible discount calculation for {CouponCode}: OriginalTotal={OriginalTotal}, ExtractedBase={ExtractedBase}, BaseDiscount={BaseDiscount}, NewBase={NewBase}, NewGST={NewGST}, FinalTotal={FinalTotal}", 
+                    couponCode, originalAmountWithGst, baseAmount, baseDiscount, newBaseAmount, newGstAmount, finalAmountWithGst);
+
+                return finalAmountWithGst;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error calculating discounted amount for coupon: {CouponCode}", couponCode);
-                return Task.FromResult(originalAmount);
+                return originalAmountWithGst;
             }
         }
     }

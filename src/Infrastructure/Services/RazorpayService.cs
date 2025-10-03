@@ -70,9 +70,10 @@ namespace stibe.api.Services
                 // Generate unique payment ID
                 var paymentId = $"STIBE_{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid():N}"[..50];
                 
-                // Apply coupon discount if provided
-                decimal baseAmount = request.Amount;
-                decimal discountAmount = 0;
+                // Apply coupon discount if provided using correct base-first calculation
+                decimal baseAmount = request.Amount; // This should be the base amount (e.g., ₹3999)
+                decimal finalAmountWithGst;
+                decimal totalDiscountAmount = 0;
                 string? appliedCouponCode = null;
                 
                 if (!string.IsNullOrEmpty(request.CouponCode))
@@ -83,7 +84,7 @@ namespace stibe.api.Services
                         {
                             CouponCode = request.CouponCode,
                             Purpose = request.Purpose,
-                            OriginalAmount = request.Amount,
+                            OriginalAmount = request.Amount, // Base amount
                             UserEmail = request.ShopData?.Email,
                             PhoneNumber = request.ShopData?.PhoneNumber
                         };
@@ -92,32 +93,49 @@ namespace stibe.api.Services
                         
                         if (couponValidation.IsValid)
                         {
-                            discountAmount = request.Amount - couponValidation.FinalAmount;
+                            // The validation now returns correct GST-inclusive amounts
+                            finalAmountWithGst = couponValidation.FinalAmount; // Final amount with GST
+                            
+                            // Calculate total discount (original total - final total)
+                            var originalAmountWithGst = baseAmount * 1.18m; // ₹3999 * 1.18 = ₹4718.82
+                            totalDiscountAmount = originalAmountWithGst - finalAmountWithGst;
                             appliedCouponCode = request.CouponCode;
                             
-                            _logger.LogInformation("Coupon applied successfully: {CouponCode}, Original: {OriginalAmount}, Discount: {DiscountAmount}", 
-                                request.CouponCode, request.Amount, discountAmount);
+                            _logger.LogInformation("Coupon applied (Base-First): {CouponCode}, BaseAmount: {BaseAmount}, OriginalTotal: {OriginalTotal}, FinalTotal: {FinalTotal}, TotalDiscount: {TotalDiscount}", 
+                                request.CouponCode, baseAmount, originalAmountWithGst, finalAmountWithGst, totalDiscountAmount);
+                            
+                            _logger.LogInformation("Coupon Validation Details: Savings={Savings}, DiscountPercentage={DiscountPercentage}, OriginalAmount={OriginalAmount}, DiscountedAmount={DiscountedAmount}", 
+                                couponValidation.Savings, couponValidation.DiscountPercentage, couponValidation.OriginalAmount, couponValidation.DiscountedAmount);
                         }
                         else
                         {
                             _logger.LogWarning("Invalid coupon code provided: {CouponCode}, Error: {Error}", 
                                 request.CouponCode, couponValidation.ErrorMessage);
-                            // Continue with original amount if coupon is invalid
+                            // Continue with original amount + GST if coupon is invalid
+                            finalAmountWithGst = baseAmount * 1.18m;
                         }
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Error validating coupon: {CouponCode}", request.CouponCode);
-                        // Continue with original amount if coupon validation fails
+                        // Continue with original amount + GST if coupon validation fails
+                        finalAmountWithGst = baseAmount * 1.18m;
                     }
                 }
+                else
+                {
+                    // No coupon applied, calculate GST normally
+                    finalAmountWithGst = baseAmount * 1.18m; // ₹3999 * 1.18 = ₹4718.82
+                }
                 
-                // Calculate GST breakdown for the payment  
-                var gstBreakdown = _gstService.GetPaymentGstBreakdown(request.Amount, discountAmount, appliedCouponCode);
-                var finalAmountWithGst = gstBreakdown.FinalAmount;
+                // Calculate GST breakdown for display purposes
+                var gstBreakdown = _gstService.GetPaymentGstBreakdown(baseAmount, totalDiscountAmount, appliedCouponCode);
                 
-                _logger.LogInformation("GST Calculation: Base={BaseAmount}, Discount={DiscountAmount}, GST={GstAmount}, Final={FinalAmount}", 
-                    gstBreakdown.BaseAmount, gstBreakdown.DiscountAmount, gstBreakdown.GstAmount, gstBreakdown.FinalAmount);
+                _logger.LogInformation("GST Calculation (Base-First): BaseAmount={BaseAmount}, TotalDiscount={TotalDiscount}, FinalWithGST={FinalAmountWithGst}, BreakdownGST={BreakdownGST}", 
+                    baseAmount, totalDiscountAmount, finalAmountWithGst, gstBreakdown.GstAmount);
+                
+                _logger.LogInformation("Breakdown Details: OriginalAmount={OriginalAmount}, BaseAmount={BaseAmount}, DiscountAmount={DiscountAmount}, GstAmount={GstAmount}, FinalAmount={FinalAmount}", 
+                    gstBreakdown.OriginalAmount, gstBreakdown.BaseAmount, gstBreakdown.DiscountAmount, gstBreakdown.GstAmount, gstBreakdown.FinalAmount);
                 
                 // Convert amount to paisa (Razorpay expects amount in smallest currency unit)
                 var amountInPaisa = (int)(finalAmountWithGst * 100);
@@ -134,12 +152,13 @@ namespace stibe.api.Services
                     }
                 }
                 
-                // Add GST breakdown
-                orderNotes["original_amount"] = request.Amount.ToString("F2");
-                orderNotes["base_amount"] = gstBreakdown.BaseAmount.ToString("F2");
-                orderNotes["discount_applied"] = discountAmount.ToString("F2");
+                // Add GST breakdown with base-first calculation
+                orderNotes["base_amount"] = baseAmount.ToString("F2");
+                orderNotes["original_amount_with_gst"] = (baseAmount * 1.18m).ToString("F2");
+                orderNotes["final_base_amount"] = gstBreakdown.BaseAmount.ToString("F2");
+                orderNotes["total_discount_applied"] = gstBreakdown.DiscountAmount.ToString("F2"); // Use the breakdown's discount amount
                 orderNotes["gst_rate"] = gstBreakdown.GstRate.ToString("F1");
-                orderNotes["gst_amount"] = gstBreakdown.GstAmount.ToString("F2");
+                orderNotes["final_gst_amount"] = gstBreakdown.GstAmount.ToString("F2");
                 orderNotes["final_amount_with_gst"] = finalAmountWithGst.ToString("F2");
                 
                 if (!string.IsNullOrEmpty(appliedCouponCode))
@@ -192,13 +211,13 @@ namespace stibe.api.Services
                     }
                 }
                 
-                // Always add GST breakdown to response
-                responseNotes["original_amount"] = request.Amount.ToString("F2");
-                responseNotes["base_amount"] = gstBreakdown.OriginalAmount.ToString("F2"); // Original amount before discount
-                responseNotes["discount_applied"] = discountAmount.ToString("F2");
-                responseNotes["subtotal_amount"] = gstBreakdown.BaseAmount.ToString("F2"); // Amount after discount, before GST
+                // Add GST breakdown to response with base-first calculation
+                responseNotes["base_amount"] = baseAmount.ToString("F2");
+                responseNotes["original_amount_with_gst"] = (baseAmount * 1.18m).ToString("F2");
+                responseNotes["final_base_amount"] = gstBreakdown.BaseAmount.ToString("F2");
+                responseNotes["total_discount_applied"] = gstBreakdown.DiscountAmount.ToString("F2"); // Use the breakdown's discount amount
                 responseNotes["gst_rate"] = gstBreakdown.GstRate.ToString("F1");
-                responseNotes["gst_amount"] = gstBreakdown.GstAmount.ToString("F2");
+                responseNotes["final_gst_amount"] = gstBreakdown.GstAmount.ToString("F2");
                 responseNotes["final_amount_with_gst"] = finalAmountWithGst.ToString("F2");
                 
                 if (!string.IsNullOrEmpty(appliedCouponCode))
@@ -644,6 +663,7 @@ namespace stibe.api.Services
                 City = shopData.City,
                 State = shopData.State,
                 ZipCode = shopData.ZipCode,
+                District = shopData.District,
                 PhoneNumber = shopData.PhoneNumber,
                 Email = shopData.Email,
                 ServiceType = shopData.ServiceType,
@@ -692,6 +712,7 @@ namespace stibe.api.Services
                 City = shop.City ?? "",
                 State = shop.State ?? "",
                 ZipCode = shop.ZipCode ?? "",
+                District = shop.District ?? "",
                 PhoneNumber = shop.PhoneNumber ?? "",
                 Email = shop.Email ?? "",
                 ServiceType = shop.ServiceType,
@@ -745,33 +766,53 @@ namespace stibe.api.Services
                     shop = await _context.Shops.FindAsync(payment.CreatedShopId.Value);
                 }
 
+                // Get the order notes to extract the actual amounts used
+                var razorpayOrder = _razorpayClient.Order.Fetch(payment.RazorpayOrderId);
+                var orderNotes = razorpayOrder["notes"] as Newtonsoft.Json.Linq.JObject;
+                
+                // Extract amounts from order notes (these are the correct calculated amounts)
+                decimal originalBaseAmount = 3999.0m; // Default base amount
+                decimal finalBaseAmount = originalBaseAmount;
+                decimal totalDiscountApplied = 0m;
+                decimal finalGstAmount = 0m;
+                decimal originalAmountWithGst = originalBaseAmount * 1.18m;
+                
+                if (orderNotes != null)
+                {
+                    if (decimal.TryParse(orderNotes["base_amount"]?.ToString(), out var baseAmt))
+                        originalBaseAmount = baseAmt;
+                    
+                    if (decimal.TryParse(orderNotes["final_base_amount"]?.ToString(), out var finalBaseAmt))
+                        finalBaseAmount = finalBaseAmt;
+                    
+                    if (decimal.TryParse(orderNotes["total_discount_applied"]?.ToString(), out var discount))
+                        totalDiscountApplied = discount;
+                    
+                    if (decimal.TryParse(orderNotes["final_gst_amount"]?.ToString(), out var gstAmt))
+                        finalGstAmount = gstAmt;
+                    
+                    if (decimal.TryParse(orderNotes["original_amount_with_gst"]?.ToString(), out var origTotal))
+                        originalAmountWithGst = origTotal;
+                }
+
                 // Get coupon information if coupon was applied
-                decimal originalAmount = payment.Amount;
-                decimal savings = 0;
-                decimal discountPercentage = 0;
                 string? couponDescription = null;
+                decimal discountPercentage = 0;
 
                 if (!string.IsNullOrEmpty(couponCode))
                 {
-                    // Try to get coupon details for display
                     try
                     {
-                        var validationRequest = new ValidateCouponRequestDto
+                        // Get coupon description from order notes if available
+                        if (orderNotes?["coupon_description"] != null)
                         {
-                            CouponCode = couponCode,
-                            Purpose = payment.Purpose,
-                            OriginalAmount = payment.Amount,
-                            UserEmail = user.Email,
-                            PhoneNumber = user.PhoneNumber
-                        };
+                            couponDescription = orderNotes["coupon_description"].ToString();
+                        }
                         
-                        var couponValidation = await _couponService.ValidateCouponAsync(validationRequest);
-                        if (couponValidation.IsValid)
+                        // Calculate discount percentage from actual amounts
+                        if (originalAmountWithGst > 0)
                         {
-                            originalAmount = couponValidation.OriginalAmount;
-                            savings = couponValidation.Savings;
-                            discountPercentage = couponValidation.DiscountPercentage;
-                            couponDescription = couponValidation.Description;
+                            discountPercentage = (totalDiscountApplied / originalAmountWithGst) * 100;
                         }
                     }
                     catch (Exception ex)
@@ -780,24 +821,20 @@ namespace stibe.api.Services
                     }
                 }
 
-                // Calculate GST breakdown for receipt
-                var baseAmountForGst = originalAmount - savings; // Amount after discount, before GST
-                var gstBreakdown = _gstService.GetPaymentGstBreakdown(originalAmount, savings, couponCode);
-
-                // Create receipt data
+                // Create receipt data with correct amounts
                 var receiptData = new PaymentReceiptData
                 {
                     PaymentId = payment.PaymentId,
                     RazorpayPaymentId = payment.RazorpayPaymentId ?? "",
                     RazorpayOrderId = payment.RazorpayOrderId ?? "",
-                    Amount = payment.Amount, // Final amount including GST
-                    BaseAmount = gstBreakdown.BaseAmount, // Amount before GST
-                    GstRate = gstBreakdown.GstRate,
-                    GstAmount = gstBreakdown.GstAmount,
-                    CompanyGstNumber = gstBreakdown.CompanyGstNumber,
-                    CustomerGstNumber = shop?.GSTNumber, // Get customer GST from shop data
-                    OriginalAmount = originalAmount,
-                    Savings = savings,
+                    Amount = payment.Amount, // Final amount paid (including GST after discount)
+                    BaseAmount = finalBaseAmount, // Base amount after discount
+                    GstRate = 18.0m,
+                    GstAmount = finalGstAmount, // GST calculated on discounted base amount
+                    CompanyGstNumber = "32AAPCP4765K1ZW",
+                    CustomerGstNumber = shop?.GSTNumber,
+                    OriginalAmount = originalAmountWithGst, // Original total with GST before any discount
+                    Savings = totalDiscountApplied, // Total discount applied
                     Currency = payment.Currency,
                     PaymentMethod = payment.MethodType ?? "Online",
                     CompletedAt = payment.CompletedAt ?? DateTime.UtcNow,
@@ -820,6 +857,9 @@ namespace stibe.api.Services
                     CouponDescription = couponDescription,
                     DiscountPercentage = discountPercentage
                 };
+
+                _logger.LogInformation("Receipt data: OriginalTotal={OriginalTotal}, BaseAmount={BaseAmount}, GstAmount={GstAmount}, FinalAmount={FinalAmount}, Savings={Savings}", 
+                    receiptData.OriginalAmount, receiptData.BaseAmount, receiptData.GstAmount, receiptData.Amount, receiptData.Savings);
 
                 // Generate PDF
                 var pdfBytes = await _pdfService.GeneratePaymentReceiptAsync(receiptData);

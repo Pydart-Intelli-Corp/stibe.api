@@ -92,6 +92,7 @@ namespace stibe.api.Controllers
                     Description = request.Description,
                     Address = request.Address,
                     City = request.City,
+                    District = request.District,
                     State = request.State,
                     ZipCode = request.ZipCode,
                     PhoneNumber = request.PhoneNumber,
@@ -131,6 +132,7 @@ namespace stibe.api.Controllers
                     City = shop.City,
                     State = shop.State,
                     ZipCode = shop.ZipCode,
+                    District = shop.District,
                     PhoneNumber = shop.PhoneNumber,
                     Email = shop.Email,
                     ServiceType = shop.ServiceType,
@@ -234,6 +236,7 @@ namespace stibe.api.Controllers
                     Description = request.Description,
                     Address = request.Address,
                     City = request.City,
+                    District = request.District,
                     State = request.State,
                     ZipCode = request.ZipCode,
                     PhoneNumber = request.PhoneNumber,
@@ -252,6 +255,12 @@ namespace stibe.api.Controllers
                     AccountHolderName = request.AccountHolderName,
                     // Tax Details
                     GSTNumber = request.GSTNumber,
+                    GSTStateCode = request.GSTStateCode,
+                    GSTStateName = request.GSTStateName,
+                    GSTPANNumber = request.GSTPANNumber,
+                    GSTEntityNumber = request.GSTEntityNumber,
+                    GSTEntityType = request.GSTEntityType,
+                    GSTValidatedAt = !string.IsNullOrEmpty(request.GSTNumber) ? DateTime.UtcNow : null,
                     PANNumber = request.PANNumber,
                     OpeningTime = openingTime,
                     ClosingTime = closingTime,
@@ -283,6 +292,7 @@ namespace stibe.api.Controllers
                     City = shop.City,
                     State = shop.State,
                     ZipCode = shop.ZipCode,
+                    District = shop.District,
                     PhoneNumber = shop.PhoneNumber,
                     Email = shop.Email,
                     ServiceType = shop.ServiceType,
@@ -352,6 +362,7 @@ namespace stibe.api.Controllers
                         City = s.City,
                         State = s.State,
                         ZipCode = s.ZipCode,
+                        District = s.District,
                         PhoneNumber = s.PhoneNumber,
                         Email = s.Email,
                         ServiceType = s.ServiceType,
@@ -395,6 +406,54 @@ namespace stibe.api.Controllers
             }
         }
 
+        [HttpGet("saved-bank-details")]
+        [Authorize(Roles = "ShopOwner")]
+        public async Task<ActionResult<ApiResponse<SavedBankDetailsDto>>> GetSavedBankDetails()
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<SavedBankDetailsDto>.ErrorResponse("Invalid token"));
+                }
+
+                // Find the most recent shop with complete bank details
+                var shopWithBankDetails = await _context.Shops
+                    .Where(s => s.OwnerId == currentUserId.Value && 
+                               !s.IsDeleted &&
+                               !string.IsNullOrEmpty(s.BankAccountNumber) &&
+                               !string.IsNullOrEmpty(s.IFSCCode) &&
+                               !string.IsNullOrEmpty(s.AccountHolderName))
+                    .OrderByDescending(s => s.UpdatedAt)
+                    .FirstOrDefaultAsync();
+
+                if (shopWithBankDetails == null)
+                {
+                    return NotFound(ApiResponse<SavedBankDetailsDto>.ErrorResponse("No saved bank details found"));
+                }
+
+                var savedBankDetails = new SavedBankDetailsDto
+                {
+                    BankAccountNumber = shopWithBankDetails.BankAccountNumber,
+                    IFSCCode = shopWithBankDetails.IFSCCode,
+                    BankName = shopWithBankDetails.BankName,
+                    AccountHolderName = shopWithBankDetails.AccountHolderName,
+                    GSTNumber = shopWithBankDetails.GSTNumber,
+                    PANNumber = shopWithBankDetails.PANNumber,
+                    ShopName = shopWithBankDetails.Name,
+                    ShopId = shopWithBankDetails.Id
+                };
+
+                return Ok(ApiResponse<SavedBankDetailsDto>.SuccessResponse(savedBankDetails, "Saved bank details retrieved successfully"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving saved bank details");
+                return StatusCode(500, ApiResponse<SavedBankDetailsDto>.ErrorResponse("An error occurred while retrieving saved bank details"));
+            }
+        }
+
         [HttpGet("{id}")]
         [Authorize(Roles = "ShopOwner,Admin")]
         public async Task<ActionResult<ApiResponse<ShopResponseDto>>> GetShop(int id)
@@ -432,6 +491,7 @@ namespace stibe.api.Controllers
                     City = shop.City,
                     State = shop.State,
                     ZipCode = shop.ZipCode,
+                    District = shop.District,
                     PhoneNumber = shop.PhoneNumber,
                     Email = shop.Email,
                     ServiceType = shop.ServiceType,
@@ -775,6 +835,7 @@ namespace stibe.api.Controllers
                     City = shop.City ?? "",
                     State = shop.State ?? "",
                     ZipCode = shop.ZipCode ?? "",
+                    District = shop.District ?? "",
                     PhoneNumber = shop.PhoneNumber ?? "",
                     Email = shop.Email ?? "",
                     ServiceType = shop.ServiceType,
@@ -868,6 +929,7 @@ namespace stibe.api.Controllers
                     City = shop.City ?? "",
                     State = shop.State ?? "",
                     ZipCode = shop.ZipCode ?? "",
+                    District = shop.District ?? "",
                     PhoneNumber = shop.PhoneNumber ?? "",
                     Email = shop.Email ?? "",
                     ServiceType = shop.ServiceType,
@@ -971,6 +1033,7 @@ namespace stibe.api.Controllers
                     City = shop.City ?? "",
                     State = shop.State ?? "",
                     ZipCode = shop.ZipCode ?? "",
+                    District = shop.District ?? "",
                     PhoneNumber = shop.PhoneNumber ?? "",
                     Email = shop.Email ?? "",
                     ServiceType = shop.ServiceType,
@@ -1078,6 +1141,8 @@ namespace stibe.api.Controllers
                     existingShop.State = request.State;
                 if (!string.IsNullOrEmpty(request.ZipCode))
                     existingShop.ZipCode = request.ZipCode;
+                if (!string.IsNullOrEmpty(request.District))
+                    existingShop.District = request.District;
                 if (!string.IsNullOrEmpty(request.PhoneNumber))
                     existingShop.PhoneNumber = request.PhoneNumber;
                 if (!string.IsNullOrEmpty(request.Email))
@@ -1235,6 +1300,7 @@ namespace stibe.api.Controllers
                     City = existingShop.City ?? "",
                     State = existingShop.State ?? "",
                     ZipCode = existingShop.ZipCode ?? "",
+                    District = existingShop.District ?? "",
                     PhoneNumber = existingShop.PhoneNumber ?? "",
                     Email = existingShop.Email ?? "",
                     ServiceType = existingShop.ServiceType,
