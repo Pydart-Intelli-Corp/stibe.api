@@ -150,20 +150,20 @@ namespace stibe.api.Services
         {
             try
             {
-                var subject = "🎉 Welcome to STIBE! 99% OFF Account Registration - 2 Shops for ₹5 Each!";
+                var subject = "🎉 Welcome to STIBE! 99.9% OFF Account Registration - 2 Shops for ₹5 Each!";
                 var body = $@"
                     <html>
                     <body style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;'>
                         <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px; text-align: center; color: white; margin-bottom: 30px;'>
                             <h1 style='margin: 0; font-size: 28px;'>🎉 Welcome to STIBE!</h1>
-                            <p style='margin: 10px 0 0 0; font-size: 18px; opacity: 0.9;'>99% OFF Account Registration Special!</p>
+                            <p style='margin: 10px 0 0 0; font-size: 18px; opacity: 0.9;'>99.9% OFF Account Registration Special!</p>
                         </div>
                         
                         <div style='background: #f8f9fa; padding: 25px; border-radius: 8px; margin-bottom: 25px;'>
-                            <h2 style='color: #333; margin-top: 0;'>🏪 Account Registration - 99% OFF!</h2>
+                            <h2 style='color: #333; margin-top: 0;'>🏪 Account Registration - 99.9% OFF!</h2>
                             <p style='color: #555; font-size: 16px; line-height: 1.6;'>
                                 🎊 <strong>INCREDIBLE OFFER!</strong> Your account has been verified and you've unlocked our 
-                                <span style='color: #dc3545; font-weight: bold; font-size: 18px;'>99% DISCOUNT</span> 
+                                <span style='color: #dc3545; font-weight: bold; font-size: 18px;'>99.9% DISCOUNT</span> 
                                 for account registration! Register up to <strong>2 shops</strong> for just <strong>₹5 each</strong>!
                             </p>
                         </div>
@@ -177,7 +177,7 @@ namespace stibe.api.Services
                         </div>
 
                         <div style='background: #fff3cd; border: 1px solid #ffeaa7; padding: 20px; border-radius: 8px; margin-bottom: 25px;'>
-                            <h4 style='color: #856404; margin-top: 0;'>💰 MASSIVE 99% SAVINGS!</h4>
+                            <h4 style='color: #856404; margin-top: 0;'>💰 MASSIVE 99.9% SAVINGS!</h4>
                             <div style='display: flex; justify-content: space-between; align-items: center; margin: 15px 0;'>
                                 <div style='text-align: center; flex: 1;'>
                                     <p style='color: #856404; margin: 0; font-size: 14px;'><strong>Regular Price</strong></p>
@@ -194,7 +194,7 @@ namespace stibe.api.Services
                                 <p style='margin: 5px 0 0 0; font-size: 16px;'>That's 99.9% OFF the regular price!</p>
                             </div>
                             <ul style='color: #856404; text-align: left; padding-left: 20px;'>
-                                <li><strong>Account Registration:</strong> 99% Discount Applied</li>
+                                <li><strong>Account Registration:</strong> 99.9% Discount Applied</li>
                                 <li><strong>Maximum Shops:</strong> 2 shops with this offer</li>
                                 <li><strong>Total Savings:</strong> Up to ₹7,988 (for 2 shops)</li>
                             </ul>
@@ -279,10 +279,10 @@ namespace stibe.api.Services
                     IssuedAt = DateTime.UtcNow,
                     MaxUsageLimit = 2,
                     CouponType = "PREDEFINED",
-                    DiscountValue = 99.0m,
+                    DiscountValue = 99.9m,
                     OriginalAmount = 3999.0m,
-                    FinalAmount = 39.99m, // 99% off = ₹39.99
-                    SavingsAmount = 3959.01m
+                    FinalAmount = 5.0m, // 99.9% off = ₹5
+                    SavingsAmount = 3994.0m
                 };
 
                 _context.UserCouponUsages.Add(userCoupon);
@@ -302,21 +302,21 @@ namespace stibe.api.Services
         {
             try
             {
-                var subject = $"🎉 Welcome to STIBE! Your {couponCode} Coupon - 99% OFF!";
+                var subject = $"🎉 Welcome to STIBE! Your {couponCode} Coupon - 99.9% OFF!";
                 var body = $@"
                     <html>
                     <body style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;'>
                         <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px; text-align: center; color: white; margin-bottom: 30px;'>
                             <h1 style='margin: 0; font-size: 28px;'>🎉 Welcome to STIBE!</h1>
-                            <p style='margin: 10px 0 0 0; font-size: 18px; opacity: 0.9;'>Account Registration - 99% OFF!</p>
+                            <p style='margin: 10px 0 0 0; font-size: 18px; opacity: 0.9;'>Account Registration - 99.9% OFF!</p>
                         </div>
                         
                         <div style='background: #f8f9fa; padding: 25px; border-radius: 8px; margin-bottom: 25px;'>
-                            <h2 style='color: #333; margin-top: 0;'>🏪 Account Registration Special - 99% OFF!</h2>
+                            <h2 style='color: #333; margin-top: 0;'>🏪 Account Registration Special - 99.9% OFF!</h2>
                             <p style='color: #555; font-size: 16px; line-height: 1.6;'>
                                 🎊 <strong>AMAZING OFFER!</strong> Your account has been verified and you can now use the 
                                 <span style='color: #dc3545; font-weight: bold; font-size: 18px;'>{couponCode}</span> 
-                                coupon for <strong>99% discount</strong> on shop registration! Register up to <strong>2 shops</strong> with this incredible offer!
+                                coupon for <strong>99.9% discount</strong> on shop registration! Register up to <strong>2 shops</strong> with this incredible offer!
                             </p>
                         </div>
 
@@ -329,7 +329,7 @@ namespace stibe.api.Services
                         </div>
 
                         <div style='background: #fff3cd; border: 1px solid #ffeaa7; padding: 20px; border-radius: 8px; margin-bottom: 25px;'>
-                            <h4 style='color: #856404; margin-top: 0;'>💰 INCREDIBLE 99% SAVINGS!</h4>
+                            <h4 style='color: #856404; margin-top: 0;'>💰 INCREDIBLE 99.9% SAVINGS!</h4>
                             <div style='display: flex; justify-content: space-between; align-items: center; margin: 15px 0;'>
                                 <div style='text-align: center; flex: 1;'>
                                     <p style='color: #856404; margin: 0; font-size: 14px;'><strong>Regular Price</strong></p>
@@ -338,17 +338,17 @@ namespace stibe.api.Services
                                 <div style='font-size: 40px; color: #28a745; flex: 0.3; text-align: center;'>→</div>
                                 <div style='text-align: center; flex: 1;'>
                                     <p style='color: #856404; margin: 0; font-size: 14px;'><strong>Your Price</strong></p>
-                                    <p style='color: #28a745; font-size: 32px; margin: 5px 0; font-weight: bold;'>₹39.99</p>
+                                    <p style='color: #28a745; font-size: 32px; margin: 5px 0; font-weight: bold;'>₹5</p>
                                 </div>
                             </div>
                             <div style='background: #28a745; color: white; padding: 15px; border-radius: 8px; text-align: center; margin: 15px 0;'>
-                                <p style='margin: 0; font-size: 20px; font-weight: bold;'>🎉 YOU SAVE ₹3,959 PER SHOP!</p>
-                                <p style='margin: 5px 0 0 0; font-size: 16px;'>That's 99% OFF the regular price!</p>
+                                <p style='margin: 0; font-size: 20px; font-weight: bold;'>🎉 YOU SAVE ₹3,994 PER SHOP!</p>
+                                <p style='margin: 5px 0 0 0; font-size: 16px;'>That's 99.9% OFF the regular price!</p>
                             </div>
                             <ul style='color: #856404; text-align: left; padding-left: 20px;'>
                                 <li><strong>Coupon Code:</strong> {couponCode}</li>
                                 <li><strong>Maximum Shops:</strong> 2 shops with this coupon</li>
-                                <li><strong>Total Savings:</strong> Up to ₹7,918 (for 2 shops)</li>
+                                <li><strong>Total Savings:</strong> Up to ₹7,988 (for 2 shops)</li>
                                 <li><strong>Restriction:</strong> After 2 shops, coupon will be automatically disabled for your account</li>
                             </ul>
                         </div>
@@ -359,7 +359,7 @@ namespace stibe.api.Services
                                 <li>Go to the Shop Registration section in the STIBE app</li>
                                 <li>Fill in your shop details</li>
                                 <li>At the payment screen, enter your coupon code: <strong>{couponCode}</strong></li>
-                                <li>Watch the price drop from ₹3,999 to just ₹39.99!</li>
+                                <li>Watch the price drop from ₹3,999 to just ₹5!</li>
                                 <li>Complete your payment and start your business journey</li>
                                 <li><strong>Important:</strong> After registering 2 shops, this coupon will be automatically disabled for your account</li>
                             </ol>

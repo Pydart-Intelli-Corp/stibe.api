@@ -200,7 +200,7 @@ namespace stibe.api.Controllers
         }
 
         /// <summary>
-        /// Generate account registration coupon for new users (99% OFF)
+        /// Generate account registration coupon for new users (99.9% OFF)
         /// </summary>
         [HttpPost("generate-account-registration")]
         [Authorize]

@@ -35,7 +35,7 @@ namespace stibe.api.Models.Entities.PartnersEntity
 
         // KYC Verification fields
         public bool IsKycVerified { get; set; } = false;
-        public string? KycStatus { get; set; } = "Pending"; // Pending, InProgress, Verified, Rejected
+        public string? KycStatus { get; set; } = "NotStarted"; // NotStarted, InProgress, Pending, Verified, Rejected
         public string? AadhaarNumber { get; set; }
         public string? AadhaarImageUrl { get; set; }
         public string? PanNumber { get; set; }

@@ -262,7 +262,7 @@ namespace stibe.api.Controllers
                 user.PanNumber = request.DocumentType == "pan" ? request.DocumentNumber : user.PanNumber;
                 user.AadhaarImageUrl = request.DocumentType == "aadhaar" ? frontImageUrl : user.AadhaarImageUrl;
                 user.PanImageUrl = request.DocumentType == "pan" ? frontImageUrl : user.PanImageUrl;
-                user.KycStatus = "InProgress";
+                user.KycStatus = "Pending";
                 user.KycSubmittedAt = DateTime.UtcNow;
                 user.IsKycVerified = false;
                 user.KycRejectionReason = null;
@@ -384,6 +384,56 @@ namespace stibe.api.Controllers
                 _logger.LogError(ex, "Error retrieving KYC status for user");
                 return StatusCode(500, ApiResponse<KycStatusDto>.ErrorResponse(
                     "An error occurred while retrieving KYC status"));
+            }
+        }
+
+        [HttpPost("status/in-progress")]
+        public async Task<ActionResult<ApiResponse<object>>> MarkKycAsInProgress()
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                if (userId == null)
+                {
+                    return Unauthorized(ApiResponse<object>.ErrorResponse("Unauthorized"));
+                }
+
+                var user = await _context.Users.FindAsync(userId.Value);
+                if (user == null)
+                {
+                    return NotFound(ApiResponse<object>.ErrorResponse("User not found"));
+                }
+
+                // Only update if status is NotStarted or null
+                if (string.IsNullOrEmpty(user.KycStatus) || user.KycStatus == "NotStarted")
+                {
+                    user.KycStatus = "InProgress";
+                    await _context.SaveChangesAsync();
+
+                    // Create audit log
+                    var auditLog = new KycAuditLog
+                    {
+                        UserId = userId.Value,
+                        Action = "KYC_STARTED",
+                        Details = "User started KYC process",
+                        Timestamp = DateTime.UtcNow,
+                        IpAddress = Request.HttpContext.Connection.RemoteIpAddress?.ToString(),
+                        UserAgent = Request.Headers["User-Agent"].ToString()
+                    };
+
+                    _context.KycAuditLogs.Add(auditLog);
+                    await _context.SaveChangesAsync();
+                }
+
+                return Ok(ApiResponse<object>.SuccessResponse(
+                    new { Status = user.KycStatus }, 
+                    "KYC status updated to InProgress"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating KYC status to InProgress for user");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse(
+                    "An error occurred while updating KYC status"));
             }
         }
 

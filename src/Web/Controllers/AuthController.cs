@@ -580,15 +580,15 @@ namespace stibe.api.Controllers
                 var validationErrors = new List<string>();
 
                 // Enhanced validation
-                if (string.IsNullOrWhiteSpace(request.FirstName) || request.FirstName.Length < 2)
+                if (string.IsNullOrWhiteSpace(request.FirstName) || request.FirstName.Length < 1)
                 {
-                    validationErrors.Add("First name must be at least 2 characters");
+                    validationErrors.Add("First name is required");
                 }
 
-                // Make LastName optional but if provided, must be at least 2 characters
-                if (!string.IsNullOrWhiteSpace(request.LastName) && request.LastName.Length < 2)
+                // Make LastName optional but if provided, must be at least 1 character
+                if (!string.IsNullOrWhiteSpace(request.LastName) && request.LastName.Length < 1)
                 {
-                    validationErrors.Add("Last name must be at least 2 characters when provided");
+                    validationErrors.Add("Last name must be at least 1 character when provided");
                 }
 
                 // Enhanced email validation beyond the basic attribute
