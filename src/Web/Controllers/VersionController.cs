@@ -379,9 +379,9 @@ namespace stibe.api.Controllers
                 var blobServiceClient = new Azure.Storage.Blobs.BlobServiceClient(connectionString);
                 var containerClient = blobServiceClient.GetBlobContainerClient(containerName);
                 
-                // Construct blob name - APK files are stored in the apk-files container path
-                var apkFileName = $"stibe-v{version}.apk";
-                var blobName = $"apk-files/{apkFileName}";
+                // Construct blob name - APK files are stored in the apk container path
+                var apkFileName = $"stibe-one-v{version}.apk";
+                var blobName = $"apk/{apkFileName}";
                 
                 _logger.LogInformation("Looking for APK blob: {BlobName} in container: {ContainerName}", blobName, containerName);
                 
