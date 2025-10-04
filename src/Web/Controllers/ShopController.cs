@@ -1454,8 +1454,12 @@ namespace stibe.api.Controllers
                     return BadRequest(ApiResponse<object>.ErrorResponse("Phone number is required"));
                 }
 
-                // Clean the phone number to handle different formats
-                var cleanPhone = Regex.Replace(phone, @"[^\d+]", "");
+                // URL decode first, then clean the phone number to handle different formats
+                var decodedPhone = Uri.UnescapeDataString(phone);
+                var cleanPhone = Regex.Replace(decodedPhone, @"[^\d]", ""); // Remove everything except digits
+                
+                _logger.LogInformation("Shop phone status check - Original: {OriginalPhone}, Decoded: {DecodedPhone}, Cleaned: {CleanPhone}", 
+                    phone, decodedPhone, cleanPhone);
 
                 var shop = await _context.Shops
                     .Where(s => s.PhoneNumber == cleanPhone && !s.IsDeleted)
