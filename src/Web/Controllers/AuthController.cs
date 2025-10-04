@@ -1897,8 +1897,16 @@ namespace stibe.api.Controllers
                 _logger.LogInformation("Phone status check - Original: {OriginalPhone}, Decoded: {DecodedPhone}, Cleaned: {CleanPhone}", 
                     phone, decodedPhone, cleanPhone);
 
+                // Check both with and without the + prefix to handle different storage formats
+                var phoneVariants = new List<string> 
+                { 
+                    cleanPhone,           // e.g., "917356765036"
+                    $"+{cleanPhone}",     // e.g., "+917356765036"
+                    decodedPhone.Trim()   // e.g., original format
+                };
+
                 var user = await _context.Users
-                    .Where(u => u.PhoneNumber == cleanPhone && !u.IsDeleted)
+                    .Where(u => phoneVariants.Contains(u.PhoneNumber) && !u.IsDeleted)
                     .Select(u => new { u.PhoneNumber, u.Role, u.IsDeleted })
                     .FirstOrDefaultAsync();
 
