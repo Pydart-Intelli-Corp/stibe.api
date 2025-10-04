@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using stibe.api.Models.DTOs.VersionManagement;
 using stibe.api.Services.Interfaces;
+using Azure.Storage.Blobs;
 
 namespace stibe.api.Controllers
 {
@@ -151,6 +152,7 @@ namespace stibe.api.Controllers
         [Authorize]
         public async Task<IActionResult> RecordUpdateCompletion([FromBody] UpdateCompletionDto request)
         {
+            await Task.CompletedTask; // Added to resolve async warning
             try
             {
                 _logger.LogInformation("Update completed. User: {UserId}, From: {FromVersion}, To: {ToVersion}", 
@@ -347,7 +349,7 @@ namespace stibe.api.Controllers
         }
 
         /// <summary>
-        /// Download APK file directly
+        /// Download APK file directly from Azure Blob Storage
         /// </summary>
         /// <param name="version">APK version to download</param>
         /// <returns>APK file</returns>
@@ -356,29 +358,62 @@ namespace stibe.api.Controllers
         {
             try
             {
-                var updateConfig = _configuration.GetSection("AppUpdates:Android");
-                var apkFileName = updateConfig["ApkFileName"] ?? $"stibe-v{version}.apk";
-                var apkPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "apk", apkFileName);
+                _logger.LogInformation("APK download requested for version: {Version}", version);
 
-                _logger.LogInformation("APK download requested for version: {Version}, Path: {Path}", version, apkPath);
-
-                if (!System.IO.File.Exists(apkPath))
+                // Get Azure Blob Storage configuration
+                var connectionString = _configuration["FileStorage:Azure:ConnectionString"];
+                var containerName = _configuration["FileStorage:Azure:ContainerName"] ?? "stibe-files";
+                
+                if (string.IsNullOrEmpty(connectionString))
                 {
-                    _logger.LogWarning("APK file not found: {Path}", apkPath);
+                    _logger.LogError("Azure Storage connection string not configured");
+                    return StatusCode(500, new
+                    {
+                        success = false,
+                        message = "Storage configuration error",
+                        errors = new[] { "Azure Storage is not properly configured" }
+                    });
+                }
+
+                // Initialize Azure Blob Service Client
+                var blobServiceClient = new Azure.Storage.Blobs.BlobServiceClient(connectionString);
+                var containerClient = blobServiceClient.GetBlobContainerClient(containerName);
+                
+                // Construct blob name - APK files are stored in the apk-files container path
+                var apkFileName = $"stibe-v{version}.apk";
+                var blobName = $"apk-files/{apkFileName}";
+                
+                _logger.LogInformation("Looking for APK blob: {BlobName} in container: {ContainerName}", blobName, containerName);
+                
+                var blobClient = containerClient.GetBlobClient(blobName);
+                
+                // Check if blob exists
+                var existsResponse = await blobClient.ExistsAsync();
+                if (!existsResponse.Value)
+                {
+                    _logger.LogWarning("APK blob not found: {BlobName}", blobName);
                     return NotFound(new
                     {
                         success = false,
                         message = $"APK file for version {version} not found",
-                        errors = new[] { "The requested APK file does not exist on the server" }
+                        errors = new[] { "The requested APK file does not exist in storage" }
                     });
                 }
-
-                var fileInfo = new FileInfo(apkPath);
-                var fileStream = new FileStream(apkPath, FileMode.Open, FileAccess.Read);
-
-                _logger.LogInformation("Serving APK file: {FileName}, Size: {Size} bytes", apkFileName, fileInfo.Length);
-
-                return File(fileStream, "application/vnd.android.package-archive", apkFileName);
+                
+                // Get blob properties to determine file size
+                var propertiesResponse = await blobClient.GetPropertiesAsync();
+                var contentLength = propertiesResponse.Value.ContentLength;
+                
+                _logger.LogInformation("Streaming APK blob: {BlobName}, Size: {Size} bytes", blobName, contentLength);
+                
+                // Stream the blob directly to the client
+                var downloadResponse = await blobClient.DownloadStreamingAsync();
+                
+                // Set appropriate headers for APK download
+                Response.Headers["Content-Disposition"] = $"attachment; filename=\"{apkFileName}\"";
+                Response.Headers["Content-Length"] = contentLength.ToString();
+                
+                return File(downloadResponse.Value.Content, "application/vnd.android.package-archive", apkFileName);
             }
             catch (Exception ex)
             {
