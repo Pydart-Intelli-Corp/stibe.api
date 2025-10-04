@@ -337,7 +337,7 @@ namespace stibe.api.Controllers
         }
 
         /// <summary>
-        /// Get update URL for platform
+    
         /// </summary>
         private string GetUpdateUrl(string platform, UpdateInfo updateInfo)
         {
