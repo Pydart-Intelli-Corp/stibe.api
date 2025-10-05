@@ -1976,6 +1976,227 @@ namespace stibe.api.Controllers
             }
         }
 
+        [HttpDelete("delete-account")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteAccount()
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null)
+                {
+                    return Unauthorized(ApiResponse<object>.ErrorResponse("Invalid token"));
+                }
+
+                _logger.LogWarning("User {UserId} initiated account deletion", currentUserId.Value);
+
+                // Get user data before deletion for cleanup
+                // Get user with KYC verification
+                var user = await _context.Users
+                    .Include(u => u.KycVerification)
+                    .FirstOrDefaultAsync(u => u.Id == currentUserId.Value && !u.IsDeleted);
+
+                if (user == null)
+                {
+                    return NotFound(ApiResponse<object>.ErrorResponse("User not found"));
+                }
+
+                // Get user's shops separately to avoid EF relationship issues
+                var userShops = await _context.Shops
+                    .Include(s => s.Services)
+                    .Where(s => s.OwnerId == currentUserId.Value && !s.IsDeleted)
+                    .ToListAsync();
+
+                if (user == null)
+                {
+                    return NotFound(ApiResponse<object>.ErrorResponse("User not found"));
+                }
+
+                // Use execution strategy for transaction handling
+                var strategy = _context.Database.CreateExecutionStrategy();
+                
+                return await strategy.ExecuteAsync(async () =>
+                {
+                    using var transaction = await _context.Database.BeginTransactionAsync();
+                    try
+                    {
+                        // 1. Delete all user's shop service images from blob storage
+                        if (userShops.Any())
+                        {
+                        foreach (var shop in userShops)
+                        {
+                            if (shop.Services != null)
+                            {
+                                foreach (var service in shop.Services)
+                                {
+                                    // Delete service images
+                                    if (!string.IsNullOrEmpty(service.ServiceImages))
+                                    {
+                                        try
+                                        {
+                                            var imageUrls = System.Text.Json.JsonSerializer.Deserialize<List<string>>(service.ServiceImages);
+                                            if (imageUrls != null)
+                                            {
+                                                foreach (var imageUrl in imageUrls)
+                                                {
+                                                    await _fileService.DeleteFileAsync(imageUrl, "services");
+                                                }
+                                            }
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            _logger.LogWarning(ex, "Failed to delete service images for service {ServiceId}", service.Id);
+                                        }
+                                    }
+
+                                    // Delete product images
+                                    if (!string.IsNullOrEmpty(service.ProductImages))
+                                    {
+                                        try
+                                        {
+                                            var productImageUrls = System.Text.Json.JsonSerializer.Deserialize<List<string>>(service.ProductImages);
+                                            if (productImageUrls != null)
+                                            {
+                                                foreach (var imageUrl in productImageUrls)
+                                                {
+                                                    await _fileService.DeleteFileAsync(imageUrl, "products");
+                                                }
+                                            }
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            _logger.LogWarning(ex, "Failed to delete product images for service {ServiceId}", service.Id);
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Delete shop images
+                            if (!string.IsNullOrEmpty(shop.ImageUrls))
+                            {
+                                try
+                                {
+                                    var shopImageUrls = System.Text.Json.JsonSerializer.Deserialize<List<string>>(shop.ImageUrls);
+                                    if (shopImageUrls != null)
+                                    {
+                                        foreach (var imageUrl in shopImageUrls)
+                                        {
+                                            await _fileService.DeleteFileAsync(imageUrl, "shops");
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogWarning(ex, "Failed to delete shop images for shop {ShopId}", shop.Id);
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. Delete user's profile picture
+                    if (!string.IsNullOrEmpty(user.ProfilePictureUrl))
+                    {
+                        try
+                        {
+                            await _fileService.DeleteFileAsync(user.ProfilePictureUrl, "profiles");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to delete profile picture for user {UserId}", currentUserId.Value);
+                        }
+                    }
+
+                    // 3. Delete KYC documents
+                    if (user.KycVerification != null)
+                    {
+                        var kycDocuments = new[]
+                        {
+                            user.KycVerification.FrontImageUrl,
+                            user.KycVerification.BackImageUrl,
+                            user.KycVerification.SelfieImageUrl
+                        };
+
+                        foreach (var docUrl in kycDocuments)
+                        {
+                            if (!string.IsNullOrEmpty(docUrl))
+                            {
+                                try
+                                {
+                                    await _fileService.DeleteFileAsync(docUrl, "kyc");
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogWarning(ex, "Failed to delete KYC document {DocumentUrl}", docUrl);
+                                }
+                            }
+                        }
+                    }
+
+                    // 4. Soft delete user and related data
+                    user.IsDeleted = true;
+                    user.DeletedAt = DateTime.UtcNow;
+                    user.Email = $"deleted_{user.Id}@deleted.com"; // Anonymize email
+                    user.PhoneNumber = $"DEL{user.Id}"; // Anonymize phone with shorter format
+                    user.FirstName = "Deleted";
+                    user.LastName = "User";
+                    user.ProfilePictureUrl = null;
+
+                    // Soft delete shops and services
+                    if (userShops.Any())
+                    {
+                        foreach (var shop in userShops)
+                        {
+                            shop.IsDeleted = true;
+                            shop.DeletedAt = DateTime.UtcNow;
+
+                            if (shop.Services != null)
+                            {
+                                foreach (var service in shop.Services)
+                                {
+                                    service.IsDeleted = true;
+                                    service.DeletedAt = DateTime.UtcNow;
+                                }
+                            }
+
+                            // Staff records will be handled separately if needed
+                        }
+                    }
+
+                    // Soft delete KYC verification will be handled by cascade delete
+
+                    // 5. Delete user coupon usage records
+
+                    var userCouponUsages = await _context.UserCouponUsages
+                        .Where(ucu => ucu.UserId == currentUserId.Value)
+                        .ToListAsync();
+                    
+                    _context.UserCouponUsages.RemoveRange(userCouponUsages);
+
+                    // 6. Delete bookings and related data (if exists)
+                    // Note: Add booking deletion here if booking tables exist
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    _logger.LogInformation("Successfully deleted account for user {UserId}", currentUserId.Value);
+
+                    return Ok(ApiResponse<object>.SuccessResponse(new { }, "Account deleted successfully"));
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    _logger.LogError(ex, "Error during account deletion for user {UserId}", currentUserId.Value);
+                    throw;
+                }
+            });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting account");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("An error occurred while deleting your account"));
+            }
+        }
+
         private int? GetCurrentUserId()
         {
             // Check if user is authenticated

@@ -29,6 +29,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs.ServicesDTOs
         public string? ProductsUsed { get; set; } // Legacy: Products used in service as string
         public List<ServiceProductDto>? Products { get; set; } // New: Structured products with images
         public List<string>? ServiceImages { get; set; } // Multiple service images
+        public List<string>? ProductImages { get; set; } // Product/tool images
         
         // Existing technical fields
         public int MaxConcurrentBookings { get; set; } = 1;
@@ -75,6 +76,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs.ServicesDTOs
         public string? ProductsUsed { get; set; } // Legacy: Products used in service as string
         public List<ServiceProductDto>? Products { get; set; } // New: Structured products with images
         public List<string>? ServiceImages { get; set; }
+        public List<string>? ProductImages { get; set; } // Product/tool images
 
         // Existing technical fields
         public int? MaxConcurrentBookings { get; set; }
@@ -102,6 +104,7 @@ namespace stibe.api.Models.DTOs.PartnersDTOs.ServicesDTOs
         public string? ProductsUsed { get; set; } // Legacy: Products used in service as string
         public List<ServiceProductDto>? Products { get; set; } // New: Structured products with images
         public List<string>? ServiceImages { get; set; }
+        public List<string>? ProductImages { get; set; } // Product/tool images
 
         // Technical properties
         public int MaxConcurrentBookings { get; set; }

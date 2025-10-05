@@ -197,6 +197,9 @@ builder.Services.AddScoped<IGstService, GstService>();
 builder.Services.AddScoped<IGSTValidationService, stibe.api.Infrastructure.Services.Implementations.GSTValidationService>();
 builder.Services.AddHttpClient<IGSTValidationService, stibe.api.Infrastructure.Services.Implementations.GSTValidationService>();
 
+// Register Service Suggestion Service
+builder.Services.AddScoped<IServiceSuggestionService, ServiceSuggestionService>();
+
 if (builder.Configuration.GetValue<bool>("FeatureFlags:UseRealEmailService"))
 {
     builder.Services.AddScoped<IEmailService, RealEmailService>();

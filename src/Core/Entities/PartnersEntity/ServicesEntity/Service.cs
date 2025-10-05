@@ -31,6 +31,9 @@ namespace stibe.api.Models.Entities.PartnersEntity.ServicesEntity
         
         [StringLength(4000)]
         public string? ServiceImages { get; set; } // JSON array of image URLs
+        
+        [Column(TypeName = "TEXT")]
+        public string? ProductImages { get; set; } // JSON array of product image URLs
 
         public int? CategoryId { get; set; }
 

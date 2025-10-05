@@ -1,4 +1,5 @@
 ﻿using stibe.api.Models.Entities.PartnersEntity.StaffEntity;
+using stibe.api.Models.Entities;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -72,6 +73,8 @@ namespace stibe.api.Models.Entities.PartnersEntity
         // Navigation properties
         public virtual ICollection<Shop> OwnedShops { get; set; } = new List<Shop>();
         public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
+        public virtual ICollection<Shop> Shops => OwnedShops; // Alias for consistency
+        public virtual KycVerification? KycVerification { get; set; }
 
         // Method to check if user has specific admin permission
         public bool HasAdminPermission(string permissionType)

@@ -12,5 +12,7 @@ namespace stibe.api.Models.Entities
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         public bool IsDeleted { get; set; } = false;
+
+        public DateTime? DeletedAt { get; set; }
     }
 }

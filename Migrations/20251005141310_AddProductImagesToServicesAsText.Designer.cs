@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using stibe.api.Data;
 
@@ -11,9 +12,11 @@ using stibe.api.Data;
 namespace stibe.api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251005141310_AddProductImagesToServicesAsText")]
+    partial class AddProductImagesToServicesAsText
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -198,12 +201,7 @@ namespace stibe.api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DocumentType");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
+                    b.HasIndex("UserId");
 
                     b.HasIndex("VerifiedBy");
 
@@ -227,9 +225,6 @@ namespace stibe.api.Migrations
                         .HasColumnType("varchar(6)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Email")
@@ -318,9 +313,6 @@ namespace stibe.api.Migrations
 
                     b.Property<decimal>("CustomerTip")
                         .HasColumnType("decimal(65,30)");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("EstimatedDurationMinutes")
                         .HasColumnType("int");
@@ -414,9 +406,6 @@ namespace stibe.api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime(6)");
-
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -495,9 +484,6 @@ namespace stibe.api.Migrations
                     b.Property<int>("DayOfWeek")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime(6)");
-
                     b.Property<TimeSpan>("EndTime")
                         .HasColumnType("time(6)");
 
@@ -540,9 +526,6 @@ namespace stibe.api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime(6)");
-
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -581,98 +564,6 @@ namespace stibe.api.Migrations
                     b.ToTable("ServiceCategories");
                 });
 
-            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceDescriptionTemplate", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("varchar(2000)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("Priority")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ServiceName")
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Category")
-                        .HasDatabaseName("IX_ServiceDescriptionTemplates_Category");
-
-                    b.HasIndex("IsActive")
-                        .HasDatabaseName("IX_ServiceDescriptionTemplates_IsActive");
-
-                    b.HasIndex("Category", "ServiceName")
-                        .HasDatabaseName("IX_ServiceDescriptionTemplates_Category_ServiceName");
-
-                    b.ToTable("ServiceDescriptionTemplates");
-                });
-
-            modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceNameSuggestion", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("Priority")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ServiceName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Category")
-                        .HasDatabaseName("IX_ServiceNameSuggestions_Category");
-
-                    b.HasIndex("IsActive")
-                        .HasDatabaseName("IX_ServiceNameSuggestions_IsActive");
-
-                    b.HasIndex("Category", "ServiceName")
-                        .HasDatabaseName("IX_ServiceNameSuggestions_Category_ServiceName");
-
-                    b.ToTable("ServiceNameSuggestions");
-                });
-
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.ServicesEntity.ServiceOffer", b =>
                 {
                     b.Property<int>("Id")
@@ -686,9 +577,6 @@ namespace stibe.api.Migrations
 
                     b.Property<int>("CurrentUsage")
                         .HasColumnType("int");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -758,9 +646,6 @@ namespace stibe.api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime(6)");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
@@ -821,9 +706,6 @@ namespace stibe.api.Migrations
                         .HasColumnType("time(6)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
@@ -934,6 +816,9 @@ namespace stibe.api.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<int?>("UserId")
+                        .HasColumnType("int");
+
                     b.Property<string>("ZipCode")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -944,6 +829,8 @@ namespace stibe.api.Migrations
                     b.HasIndex("IsActive");
 
                     b.HasIndex("OwnerId");
+
+                    b.HasIndex("UserId");
 
                     b.HasIndex("Latitude", "Longitude")
                         .HasFilter("Latitude IS NOT NULL AND Longitude IS NOT NULL");
@@ -976,9 +863,6 @@ namespace stibe.api.Migrations
                         .HasColumnType("decimal(5,2)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<decimal>("EfficiencyMultiplier")
@@ -1092,9 +976,6 @@ namespace stibe.api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime(6)");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
@@ -1169,9 +1050,6 @@ namespace stibe.api.Migrations
                         .HasColumnType("decimal(65,30)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsDeleted")
@@ -1249,9 +1127,6 @@ namespace stibe.api.Migrations
                         .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Email")
@@ -1631,8 +1506,8 @@ namespace stibe.api.Migrations
             modelBuilder.Entity("stibe.api.Models.Entities.KycVerification", b =>
                 {
                     b.HasOne("stibe.api.Models.Entities.PartnersEntity.User", "User")
-                        .WithOne("KycVerification")
-                        .HasForeignKey("stibe.api.Models.Entities.KycVerification", "UserId")
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -1751,10 +1626,14 @@ namespace stibe.api.Migrations
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.Shop", b =>
                 {
                     b.HasOne("stibe.api.Models.Entities.PartnersEntity.User", "Owner")
-                        .WithMany("OwnedShops")
+                        .WithMany()
                         .HasForeignKey("OwnerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("stibe.api.Models.Entities.PartnersEntity.User", null)
+                        .WithMany("OwnedShops")
+                        .HasForeignKey("UserId");
 
                     b.Navigation("Owner");
                 });
@@ -1880,8 +1759,6 @@ namespace stibe.api.Migrations
             modelBuilder.Entity("stibe.api.Models.Entities.PartnersEntity.User", b =>
                 {
                     b.Navigation("Bookings");
-
-                    b.Navigation("KycVerification");
 
                     b.Navigation("OwnedShops");
 

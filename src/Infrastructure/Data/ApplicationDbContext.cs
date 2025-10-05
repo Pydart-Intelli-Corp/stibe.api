@@ -44,6 +44,10 @@ namespace stibe.api.Data
         public DbSet<KycVerification> KycVerifications { get; set; } = null!;
         public DbSet<KycAuditLog> KycAuditLogs { get; set; } = null!;
 
+        // Service Suggestions Management
+        public DbSet<ServiceNameSuggestion> ServiceNameSuggestions { get; set; } = null!;
+        public DbSet<ServiceDescriptionTemplate> ServiceDescriptionTemplates { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Existing configurations
@@ -70,6 +74,12 @@ namespace stibe.api.Data
             ConfigureServiceOfferEntity(modelBuilder);
             ConfigureServiceOfferItemEntity(modelBuilder);
             ConfigureServiceAvailabilityEntity(modelBuilder);
+
+            // Service Suggestions configuration
+            ConfigureServiceSuggestionEntities(modelBuilder);
+
+            // KYC configuration
+            ConfigureKycVerificationEntity(modelBuilder);
         }
 
         private void ConfigureOtpEntity(ModelBuilder modelBuilder)
@@ -233,18 +243,23 @@ namespace stibe.api.Data
                 .WithOne(s => s.User)
                 .HasForeignKey<Staff>(s => s.UserId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // Configure the relationship between User and Shop (owned shops)
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.OwnedShops)
+                .WithOne(s => s.Owner)
+                .HasForeignKey(s => s.OwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Ignore the Shops property since it's just an alias for OwnedShops
+            modelBuilder.Entity<User>()
+                .Ignore(u => u.Shops);
         }
 
         private void ConfigureShopEntity(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Shop>()
                 .HasKey(s => s.Id);
-
-            modelBuilder.Entity<Shop>()
-                .HasOne(s => s.Owner)
-                .WithMany()
-                .HasForeignKey(s => s.OwnerId)
-                .OnDelete(DeleteBehavior.Restrict);
 
             // Index for location-based searches
             modelBuilder.Entity<Shop>()
@@ -466,6 +481,96 @@ namespace stibe.api.Data
 
                 entity.UpdatedAt = DateTime.UtcNow;
             }
+        }
+
+        private void ConfigureServiceSuggestionEntities(ModelBuilder modelBuilder)
+        {
+            // ServiceNameSuggestion configuration
+            modelBuilder.Entity<ServiceNameSuggestion>()
+                .HasKey(s => s.Id);
+
+            modelBuilder.Entity<ServiceNameSuggestion>()
+                .HasIndex(s => s.Category)
+                .HasDatabaseName("IX_ServiceNameSuggestions_Category");
+
+            modelBuilder.Entity<ServiceNameSuggestion>()
+                .HasIndex(s => new { s.Category, s.ServiceName })
+                .HasDatabaseName("IX_ServiceNameSuggestions_Category_ServiceName");
+
+            modelBuilder.Entity<ServiceNameSuggestion>()
+                .HasIndex(s => s.IsActive)
+                .HasDatabaseName("IX_ServiceNameSuggestions_IsActive");
+
+            modelBuilder.Entity<ServiceNameSuggestion>()
+                .Property(s => s.Category)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<ServiceNameSuggestion>()
+                .Property(s => s.ServiceName)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            modelBuilder.Entity<ServiceNameSuggestion>()
+                .Property(s => s.ServiceName)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            // ServiceDescriptionTemplate configuration
+            modelBuilder.Entity<ServiceDescriptionTemplate>()
+                .HasKey(t => t.Id);
+
+            modelBuilder.Entity<ServiceDescriptionTemplate>()
+                .HasIndex(t => t.Category)
+                .HasDatabaseName("IX_ServiceDescriptionTemplates_Category");
+
+            modelBuilder.Entity<ServiceDescriptionTemplate>()
+                .HasIndex(t => new { t.Category, t.ServiceName })
+                .HasDatabaseName("IX_ServiceDescriptionTemplates_Category_ServiceName");
+
+            modelBuilder.Entity<ServiceDescriptionTemplate>()
+                .HasIndex(t => t.IsActive)
+                .HasDatabaseName("IX_ServiceDescriptionTemplates_IsActive");
+
+            modelBuilder.Entity<ServiceDescriptionTemplate>()
+                .Property(t => t.Category)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<ServiceDescriptionTemplate>()
+                .Property(t => t.ServiceName)
+                .HasMaxLength(200);
+
+            modelBuilder.Entity<ServiceDescriptionTemplate>()
+                .Property(t => t.Description)
+                .IsRequired()
+                .HasMaxLength(2000);
+        }
+
+        private void ConfigureKycVerificationEntity(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<KycVerification>()
+                .HasKey(k => k.Id);
+
+            // One-to-one relationship between User and KycVerification
+            modelBuilder.Entity<KycVerification>()
+                .HasOne(k => k.User)
+                .WithOne(u => u.KycVerification)
+                .HasForeignKey<KycVerification>(k => k.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Index for user lookups
+            modelBuilder.Entity<KycVerification>()
+                .HasIndex(k => k.UserId)
+                .IsUnique();
+
+            // Index for status queries
+            modelBuilder.Entity<KycVerification>()
+                .HasIndex(k => k.Status);
+
+            // Index for document type queries
+            modelBuilder.Entity<KycVerification>()
+                .HasIndex(k => k.DocumentType);
         }
     }
 }
